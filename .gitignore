@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+
+# Node / Angular
+node_modules/
+dist/
+.angular/
+
+# Data and caches
+*.db
+*.sqlite
+page-cache/
+runs/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+
+# Internal: store data, plan and prior-work survey stay out of the public repo
+/docs/
+*.xlsx
+*.pdf
+*.csv
+/data/
