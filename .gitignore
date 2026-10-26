@@ -21,9 +21,3 @@ runs/
 .idea/
 .vscode/
 
-# Internal: store data, plan and prior-work survey stay out of the public repo
-/docs/
-*.xlsx
-*.pdf
-*.csv
-/data/
