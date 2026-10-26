@@ -47,9 +47,6 @@ per-store thresholds.
 | Storage | SQLite — page cache + ground-truth table |
 | Front end | Angular + TypeScript, responsive |
 
-Store data, the detailed plan and the prior-work survey are kept outside this repository until the
-submission is in; they are not part of the product.
-
 ## Status
 
 Pre-build. Concept, data model and prior-work survey are done; extraction spike, solver and UI are
@@ -61,14 +58,13 @@ No consumer tool found combines all three of: independent retailers, per-store f
 thresholds, and the buyer's own memberships. The closest neighbours are single-marketplace cart
 optimisers (Cardmarket, TCGplayer, Brick Owl), US-only extensions with no fee modelling (CartHappy),
 single-store basket comparison (BasketWise, Australia), and single-item comparison (Meta Muse
-shopping, Google Universal Cart). The closest comparison in the same space is single-store basket
-comparison; none of them optimise the split under thresholds and memberships.
+shopping, Google Universal Cart). Full survey with sources: `docs/prior-work.xlsx`.
 
 ## Data note
 
-The accuracy test runs against hand-verified store data and cached page snapshots. Those are data
-collected for testing, not application code, and they are kept out of this repository; every line of
-application code here was written during the hackathon window.
+`docs/ground-truth.xlsx` is hand-verified store data used as the extraction accuracy test and as
+cached page fixtures for the recorded demo. It is **data collected for testing**, not application
+code; all application code here was written during the hackathon window.
 
 ## Risks
 
