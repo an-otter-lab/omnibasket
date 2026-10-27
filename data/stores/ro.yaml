@@ -1,0 +1,71 @@
+# Romanian store rules the v1 basket lock is allowed to use.
+# Amounts are integer cents of `currency`. null means the 27-28 Oct 2026
+# pages did not publish a single figure solver.types.Store can take.
+# Do not fill a null from a formula, a guess, or another day's note.
+checked_at: 2026-10-28
+stores:
+  - id: libris
+    currency: RON
+    free_shipping_threshold_cents: 13500
+    shipping_fee_cents: 1290
+    per_order_fee_cents: 0
+    membership: null
+    source_url: https://www.libris.ro/informatiiUtile/beneficii
+    read_date: 2026-10-28
+    capture: spike/out/libris-shipping/text.txt
+    notes: >-
+      Courier in Romania is free above 135 lei, otherwise 12.90 lei.
+      Easybox uses the same fee. No membership price on this page.
+
+  - id: bookzone
+    currency: RON
+    free_shipping_threshold_cents: 20000
+    shipping_fee_cents: null
+    per_order_fee_cents: 0
+    membership: null
+    source_url: https://bookzone.ro/ajutor?section=2
+    read_date: 2026-10-28
+    capture: spike/out/bookzone-shipping/text.txt
+    notes: >-
+      Transport is free from 200 lei. The delivery page, the FAQ
+      (section=6, spike/out/bookzone-faq/text.txt) and the Ghici product
+      page do not print the fee under 200 lei. The solver cannot take
+      this store until that fee is a measured integer.
+
+  - id: amazon_de
+    currency: RON
+    free_shipping_threshold_cents: 26217
+    free_shipping_threshold_eur_cents: 4900
+    shipping_fee_cents: null
+    per_order_fee_cents: 0
+    membership: null
+    source_url: https://www.amazon.de/gp/help/customer/display.html?nodeId=GA6MMBQJBJ5QYUDW
+    read_date: 2026-10-28
+    capture: spike/out/shipping-rates/text.txt
+    notes: >-
+      Books to Romania are free from 49.00 EUR. Buy boxes print that bar
+      as 262.17 RON (Charlotte's Web also prints 49 EUR as 261.52 RON).
+      Under the bar the charge is 4.99 EUR per delivery plus 1.99 EUR per
+      kg, not a flat fee, and no page gives a weight. shipping_fee_cents
+      stays null. Prime price was not on the help page.
+
+  - id: emag
+    currency: RON
+    free_shipping_threshold_cents: null
+    shipping_fee_cents: null
+    per_order_fee_cents: null
+    per_order_fee_percent: 1
+    per_order_fee_min_cents: 149
+    per_order_fee_max_cents: 399
+    membership: null
+    source_url: https://www.emag.ro/help/livrarea-comenzilor-emag-2/
+    read_date: 2026-10-28
+    capture: spike/out/headful/emag-delivery/text.txt
+    notes: >-
+      1% operational fee, minimum 1.49 lei, maximum 3.99 lei, on every
+      order including loyalty members (terms page). Marketplace partners
+      publish their own delivery fees; those fees are not on the product
+      pages read this pass. eMAG-sold normal-size delivery in Bucharest
+      is 16.99 lei under 400 lei. Genius waives courier delivery on
+      eMAG-sold normal-size orders from 100 lei. No Genius subscription
+      price was on these pages. No captured title is sold by eMAG.

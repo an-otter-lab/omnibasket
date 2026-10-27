@@ -1,0 +1,192 @@
+# Omnibasket v1 candidate, locked 2026-10-28.
+# Every price_cents value is copied from a saved page, not computed.
+# null means that store was not priced in a 27-28 Oct capture.
+# Captures live in the spike/libris-shipping and feat/amazonde-budget
+# worktrees (spike/out is gitignored). Paths below are relative to those trees.
+checked_at: 2026-10-28
+currency: RON
+direction: >-
+  Keep the Romanian title. Keep two titles the 28 Oct Amazon.de pass does
+  not dispatch. Swap four titles for editions Amazon.de itself dispatches
+  and that eMAG lists. Bookzone only where a capture exists.
+solved_store_ids: [libris, emag]
+solved_item_ids: [ghici, vhc, owl]
+books:
+  - id: ghici
+    title: Ghici cât de mult te iubesc
+    role: kept-romanian
+    isbn13: "9786068996011"
+    isbn_note: Bookzone specs and the eMAG URL. The Libris page does not print an ISBN.
+    offers:
+      - store_id: bookzone
+        price_cents: 4650
+        seller_certainty: direct
+        seller: Bookzone
+        in_solved_basket: false
+        reason_excluded: Bookzone under-200-lei fee was not published.
+        capture: spike/out/bookzone-ghici/text.txt
+        evidence: "Visible price 46.5 Lei. Transport gratuit de la 200 lei."
+      - store_id: emag
+        price_cents: 5600
+        seller_certainty: marketplace
+        seller: CARTEA COPIILOR
+        genius_badge: false
+        sold_by_emag: false
+        in_solved_basket: true
+        capture: spike/out/headful/emag-ghici/text.txt
+        evidence: "56,00 Lei. Vândut și livrat de: CARTEA COPIILOR. No product Genius badge."
+      - store_id: libris
+        price_cents: 5700
+        seller_certainty: direct
+        seller: Libris
+        in_solved_basket: true
+        capture: spike/out/libris-ghici/text.txt
+        evidence: "57.00Lei. În stoc. Editura CARTEA COPIILOR."
+
+  - id: vhc
+    title: The Very Hungry Caterpillar
+    role: kept-amazon-de-does-not-dispatch
+    isbn13: null
+    isbn_note: >-
+      Not one edition. eMAG headful page is product code BRT9780241003008,
+      sold by Libris English SRL. Libris page is the Philomel 1994 board book.
+      The 28 Oct Amazon.de dispatch list does not include this title.
+    offers:
+      - store_id: emag
+        price_cents: 5753
+        seller_certainty: marketplace
+        seller: Libris English SRL
+        genius_badge: false
+        sold_by_emag: false
+        in_solved_basket: true
+        capture: spike/out/headful/emag-vhc/text.txt
+        evidence: "57,53 Lei. Vândut și livrat de: Libris English SRL."
+      - store_id: libris
+        price_cents: 6133
+        seller_certainty: direct
+        seller: Libris
+        in_solved_basket: true
+        capture: spike/out/libris-vhc/text.txt
+        evidence: "61.33Lei, list 68.14 Lei. Livrare in 2-4 saptamani."
+      - store_id: amazon_de
+        price_cents: null
+        seller_certainty: null
+        in_solved_basket: false
+        reason_excluded: No 27-28 Oct Amazon.de capture for this edition.
+
+  - id: owl
+    title: Owl Babies
+    role: kept-amazon-de-does-not-dispatch
+    isbn13: null
+    isbn_note: >-
+      Different editions. eMAG page ISBN 9780763695194, Candlewick, sold by Karte.
+      Libris page is the Walker Books 2017 25th-anniversary board book and does
+      not print an ISBN. Same story, not the same ISBN.
+    offers:
+      - store_id: libris
+        price_cents: 5178
+        seller_certainty: direct
+        seller: Libris
+        in_solved_basket: true
+        capture: spike/out/libris-owl/text.txt
+        evidence: "51.78Lei, list 57.53 Lei. Livrare in 2-4 saptamani."
+      - store_id: emag
+        price_cents: 15700
+        seller_certainty: marketplace
+        seller: Karte
+        genius_badge: false
+        sold_by_emag: false
+        in_solved_basket: true
+        capture: spike/out/headful/emag-owl/text.txt
+        evidence: "157,00 Lei. Vândut și livrat de: Karte."
+      - store_id: amazon_de
+        price_cents: null
+        seller_certainty: null
+        in_solved_basket: false
+        reason_excluded: No 27-28 Oct Amazon.de capture for this title.
+
+  - id: gruffalo
+    title: The Gruffalo
+    role: swapped-amazon-de-edition
+    isbn13: "9781509804757"
+    isbn_note: Amazon.de buy box. eMAG lists a different English ISBN (9780142403877); that page was not captured.
+    offers:
+      - store_id: amazon_de
+        price_cents: 4601
+        seller_certainty: direct
+        seller: Amazon
+        in_solved_basket: false
+        reason_excluded: Only one store has a measured price, and the under-threshold fee is not flat.
+        capture: spike/out/gruffalo/text.txt
+        evidence: "46,01 RON. Versender / Verkäufer Amazon. GRATIS Lieferung over 262,17 RON."
+      - store_id: emag
+        price_cents: null
+        seller_certainty: null
+        genius_badge: null
+        sold_by_emag: null
+        in_solved_basket: false
+        reason_excluded: Listing URL only. No saved eMAG price on 27-28 Oct.
+        listing_url: https://www.emag.ro/the-gruffalo-julia-donaldson-9780142403877/pd/D7GPGKBBM/
+
+  - id: room-broom
+    title: Room on the Broom
+    role: swapped-amazon-de-edition
+    isbn13: "9781509804771"
+    isbn_note: Amazon.de buy box. eMAG lists 9780803726574; that page was not captured.
+    offers:
+      - store_id: amazon_de
+        price_cents: 4644
+        seller_certainty: direct
+        seller: Amazon
+        in_solved_basket: false
+        reason_excluded: Only one store has a measured price, and the under-threshold fee is not flat.
+        capture: spike/out/room-broom/text.txt
+        evidence: "46,44 RON. Versender / Verkäufer Amazon."
+      - store_id: emag
+        price_cents: null
+        seller_certainty: null
+        in_solved_basket: false
+        reason_excluded: Listing URL only. No saved eMAG price on 27-28 Oct.
+        listing_url: https://www.emag.ro/room-on-the-broom-julia-donaldson-9780803726574/pd/D0W6T9BBM/
+
+  - id: charlottes-web
+    title: Charlotte's Web
+    role: swapped-amazon-de-edition
+    isbn13: "9780141354828"
+    isbn_note: Amazon.de buy box. eMAG lists 9780064400558; that page was not captured.
+    offers:
+      - store_id: amazon_de
+        price_cents: 4644
+        seller_certainty: direct
+        seller: Amazon
+        in_solved_basket: false
+        reason_excluded: Only one store has a measured price, and the under-threshold fee is not flat.
+        capture: spike/out/charlottes-web/text.txt
+        evidence: "46,44 RON. Versender / Verkäufer Amazon. Page also prints ab 49 € (261,52 RON)."
+      - store_id: emag
+        price_cents: null
+        seller_certainty: null
+        in_solved_basket: false
+        reason_excluded: Listing URL only. No saved eMAG price on 27-28 Oct.
+        listing_url: https://www.emag.ro/charlotte-s-web-e-b-white-9780064400558/pd/DTCJHHBBM/
+
+  - id: hp-stone
+    title: Harry Potter and the Philosopher's Stone
+    role: swapped-amazon-de-edition
+    isbn13: "9781408855652"
+    isbn_note: Amazon.de buy box. eMAG lists 9781408894620; that page was not captured.
+    offers:
+      - store_id: amazon_de
+        price_cents: 4987
+        seller_certainty: direct
+        seller: Amazon
+        in_solved_basket: false
+        reason_excluded: Only one store has a measured price, and the under-threshold fee is not flat.
+        capture: spike/out/hp-stone/text.txt
+        evidence: "49,87 RON. Versender / Verkäufer Amazon."
+      - store_id: emag
+        price_cents: null
+        seller_certainty: null
+        in_solved_basket: false
+        reason_excluded: Listing URL only. No saved eMAG price on 27-28 Oct.
+        listing_url: https://www.emag.ro/harry-potter-and-the-philosopher-s-stone-j-k-rowling-9781408894620/pd/D1CNQ7YBM/
