@@ -2,22 +2,21 @@
 
 **One basket, every shop, lowest total.**
 
-Splits a multi-item shopping basket across independent online stores for the lowest real total —
-including shipping, per-order fees and the memberships the buyer already pays for — and answers
-whether a membership is worth buying for *this* basket.
+Splits a multi-item shopping basket across independent online stores for the lowest real total,
+including shipping and per-order fees. The pitch is a Romanian parent splitting a children's book
+order across local shops. The United States is parked: only Amazon.com loaded cleanly from this
+machine, and a Romanian egress distorts US prices.
 
 Built for the [Meta Global AI Developer Hackathon](https://cerebralvalley.ai/e/meta-ai-developer-hackathon)
 (indie developer track, theme: Build for Your World). Submission due 4 Nov 2026, 9:00 PM ET.
 
 ## The problem
 
-A seven-item basket across three stores means three free-shipping thresholds, a per-order fee and
-two possible memberships. The cheapest answer is not "buy each item where it is cheapest":
+A seven-item basket across several stores means several free-shipping thresholds and a per-order fee.
+The cheapest answer is not "buy each item where it is cheapest":
 
 - Paying *more* for one item can cross a store's free-shipping threshold and win the basket.
 - A per-order fee makes a tiny extra order a net loss.
-- A membership changes the threshold, which changes the optimal split — and may or may not pay for
-  itself on this basket.
 
 Books are the launch wedge: a real basket, real ISBNs, and stores that publish their shipping rules.
 Nothing in the design is book-specific — the same solve applies to any basket of goods with
@@ -30,32 +29,38 @@ per-store thresholds.
    No per-store scraper adapters.
 2. **Match** — offers are matched on a canonical product identifier (ISBN for books), and wrong
    editions are rejected rather than averaged in.
-3. **Solve** — a deterministic optimiser (OR-Tools) assigns each item to a store, with a boolean per
-   store for "this store's free-shipping threshold is reached", including per-order fees. Every
-   money decision is exact and explainable; the model never does arithmetic.
-4. **Decide** — the basket is solved with and without each membership to produce the verdict:
-   *is this membership worth it for these seven items?*
+3. **Solve** — `solver/` assigns each item to a store by exhaustive search over integer cents, including
+   per-order fees and whether a store's free-shipping threshold is reached. Every money decision is
+   exact. The model never does arithmetic.
+4. **Show** — the cache-first service returns that split, and the Angular screen shows it. A second
+   solve with the shopper's own prices is how the edition toggle (same story, or exact ISBN) is applied.
 
 ## Stack
 
-| Layer | Choice |
+| Layer | What is built |
 |---|---|
-| Backend | Python 3.12, FastAPI, server-sent events for live read progress |
-| Page reading | Playwright, headless Chromium, loaded by product identifier |
-| Extraction | Muse Spark via Meta Model API; open-weights fallback (Modal / Baseten); Pydantic schema validation |
-| Solver | OR-Tools |
-| Storage | SQLite — page cache + ground-truth table |
-| Front end | Angular + TypeScript, responsive |
+| Backend | Python, FastAPI. `POST /solve` and `GET /events` (server-sent events). The built UI is served from the same app. |
+| Page reading | Cache-first. Saved pages live in a SQLite page cache. The reading spike (Playwright plus a fixed schema) is separate from the demo path. |
+| Read layer | `matching/` normalises ISBNs, keeps seller certainty tri-state, and matches editions instead of averaging them. |
+| Solver | `solver/`: exhaustive assignment in integer cents. Fifteen tests in `solver/tests/`. |
+| Storage | SQLite page cache, seeded from the locked Romanian basket. |
+| Front end | Angular and TypeScript in `ui/`, responsive. The membership control stays disabled: the service returns an empty membership list. |
+| Stores | Bookzone, eMAG, Libris and Amazon.de for the locked basket. Books-Express is a labelled fallback, not a core store. |
 
 ## Status
 
-Pre-build. Concept, data model and prior-work survey are done; extraction spike, solver and UI are
-being built in the hackathon window (27 Oct – 4 Nov 2026).
+The v1 tree is a working cache-first demo.
+
+- A locked seven-book Romanian basket (`ro-v1`): Ghici, The Very Hungry Caterpillar, Owl Babies, and four Amazon.de titles that share an ISBN with Libris.
+- An exhaustive integer-cents solver in `solver/`, with 15 passing tests.
+- A read layer in `matching/` with the three spike fixes: ISBN check digits, sold-by tri-state, and edition matching that does not average different books.
+- A cache-first service (`api/`) and the Angular UI (`ui/`), which the API serves after `ng build`. The demo runs on cached pages and says so.
+
+Membership is not implemented. The service returns an empty membership list and the UI control is disabled. No Genius-badged eMAG-sold title was found for this basket.
 
 ## Novelty
 
-No consumer tool found combines all three of: independent retailers, per-store free-shipping
-thresholds, and the buyer's own memberships. The closest neighbours are single-marketplace cart
+No consumer tool found combines independent retailers with per-store free-shipping thresholds on one basket. The closest neighbours are single-marketplace cart
 optimisers (Cardmarket, TCGplayer, Brick Owl), US-only extensions with no fee modelling (CartHappy),
 single-store basket comparison (BasketWise, Australia), and single-item comparison (Meta Muse
 shopping, Google Universal Cart). Full survey with sources: `docs/prior-work.xlsx`.

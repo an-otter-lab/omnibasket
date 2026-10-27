@@ -7,6 +7,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, Query
 from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from api.basket import load_locked
@@ -16,6 +17,7 @@ from solver.optimize import SolverError
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_DB = ROOT / "data" / "cache" / "ro-v1.sqlite"
+UI_DIST = ROOT / "ui" / "dist" / "ui" / "browser"
 
 
 class OfferIn(BaseModel):
@@ -83,6 +85,10 @@ def create_app(db_path: Path | None = None) -> FastAPI:
             yield _sse("solution", payload)
 
         return StreamingResponse(generate(), media_type="text/event-stream")
+
+    # API routes above take precedence. The built Angular app is the demo UI.
+    if UI_DIST.is_dir():
+        app.mount("/", StaticFiles(directory=UI_DIST, html=True), name="ui")
 
     return app
 

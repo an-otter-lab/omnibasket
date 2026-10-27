@@ -198,6 +198,17 @@ def test_health() -> None:
     assert client.get("/health").json() == {"status": "ok"}
 
 
+def test_built_ui_is_served_at_root() -> None:
+    index = ROOT / "ui" / "dist" / "ui" / "browser" / "index.html"
+    if not index.is_file():
+        pytest.skip("UI dist is produced by ng build")
+    client = TestClient(create_app())
+    page = client.get("/")
+    assert page.status_code == 200
+    assert "Omnibasket" in page.text
+    assert client.get("/health").json() == {"status": "ok"}
+
+
 def _parse_sse(body: str) -> list[tuple[str, dict]]:
     events = []
     for block in body.strip().split("\n\n"):
