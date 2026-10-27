@@ -1,0 +1,56 @@
+# Amazon.de delivery to Romania. Read 2026-10-28, headless Chromium, logged out,
+# no address form submitted. The store already showed "Liefern nach Rumänien"
+# from this machine. Help pages are Amazon's own; the harness price-detector
+# marked them BLOCKED because the euro amounts are split across lines, but the
+# pages rendered (no challenge marker). Figures below are from that saved text
+# plus the product buy boxes.
+checked_at: 2026-10-28
+delivery_country: Romania
+stores:
+  - id: amazon-de
+    name: Amazon.de
+    domain: amazon.de
+    region: DE
+    ships_to: RO
+    currency_displayed: RON
+    free_shipping_threshold: 49.00
+    free_shipping_threshold_currency: EUR
+    free_shipping_threshold_note: >-
+      Help page "Kostenloser Versand durch Amazon", section "Lieferung nach
+      Rumänien": Standardzustellung, Mindestbestellwert 49 €, "Alle Artikel"
+      (https://www.amazon.de/gp/help/customer/display.html?nodeId=GZXW7X6AKTHNUP6H).
+      The international rates page says the same 49.00 € threshold for books
+      and for other standard-delivery goods to Romania. On product buy boxes
+      for "Liefern nach Rumänien" the same bar is printed as 262.17 RON
+      ("GRATIS Lieferung … für von Amazon versandte Bestellungen über 262,17 RON").
+      Charlotte's Web also prints "ab 49 € (261,52 RON)". The lei figure moves
+      with the exchange rate; 49.00 EUR is the figure on the help page.
+    shipping_fee_below_threshold: null
+    shipping_fee_below_threshold_note: >-
+      Not a flat fee. International rates page, Romania, Standardzustellung,
+      books / music / DVD / software / video games (no consoles): 4.99 € per
+      delivery plus 1.99 € per kg (pro rata), free from 49.00 €. Other goods
+      on standard delivery: 5.99 € per delivery plus 2.99 € per kg, same 49.00 €
+      free bar. Express, when offered: 26.99 € per delivery plus 9.49 € per kg,
+      no free bar on that row. VAT is included in the delivery charge. Applies
+      to Versand durch Amazon only; third-party sellers set their own shipping.
+      Source: https://www.amazon.de/gp/help/customer/display.html?nodeId=GA6MMBQJBJ5QYUDW
+      (Romania block, read 2026-10-28).
+    per_order_fee: null
+    per_order_fee_note: >-
+      No separate per-order fee on these pages. The delivery charge above is
+      the shipping fee.
+    membership:
+      name: Prime
+      price: null
+      period: null
+      price_note: >-
+        Not read this pass. The free-shipping page says Prime members get free
+        delivery on many Amazon.de items, usually by premium shipping, and that
+        free delivery to the listed countries (Romania included) is only for
+        items Amazon.de ships itself or that are fulfilled by Amazon.
+    readable: true
+    source_urls:
+      - https://www.amazon.de/gp/help/customer/display.html?nodeId=GZXW7X6AKTHNUP6H
+      - https://www.amazon.de/gp/help/customer/display.html?nodeId=GA6MMBQJBJ5QYUDW
+    checked_at: 2026-10-28
