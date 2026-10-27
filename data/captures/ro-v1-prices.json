@@ -1,0 +1,26 @@
+{
+  "checked_at": "2026-10-28",
+  "currency": "RON",
+  "note": "Each price is the figure read on that page. Capture labels are stable names for the saved page, not paths in another worktree.",
+  "prices": [
+    {"label": "bookzone-ghici", "item_id": "ghici", "store": "bookzone", "price_cents": 4650, "url": "https://bookzone.ro/carte/ghici-cat-de-mult-te-iubesc", "read_date": "2026-10-28"},
+    {"label": "emag-ghici", "item_id": "ghici", "store": "emag", "price_cents": 5600, "url": "https://www.emag.ro/ghici-cat-de-mult-carte-cartonata-integral-sam-mcbratney-cco978-606-8996-01-1/pd/DGJW95BBM/", "read_date": "2026-10-28"},
+    {"label": "libris-ghici", "item_id": "ghici", "store": "libris", "price_cents": 5700, "url": "https://www.libris.ro/carte/ghici-cat-de-mult-te-iubesc-sam-mcbratney/21197307", "read_date": "2026-10-28"},
+    {"label": "emag-vhc", "item_id": "vhc", "store": "emag", "price_cents": 5753, "url": "https://www.emag.ro/the-very-hungry-caterpillar-eric-carle-author-brt9780241003008/pd/DF4KXHBBM/", "read_date": "2026-10-28"},
+    {"label": "libris-vhc", "item_id": "vhc", "store": "libris", "price_cents": 6133, "url": "https://www.libris.ro/carte-engleza/the-very-hungry-caterpillar-eric-carle/15743846", "read_date": "2026-10-28"},
+    {"label": "libris-owl", "item_id": "owl", "store": "libris", "price_cents": 5178, "url": "https://www.libris.ro/carte-engleza/owl-babies/10852618", "read_date": "2026-10-28"},
+    {"label": "emag-owl", "item_id": "owl", "store": "emag", "price_cents": 15700, "url": "https://www.emag.ro/owl-babies-martin-waddell-9780763695194/pd/DZ65L02BM/", "read_date": "2026-10-28"},
+    {"label": "amz-9781529105100", "item_id": "mole", "store": "amazon_de", "price_cents": 11653, "url": "https://www.amazon.de/dp/1529105102", "read_date": "2026-10-28"},
+    {"label": "libris-mole-a", "item_id": "mole", "store": "libris", "price_cents": 14256, "url": "https://www.libris.ro/carte-engleza/boy-the-mole-the-fox-and-the-horse-charlie-mackesy/11893594", "read_date": "2026-10-28"},
+    {"label": "amz-9780064431781", "item_id": "wild", "store": "amazon_de", "price_cents": 3986, "url": "https://www.amazon.de/dp/0064431789", "read_date": "2026-10-28"},
+    {"label": "libris-wild-b", "item_id": "wild", "store": "libris", "price_cents": 7770, "url": "https://www.libris.ro/carte-engleza/where-the-wild-things-are-maurice-sendak/16027753", "read_date": "2026-10-28"},
+    {"label": "amz-9780141369365", "item_id": "matilda", "store": "amazon_de", "price_cents": 9433, "url": "https://www.amazon.de/dp/0141369361", "read_date": "2026-10-28"},
+    {"label": "libris-matilda-colour", "item_id": "matilda", "store": "libris", "price_cents": 8418, "url": "https://www.libris.ro/carte-engleza/matilda-colour-edition-roald-dahl/11022035", "read_date": "2026-10-28"},
+    {"label": "amz-9780141369372", "item_id": "charlie", "store": "amazon_de", "price_cents": 9433, "url": "https://www.amazon.de/dp/014136937X", "read_date": "2026-10-28"},
+    {"label": "libris-charlie-colour", "item_id": "charlie", "store": "libris", "price_cents": 8418, "url": "https://www.libris.ro/carte-engleza/charlie-and-the-chocolate-factory-colour-edition-roald-dahl/11030485", "read_date": "2026-10-28"},
+    {"label": "libris-shipping", "item_id": null, "store": "libris", "kind": "shipping_fee", "price_cents": 1290, "threshold_cents": 13500, "url": "https://www.libris.ro/informatiiUtile/beneficii", "read_date": "2026-10-28"},
+    {"label": "bookzone-cart", "item_id": null, "store": "bookzone", "kind": "under_200_fee", "price_cents": 690, "processing_cents": 199, "threshold_cents": 20000, "url": "https://bookzone.ro/cos/produse", "read_date": "2026-10-28"},
+    {"label": "amazon-shipping-rates", "item_id": null, "store": "amazon_de", "kind": "under_bar_fee_floor", "price_cents": 2670, "threshold_cents": 26217, "url": "https://www.amazon.de/gp/help/customer/display.html?nodeId=GA6MMBQJBJ5QYUDW", "read_date": "2026-10-28"},
+    {"label": "emag-delivery", "item_id": null, "store": "emag", "kind": "per_order_fee_min", "price_cents": 149, "url": "https://www.emag.ro/help/livrarea-comenzilor-emag-2/", "read_date": "2026-10-28"}
+  ]
+}
