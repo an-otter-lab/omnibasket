@@ -46,11 +46,13 @@
       @if (cacheNotice) {
         <p class="notice"><span aria-hidden="true">▣</span> This demo is reading saved store pages, not live shops.</p>
       }
-      <p>Page {{ progressDone }} of {{ progressTotal }}</p>
-      <div class="bar" role="progressbar" [attr.aria-valuenow]="progressDone" [attr.aria-valuemax]="progressTotal">
-        <span [style.width.%]="progressTotal ? (progressDone / progressTotal) * 100 : 0"></span>
-      </div>
-      <p class="meta">{{ progressTitle }} at {{ progressStore }}</p>
+      @if (progressDone > 0) {
+        <p>Page {{ progressDone }} of {{ progressTotal }}</p>
+        <div class="bar" role="progressbar" [attr.aria-valuenow]="progressDone" [attr.aria-valuemax]="progressTotal">
+          <span [style.width.%]="progressTotal ? (progressDone / progressTotal) * 100 : 0"></span>
+        </div>
+        <p class="meta">{{ progressTitle }} at {{ progressStore }}</p>
+      }
       <p class="meta">{{ pagesRead }} pages read</p>
       <button type="button" class="text stop" (click)="stop()">Stop</button>
     </section>

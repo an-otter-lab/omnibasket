@@ -69,7 +69,11 @@ def create_app(db_path: Path | None = None) -> FastAPI:
             try:
                 pages, payload = _cached_solution(app, source)
             except SolverError as exc:
-                yield _sse("error", {"error": str(exc)})
+                payload: dict = {"error": str(exc)}
+                misses = getattr(exc, "misses", None)
+                if misses:
+                    payload["misses"] = misses
+                yield _sse("error", payload)
                 return
             for page in pages:
                 yield _sse(

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import socket
+import sqlite3
 from pathlib import Path
 
 import pytest
@@ -207,6 +208,22 @@ def test_built_ui_is_served_at_root() -> None:
     assert page.status_code == 200
     assert "Omnibasket" in page.text
     assert client.get("/health").json() == {"status": "ok"}
+
+
+def test_cache_miss_names_the_book_and_store(tmp_path: Path) -> None:
+    app = create_app(tmp_path / "pages.sqlite")
+    client = TestClient(app)
+    client.get("/events", params={"source": "cache"})
+    db = tmp_path / "pages.sqlite"
+    with sqlite3.connect(db) as conn:
+        conn.execute("DELETE FROM pages WHERE item_id = ?", ("ghici",))
+    response = client.get("/events", params={"source": "cache"})
+    events = _parse_sse(response.text)
+    assert [name for name, _data in events] == ["error"]
+    body = events[0][1]
+    assert body["error"] == "cache miss for items: ghici"
+    assert {row["title"] for row in body["misses"]} == {"Ghici cât de mult te iubesc"}
+    assert {row["store_id"] for row in body["misses"]} == {"bookzone", "emag", "libris"}
 
 
 def _parse_sse(body: str) -> list[tuple[str, dict]]:

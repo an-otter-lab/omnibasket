@@ -95,7 +95,24 @@ def offers_from_cache(
     items = [Item(item_id, tuple(by_item[item_id])) for item_id in order if by_item[item_id]]
     if len(items) != len({page["item_id"] for page in pages}):
         missing = sorted({page["item_id"] for page in pages} - {item.id for item in items})
-        raise SolverError("cache miss for items: " + ", ".join(missing))
+        missed = [
+            {
+                "item_id": page["item_id"],
+                "store_id": page["store_id"],
+                "title": page.get("title") or "",
+            }
+            for page in pages
+            if page["item_id"] in missing
+            and not any(
+                event["item_id"] == page["item_id"]
+                and event["store_id"] == page["store_id"]
+                and event["cache"] == "hit"
+                for event in events
+            )
+        ]
+        error = SolverError("cache miss for items: " + ", ".join(missing))
+        error.misses = missed  # type: ignore[attr-defined]
+        raise error
     return items, events
 
 

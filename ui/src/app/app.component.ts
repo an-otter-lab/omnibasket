@@ -133,11 +133,11 @@ export class AppComponent {
   }
 
   booksFor(storeId: string): AssignmentRow[] {
-    return (this.solution?.assignment || []).filter((row) => row.store_id === storeId);
+    return (this.solution?.assignment || []).filter((row) => row.store_id === storeId && this.titleOf(row.item_id));
   }
 
   titleOf(id: string): string {
-    return this.books.find((book) => book.id === id)?.title || id;
+    return this.books.find((book) => book.id === id)?.title ?? '';
   }
 
   offerOf(itemId: string, storeId: string) {
@@ -215,27 +215,25 @@ export class AppComponent {
       const text = await response.text();
       if (token !== this.runToken) return;
       const events = parseSse(text);
-      const pages = events.filter((event) => event.event === 'page').map((event) => event.data as PageLine & { item_id: string; store_id: string; status: string });
-      const solutionEvent = events.find((event) => event.event === 'solution');
-      this.progressTotal = pages.length;
+      const errorEvent = events.find((event) => event.event === 'error');
+      const pages = events.filter((event) => event.event === 'page').map((event) => event.data as PageLine & { item_id: string; store_id: string; status: string; cache?: string });
+      const visible = pages.filter((page) => this.books.some((book) => book.id === page.item_id));
       this.cacheNotice = true;
-      if (pages.length === 0) {
-        this.phase = 'failed';
-        this.failTitle = 'No recommendation';
-        this.failBody = 'No store page could be read. There is no split and no total.';
+      if (errorEvent) {
+        const data = errorEvent.data as { misses?: { item_id: string; store_id: string; title?: string }[] };
+        this.showFailure(this.missCopy(data.misses || []));
         return;
       }
-      await this.playPages(pages, token);
+      const failed = visible.filter((page) => page.status !== 'ok' || page.cache === 'miss');
+      if (pages.length === 0 || (visible.length > 0 && failed.length === visible.length)) {
+        this.showFailure(this.missCopy(failed));
+        return;
+      }
+      const toPlay = visible.length ? visible : pages;
+      this.progressTotal = toPlay.length;
+      await this.playPages(toPlay, token);
       if (token !== this.runToken) return;
-      if (!solutionEvent) {
-        this.showFailure('The result contradicted itself. Nothing is recommended.');
-        return;
-      }
-      if (this.edition === 'same') {
-        await this.applySolution(solutionEvent.data as SolveBody, true);
-      } else {
-        await this.solveGiven(true);
-      }
+      await this.solveGiven(true);
     } catch {
       if (token !== this.runToken) return;
       this.showFailure('No store page could be read. There is no split and no total.');
@@ -327,6 +325,20 @@ export class AppComponent {
     this.oneShop = await this.bestOneShop(body);
     if (!this.oneShop) this.oneShopComparable = false;
     this.phase = 'result';
+  }
+
+  private missCopy(misses: { item_id: string; store_id: string; title?: string }[]): string {
+    const named = misses
+      .map((miss) => {
+        const fromList = this.books.find((book) => book.id === miss.item_id)?.title;
+        const title = fromList || (miss.title && miss.title !== miss.item_id ? miss.title : '');
+        if (!title) return '';
+        return `${title} at ${this.storeName(miss.store_id)}`;
+      })
+      .filter((line, index, all) => line && all.indexOf(line) === index);
+    if (!named.length) return 'No store page could be read. There is no split and no total.';
+    if (named.length === 1) return `${named[0]} could not be read. There is no split and no total.`;
+    return `${named.join('; ')} could not be read. There is no split and no total.`;
   }
 
   private showFailure(text: string): void {
@@ -424,7 +436,11 @@ export class AppComponent {
       const threshold = dest?.threshold_cents;
       const thresholdLabel = threshold != null ? `the free-shipping threshold (${this.money(threshold)})` : 'the free-shipping threshold';
       const others = moves.length - 1;
-      const extra = others > 0 ? ` ${others} other book(s) also move to reach it.` : '';
+      const extra = others === 1
+        ? ' 1 other book also moves to reach it.'
+        : others > 1
+          ? ` ${others} other books also move to reach it.`
+          : '';
       return `Buying “${this.titleOf(lead.row.item_id)}” at ${this.storeName(lead.row.store_id)} costs ${this.money(lead.delta)} more than the cheapest listing.${extra} That brings the ${this.storeName(lead.row.store_id)} order to ${thresholdLabel}, so shipping goes from ${this.money(shippingBefore)} to ${this.money(shippingAfter)}. You pay ${this.money(lead.delta)} more for that book and save ${this.money(shippingSaved)} on shipping. This basket is ${this.money(net)} cheaper than buying each book at its cheapest shop.`;
     }
     if (net === 0 && moves.length === 0) {

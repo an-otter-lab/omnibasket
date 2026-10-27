@@ -8,9 +8,13 @@ p { font-size: 16px; line-height: 24px; margin: 0 0 8px; }
 .notice { background: var(--info); color: var(--answer); border-radius: 12px; padding: 12px; }
 .failed { background: var(--failed-bg); color: var(--failed); }
 .books, .lines { list-style: none; padding: 0; margin: 0; }
-.books li, .lines li { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-top: 1px solid var(--line); }
+.books li, .lines li { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 8px 0; border-top: 1px solid var(--line); }
+.books li > span { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; flex: 1 1 auto; }
+.books li strong, .books li .meta { display: block; overflow-wrap: anywhere; }
+.books li button { flex: 0 0 auto; }
 .lines li { display: block; }
-.lines li div { display: flex; justify-content: space-between; gap: 12px; }
+.lines li div { display: flex; justify-content: space-between; gap: 12px; min-width: 0; }
+.lines li strong { overflow-wrap: anywhere; min-width: 0; }
 button, input { font: inherit; }
 button { min-height: 44px; min-width: 44px; }
 .primary { background: var(--answer); color: #fff; border: 0; border-radius: 12px; padding: 0 16px; }
