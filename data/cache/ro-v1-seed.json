@@ -1,0 +1,419 @@
+{
+  "day": "2026-10-28",
+  "currency": "RON",
+  "pages": [
+    {
+      "store_id": "bookzone",
+      "isbn13": "9786068996011",
+      "item_id": "ghici",
+      "day": "2026-10-28",
+      "screenshot_path": "spike/out/bookzone-ghici/screenshot_top.png",
+      "model_json": null,
+      "provenance": {
+        "capture": "spike/out/bookzone-ghici/text.txt",
+        "resolved_from": "omnibasket-libris/spike/out/bookzone-ghici/text.txt",
+        "meta": {
+          "store": "bookzone-ghici",
+          "requested_url": "https://bookzone.ro/carte/ghici-cat-de-mult-te-iubesc",
+          "final_url": "https://bookzone.ro/carte/ghici-cat-de-mult-te-iubesc",
+          "http_status": 200,
+          "load_ms": 556,
+          "headless": true,
+          "challenge_overlay": false,
+          "status": "LOADED",
+          "reason": null,
+          "text_chars": 10396
+        },
+        "seeded_from": "spike/out"
+      }
+    },
+    {
+      "store_id": "emag",
+      "isbn13": "9786068996011",
+      "item_id": "ghici",
+      "day": "2026-10-28",
+      "screenshot_path": "spike/out/headful/emag-ghici/screenshot_top.png",
+      "model_json": null,
+      "provenance": {
+        "capture": "spike/out/headful/emag-ghici/text.txt",
+        "resolved_from": "omnibasket-libris/spike/out/headful/emag-ghici/text.txt",
+        "meta": {
+          "store": "emag-ghici",
+          "requested_url": "https://www.emag.ro/ghici-cat-de-mult-te-iubesc-sam-mcbratney-9786068996011/pd/DGJW95BBM/",
+          "final_url": "https://www.emag.ro/ghici-cat-de-mult-carte-cartonata-integral-sam-mcbratney-cco978-606-8996-01-1/pd/DGJW95BBM/",
+          "http_status": 200,
+          "load_ms": 958,
+          "headless": false,
+          "challenge_overlay": false,
+          "status": "LOADED",
+          "reason": null,
+          "text_chars": 7941
+        },
+        "seeded_from": "spike/out"
+      }
+    },
+    {
+      "store_id": "libris",
+      "isbn13": "9786068996011",
+      "item_id": "ghici",
+      "day": "2026-10-28",
+      "screenshot_path": "spike/out/libris-ghici/screenshot_top.png",
+      "model_json": {
+        "store": "libris-ghici",
+        "variant": "b_text",
+        "replay": true,
+        "browser_launched": false,
+        "capture": "spike/out/libris-ghici",
+        "status": "OK",
+        "model_ms": 8549,
+        "tokens_in": 1838,
+        "tokens_out": 2320,
+        "endpoint": "/responses",
+        "json_ok": true,
+        "raw": "{\"title\": \"Ghici cât de mult te iubesc\", \"author\": \"Sam Mcbratney\", \"format\": null, \"isbn13\": null, \"publisher\": \"CARTEA COPIILOR\", \"price\": 57, \"currency\": \"Lei\", \"in_stock\": true, \"sold_by\": null, \"ships_from\": null, \"sold_and_shipped_by_store\": false, \"shipping_note\": \"Estimare livrare mâine, 29 octombrie\", \"membership_note\": \"Primești 57 puncte\", \"confidence\": \"medium\", \"notes\": \"Page is Romanian Libris.ro, not a US store; price shown as 57.00Lei; stock shown as În stoc; no ISBN, format, seller or ships-from explicitly shown.\"}",
+        "result": {
+          "title": "Ghici cât de mult te iubesc",
+          "author": "Sam Mcbratney",
+          "format": null,
+          "isbn13": null,
+          "publisher": "CARTEA COPIILOR",
+          "price": 57,
+          "currency": "Lei",
+          "in_stock": true,
+          "sold_by": null,
+          "ships_from": null,
+          "sold_and_shipped_by_store": false,
+          "shipping_note": "Estimare livrare mâine, 29 octombrie",
+          "membership_note": "Primești 57 puncte",
+          "confidence": "medium",
+          "notes": "Page is Romanian Libris.ro, not a US store; price shown as 57.00Lei; stock shown as În stoc; no ISBN, format, seller or ships-from explicitly shown."
+        }
+      },
+      "provenance": {
+        "capture": "spike/out/libris-ghici/text.txt",
+        "resolved_from": "omnibasket-libris/spike/out/libris-ghici/text.txt",
+        "meta": {
+          "store": "libris-ghici",
+          "requested_url": "https://www.libris.ro/carte/ghici-cat-de-mult-te-iubesc-sam-mcbratney/21197307",
+          "final_url": "https://www.libris.ro/carte/ghici-cat-de-mult-te-iubesc-sam-mcbratney/21197307",
+          "http_status": 200,
+          "load_ms": 437,
+          "headless": true,
+          "challenge_overlay": false,
+          "status": "LOADED",
+          "reason": null,
+          "text_chars": 5249
+        },
+        "seeded_from": "spike/out"
+      }
+    },
+    {
+      "store_id": "emag",
+      "isbn13": "",
+      "item_id": "vhc",
+      "day": "2026-10-28",
+      "screenshot_path": "spike/out/headful/emag-vhc/screenshot_top.png",
+      "model_json": null,
+      "provenance": {
+        "capture": "spike/out/headful/emag-vhc/text.txt",
+        "resolved_from": "omnibasket-libris/spike/out/headful/emag-vhc/text.txt",
+        "meta": {
+          "store": "emag-vhc",
+          "requested_url": "https://www.emag.ro/the-very-hungry-caterpillar-eric-carle-author-9780399226908/pd/DF4KXHBBM/",
+          "final_url": "https://www.emag.ro/the-very-hungry-caterpillar-eric-carle-author-brt9780241003008/pd/DF4KXHBBM/",
+          "http_status": 200,
+          "load_ms": 1122,
+          "headless": false,
+          "challenge_overlay": false,
+          "status": "LOADED",
+          "reason": null,
+          "text_chars": 5595
+        },
+        "seeded_from": "spike/out"
+      }
+    },
+    {
+      "store_id": "libris",
+      "isbn13": "",
+      "item_id": "vhc",
+      "day": "2026-10-28",
+      "screenshot_path": "spike/out/libris-vhc/screenshot_top.png",
+      "model_json": {
+        "store": "libris-vhc",
+        "variant": "b_text",
+        "replay": true,
+        "browser_launched": false,
+        "capture": "spike/out/libris-vhc",
+        "status": "OK",
+        "model_ms": 7734,
+        "tokens_in": 1012,
+        "tokens_out": 2273,
+        "endpoint": "/responses",
+        "json_ok": true,
+        "raw": "{\"title\": \"The Very Hungry Caterpillar\", \"author\": \"Eric Carle\", \"format\": \"board book\", \"isbn13\": null, \"publisher\": \"Philomel Books\", \"price\": 61.33, \"currency\": \"Lei\", \"in_stock\": true, \"sold_by\": null, \"ships_from\": null, \"sold_and_shipped_by_store\": false, \"shipping_note\": \"Livrare in 2-4 saptamani\", \"membership_note\": \"Primești 61 puncte\", \"confidence\": \"low\", \"notes\": \"Page is Libris.ro (Romania), not a US store; no ISBN13, sold-by or ships-from stated; stock inferred from 'Adaugă în coș' despite 'Livrare in 2-4 saptamani' delivery note.\"}",
+        "result": {
+          "title": "The Very Hungry Caterpillar",
+          "author": "Eric Carle",
+          "format": "board book",
+          "isbn13": null,
+          "publisher": "Philomel Books",
+          "price": 61.33,
+          "currency": "Lei",
+          "in_stock": true,
+          "sold_by": null,
+          "ships_from": null,
+          "sold_and_shipped_by_store": false,
+          "shipping_note": "Livrare in 2-4 saptamani",
+          "membership_note": "Primești 61 puncte",
+          "confidence": "low",
+          "notes": "Page is Libris.ro (Romania), not a US store; no ISBN13, sold-by or ships-from stated; stock inferred from 'Adaugă în coș' despite 'Livrare in 2-4 saptamani' delivery note."
+        }
+      },
+      "provenance": {
+        "capture": "spike/out/libris-vhc/text.txt",
+        "resolved_from": "omnibasket-libris/spike/out/libris-vhc/text.txt",
+        "meta": {
+          "store": "libris-vhc",
+          "requested_url": "https://www.libris.ro/carte-engleza/the-very-hungry-caterpillar-eric-carle/15743846",
+          "final_url": "https://www.libris.ro/carte-engleza/the-very-hungry-caterpillar-eric-carle/15743846",
+          "http_status": 200,
+          "load_ms": 441,
+          "headless": true,
+          "challenge_overlay": false,
+          "status": "LOADED",
+          "reason": null,
+          "text_chars": 2959
+        },
+        "seeded_from": "spike/out"
+      }
+    },
+    {
+      "store_id": "libris",
+      "isbn13": "",
+      "item_id": "owl",
+      "day": "2026-10-28",
+      "screenshot_path": "spike/out/libris-owl/screenshot_top.png",
+      "model_json": {
+        "store": "libris-owl",
+        "variant": "b_text",
+        "replay": true,
+        "browser_launched": false,
+        "capture": "spike/out/libris-owl",
+        "status": "OK",
+        "model_ms": 9284,
+        "tokens_in": 2819,
+        "tokens_out": 1878,
+        "endpoint": "/responses",
+        "json_ok": true,
+        "raw": "{\"title\": \"Owl Babies\", \"author\": \"Martin Waddell\", \"format\": null, \"isbn13\": null, \"publisher\": \"WALKER BOOKS\", \"price\": 51.78, \"currency\": \"Lei\", \"in_stock\": true, \"sold_by\": null, \"ships_from\": null, \"sold_and_shipped_by_store\": false, \"shipping_note\": \"Livrare in 2-4 saptamani\", \"membership_note\": \"Primești 51 puncte\", \"confidence\": \"low\", \"notes\": \"Page is from Libris.ro Romania, not a US store; currency shown as Lei; no ISBN13, format field, sold-by/ships-from information visible; stock inferred from Adaugă în coș presence despite 2-4 week delivery note.\"}",
+        "result": {
+          "title": "Owl Babies",
+          "author": "Martin Waddell",
+          "format": null,
+          "isbn13": null,
+          "publisher": "WALKER BOOKS",
+          "price": 51.78,
+          "currency": "Lei",
+          "in_stock": true,
+          "sold_by": null,
+          "ships_from": null,
+          "sold_and_shipped_by_store": false,
+          "shipping_note": "Livrare in 2-4 saptamani",
+          "membership_note": "Primești 51 puncte",
+          "confidence": "low",
+          "notes": "Page is from Libris.ro Romania, not a US store; currency shown as Lei; no ISBN13, format field, sold-by/ships-from information visible; stock inferred from Adaugă în coș presence despite 2-4 week delivery note."
+        }
+      },
+      "provenance": {
+        "capture": "spike/out/libris-owl/text.txt",
+        "resolved_from": "omnibasket-libris/spike/out/libris-owl/text.txt",
+        "meta": {
+          "store": "libris-owl",
+          "requested_url": "https://www.libris.ro/carte-engleza/owl-babies/10852618",
+          "final_url": "https://www.libris.ro/carte-engleza/owl-babies/10852618",
+          "http_status": 200,
+          "load_ms": 517,
+          "headless": true,
+          "challenge_overlay": false,
+          "status": "LOADED",
+          "reason": null,
+          "text_chars": 7905
+        },
+        "seeded_from": "spike/out"
+      }
+    },
+    {
+      "store_id": "emag",
+      "isbn13": "",
+      "item_id": "owl",
+      "day": "2026-10-28",
+      "screenshot_path": "spike/out/headful/emag-owl/screenshot_top.png",
+      "model_json": null,
+      "provenance": {
+        "capture": "spike/out/headful/emag-owl/text.txt",
+        "resolved_from": "omnibasket-libris/spike/out/headful/emag-owl/text.txt",
+        "meta": {
+          "store": "emag-owl",
+          "requested_url": "https://www.emag.ro/owl-babies-martin-waddell-9780763695194/pd/DZ65L02BM/",
+          "final_url": "https://www.emag.ro/owl-babies-martin-waddell-9780763695194/pd/DZ65L02BM/",
+          "http_status": 200,
+          "load_ms": 991,
+          "headless": false,
+          "challenge_overlay": false,
+          "status": "LOADED",
+          "reason": null,
+          "text_chars": 5423
+        },
+        "seeded_from": "spike/out"
+      }
+    },
+    {
+      "store_id": "amazon_de",
+      "isbn13": "9781529105100",
+      "item_id": "mole",
+      "day": "2026-10-28",
+      "screenshot_path": null,
+      "model_json": null,
+      "provenance": {
+        "capture": "spike/out/amz-isbn/9781529105100/text.txt",
+        "resolved_from": "omnibasket-point3/spike/out/amz-isbn/9781529105100/text.txt",
+        "meta": {
+          "isbn": "9781529105100",
+          "search_status": 200,
+          "product_url": "https://www.amazon.de/Boy-Mole-Fox-Horse/dp/1529105102/ref=sr_1_1?dib=eyJ2IjoiMSJ9.V8w70Vg16X3qBmtZD2m81zrG9W2M7LoC6vpL76Wy4NTGjHj071QN20LucGBJIEps.E0DHDPstHaNLVZDVoq6Rfc_K47h7JVOqc-bj31F127E&dib_tag=se&keywords=9781529105100&qid=1793141842&s=books&sr=1-1",
+          "status": 200
+        },
+        "seeded_from": "spike/out"
+      }
+    },
+    {
+      "store_id": "libris",
+      "isbn13": "9781529105100",
+      "item_id": "mole",
+      "day": "2026-10-28",
+      "screenshot_path": null,
+      "model_json": null,
+      "provenance": {
+        "capture": "spike/out/candidates/libris-mole-a/text.txt",
+        "resolved_from": "omnibasket-point3/spike/out/candidates/libris-mole-a/text.txt",
+        "meta": {
+          "url": "https://www.libris.ro/carte-engleza/boy-the-mole-the-fox-and-the-horse-charlie-mackesy/11893594",
+          "status": 200,
+          "title": "Boy, The Mole, The Fox and The Horse - Charlie Mackesy | Libris.ro"
+        },
+        "seeded_from": "spike/out"
+      }
+    },
+    {
+      "store_id": "amazon_de",
+      "isbn13": "9780064431781",
+      "item_id": "wild",
+      "day": "2026-10-28",
+      "screenshot_path": null,
+      "model_json": null,
+      "provenance": {
+        "capture": "spike/out/amz-isbn/9780064431781/text.txt",
+        "resolved_from": "omnibasket-point3/spike/out/amz-isbn/9780064431781/text.txt",
+        "meta": {
+          "isbn": "9780064431781",
+          "search_status": 200,
+          "product_url": "https://www.amazon.de/Where-Wild-Things-Caldecott-Collection/dp/0064431789/ref=sr_1_1?dib=eyJ2IjoiMSJ9.m5qUI1M43u54y3bXkMyo-EbaATDXr8Xlj7M9gCuIQkc.dVIAJrFore_VvWGK55XQ_7RUNv-kZhAQ733R6eDJ1iM&dib_tag=se&keywords=9780064431781&qid=1793141876&s=books&sr=1-1",
+          "status": 200
+        },
+        "seeded_from": "spike/out"
+      }
+    },
+    {
+      "store_id": "libris",
+      "isbn13": "9780064431781",
+      "item_id": "wild",
+      "day": "2026-10-28",
+      "screenshot_path": null,
+      "model_json": null,
+      "provenance": {
+        "capture": "spike/out/candidates/libris-wild-b/text.txt",
+        "resolved_from": "omnibasket-point3/spike/out/candidates/libris-wild-b/text.txt",
+        "meta": {
+          "url": "https://www.libris.ro/carte-engleza/where-the-wild-things-are-maurice-sendak/16027753",
+          "status": 200,
+          "title": "Where the Wild Things Are - Maurice Sendak | Libris.ro"
+        },
+        "seeded_from": "spike/out"
+      }
+    },
+    {
+      "store_id": "amazon_de",
+      "isbn13": "9780141369365",
+      "item_id": "matilda",
+      "day": "2026-10-28",
+      "screenshot_path": null,
+      "model_json": null,
+      "provenance": {
+        "capture": "spike/out/amz-isbn/9780141369365/text.txt",
+        "resolved_from": "omnibasket-point3/spike/out/amz-isbn/9780141369365/text.txt",
+        "meta": {
+          "isbn": "9780141369365",
+          "search_status": 200,
+          "product_url": "https://www.amazon.de/Matilda-Colour-Roald-Dahl/dp/0141369361/ref=sr_1_1?dib=eyJ2IjoiMSJ9.YNlxgDiykrjaVX4Kd9CjAQ.bANLjxRwbN4EWDrHxCBnvTyPbnJTgqW6mYQnwYwHkUc&dib_tag=se&keywords=9780141369365&qid=1793141898&s=books&sr=1-1",
+          "status": 200
+        },
+        "seeded_from": "spike/out"
+      }
+    },
+    {
+      "store_id": "libris",
+      "isbn13": "9780141369365",
+      "item_id": "matilda",
+      "day": "2026-10-28",
+      "screenshot_path": null,
+      "model_json": null,
+      "provenance": {
+        "capture": "spike/out/candidates/libris-matilda-colour/text.txt",
+        "resolved_from": "omnibasket-point3/spike/out/candidates/libris-matilda-colour/text.txt",
+        "meta": {
+          "url": "https://www.libris.ro/carte-engleza/matilda-colour-edition-roald-dahl/11022035",
+          "status": 200,
+          "title": "Matilda (Colour Edition) - Roald Dahl | Libris.ro"
+        },
+        "seeded_from": "spike/out"
+      }
+    },
+    {
+      "store_id": "amazon_de",
+      "isbn13": "9780141369372",
+      "item_id": "charlie",
+      "day": "2026-10-28",
+      "screenshot_path": null,
+      "model_json": null,
+      "provenance": {
+        "capture": "spike/out/amz-isbn/9780141369372/text.txt",
+        "resolved_from": "omnibasket-point3/spike/out/amz-isbn/9780141369372/text.txt",
+        "meta": {
+          "isbn": "9780141369372",
+          "search_status": 200,
+          "product_url": "https://www.amazon.de/Charlie-Chocolate-Factory-Colour-Roald/dp/014136937X/ref=sr_1_1?dib=eyJ2IjoiMSJ9.WJPciai5NA0TkW2j1at6nA.Q-API9FZJBwipzy1lbLFm7uNpxHsdUHUV5VqBI-XQcQ&dib_tag=se&keywords=9780141369372&qid=1793141921&s=books&sr=1-1",
+          "status": 200
+        },
+        "seeded_from": "spike/out"
+      }
+    },
+    {
+      "store_id": "libris",
+      "isbn13": "9780141369372",
+      "item_id": "charlie",
+      "day": "2026-10-28",
+      "screenshot_path": null,
+      "model_json": null,
+      "provenance": {
+        "capture": "spike/out/candidates/libris-charlie-colour/text.txt",
+        "resolved_from": "omnibasket-point3/spike/out/candidates/libris-charlie-colour/text.txt",
+        "meta": {
+          "url": "https://www.libris.ro/carte-engleza/charlie-and-the-chocolate-factory-colour-edition-roald-dahl/11030485",
+          "status": 200,
+          "title": "Charlie and the Chocolate Factory (Colour Edition) - Roald Dahl | Libris.ro"
+        },
+        "seeded_from": "spike/out"
+      }
+    }
+  ]
+}
