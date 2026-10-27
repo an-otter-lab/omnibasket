@@ -21,3 +21,8 @@ runs/
 .idea/
 .vscode/
 
+
+# Spike output: ignored except representative screenshots named in spike/RESULTS.md
+spike/out/*
+!spike/out/.gitkeep
+!spike/samples/
