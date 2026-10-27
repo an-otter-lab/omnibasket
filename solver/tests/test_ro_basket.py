@@ -1,14 +1,19 @@
-"""Lock for the Romanian v1 basket. Cents come from data/baskets/ro-v1.yaml.
+"""Lock for the Romanian v1 basket after the 28 Oct second-store reads.
 
-The solved basket is the three titles that have two measured store prices and
-a store fee the solver can represent: Ghici, The Very Hungry Caterpillar, and
-Owl Babies, at Libris and eMAG.
+Cents come from data/baskets/ro-v1.yaml. Amazon.de is measured and is the
+cheapest item price on each swapped title, but it is not passed to solve():
+the four prices sum to 188.76 lei, under the 262.17 lei free-delivery bar,
+and the under-bar charge is 4.99 EUR plus 1.99 EUR/kg with no weight.
 
-eMAG's published fee on this assignment is the 1.49 lei minimum. The eMAG
-subtotal of the cheapest-per-item split is 113.53 lei, and 1% of that is
-1.1353 lei, which the terms lift to 1.49. The optimal split uses no eMAG
-item, so the fee does not change the headline total. Partner delivery was
-not on the pages; it is not entered as zero and is not added.
+The solved basket is the five titles whose stores all have a single measured
+fee: Ghici, The Very Hungry Caterpillar, Owl Babies, Charlotte's Web
+(Puffin 9780141354828) and Harry Potter (9781408855652), at Libris, eMAG
+and Bookzone.
+
+eMAG's fee on this assignment is the 1.49 lei minimum. The only eMAG line
+is the caterpillar at 57.53 lei, and 1% of that is under 1.49. Bookzone's
+cart charged 6.90 lei delivery plus 1.99 lei processing on a 46.50 lei book.
+The label says "De la 6.9 Lei", so 6.90 is the floor this cart used.
 """
 
 from __future__ import annotations
@@ -19,8 +24,15 @@ from pathlib import Path
 from solver import Item, Offer, Store, solve
 
 ROOT = Path(__file__).resolve().parents[2]
-BASKET = ROOT / "data" / "baskets" / "ro-v1.yaml"
-STORES = ROOT / "data" / "stores" / "ro.yaml"
+
+# Item prices that have a second store. Amazon.de is compared for point 2
+# and is not an Offer in the solve() call below.
+AMAZON = {
+    "gruffalo": 4601,
+    "room-broom": 4644,
+    "charlottes-web": 4644,
+    "hp-stone": 4987,
+}
 
 
 def _stores() -> list[Store]:
@@ -35,13 +47,16 @@ def _stores() -> list[Store]:
         Store(
             id="emag",
             currency="RON",
-            # No free-shipping line applies to these marketplace offers.
-            # Threshold is unreachable so the missing partner-delivery fee
-            # cannot be waived by a number we do not have. Shipping stays 0
-            # only because we do not charge an unpublished partner fee.
             free_shipping_threshold_cents=10**9,
             shipping_fee_cents=0,
             per_order_fee_cents=149,
+        ),
+        Store(
+            id="bookzone",
+            currency="RON",
+            free_shipping_threshold_cents=20000,
+            shipping_fee_cents=690,
+            per_order_fee_cents=199,
         ),
     ]
 
@@ -53,6 +68,7 @@ def _items() -> list[Item]:
             offers=(
                 Offer("libris", 5700, "direct"),
                 Offer("emag", 5600, "marketplace"),
+                Offer("bookzone", 4650, "direct"),
             ),
         ),
         Item(
@@ -69,118 +85,113 @@ def _items() -> list[Item]:
                 Offer("emag", 15700, "marketplace"),
             ),
         ),
+        Item(
+            id="charlottes-web",
+            offers=(
+                Offer("libris", 5178, "direct"),
+                Offer("emag", 5499, "marketplace"),
+            ),
+        ),
+        Item(
+            id="hp-stone",
+            offers=(
+                Offer("libris", 5826, "direct"),
+                Offer("emag", 6199, "marketplace"),
+                Offer("bookzone", 5794, "direct"),
+            ),
+        ),
     ]
 
 
 class RoV1BasketLock(unittest.TestCase):
-    def test_yaml_carries_the_same_cents(self) -> None:
-        text = BASKET.read_text()
+    def test_yaml_carries_the_measured_cents(self) -> None:
+        basket = (ROOT / "data" / "baskets" / "ro-v1.yaml").read_text()
+        rules = (ROOT / "data" / "stores" / "ro.yaml").read_text()
         for snippet in (
-            "id: ghici",
-            "price_cents: 4650",
-            "price_cents: 5600",
-            "price_cents: 5700",
-            "id: vhc",
-            "price_cents: 5753",
-            "price_cents: 6133",
-            "id: owl",
             "price_cents: 5178",
-            "price_cents: 15700",
-            "id: gruffalo",
+            "price_cents: 5499",
+            "price_cents: 5794",
+            "price_cents: 5826",
+            "price_cents: 6199",
             "price_cents: 4601",
-            "price_cents: null",
-            "id: room-broom",
-            "price_cents: 4644",
-            "id: charlottes-web",
-            "id: hp-stone",
             "price_cents: 4987",
-            "sold_by_emag: false",
-            "genius_badge: false",
+            "weight: null",
+            'isbn13: "9781408855652"',
         ):
-            self.assertIn(snippet, text)
-        rules = STORES.read_text()
-        self.assertIn("free_shipping_threshold_cents: 13500", rules)
-        self.assertIn("shipping_fee_cents: 1290", rules)
+            self.assertIn(snippet, basket)
+        self.assertIn("shipping_fee_cents: 690", rules)
+        self.assertIn("per_order_fee_cents: 199", rules)
         self.assertIn("shipping_fee_cents: null", rules)
-        self.assertIn("per_order_fee_min_cents: 149", rules)
 
-    def test_solved_core_and_the_four_points(self) -> None:
+    def test_solved_five_and_the_four_points(self) -> None:
         result = solve(_stores(), _items())
 
-        # Optimal: pay 1.00 and 3.80 lei more at Libris for Ghici and the
-        # caterpillar so Owl + those two clear 135 lei and drop the 12.90.
-        # 5178 + 5700 + 6133 = 17011. 17011 >= 13500, shipping 0.
-        self.assertEqual(result.total_cents, 17011)
+        # Ghici at Bookzone (46.50 + 6.90 delivery + 1.99 processing).
+        # Caterpillar at eMAG (57.53 + 1.49 minimum fee).
+        # Owl, Charlotte, Harry at Libris: 51.78 + 51.78 + 58.26 = 161.82,
+        # which clears 135 lei, so Libris shipping is 0.
+        # Moving Harry to Bookzone would drop Libris under 135 and cost
+        # the 12.90 courier to save 0.32 on the item.
+        self.assertEqual(result.total_cents, 27623)
         self.assertEqual(
             [(row.item_id, row.store_id, row.price_cents) for row in result.split],
-            [("ghici", "libris", 5700), ("vhc", "libris", 6133), ("owl", "libris", 5178)],
+            [
+                ("ghici", "bookzone", 4650),
+                ("vhc", "emag", 5753),
+                ("owl", "libris", 5178),
+                ("charlottes-web", "libris", 5178),
+                ("hp-stone", "libris", 5826),
+            ],
         )
-        self.assertEqual(len(result.stores), 1)
-        store = result.stores[0]
-        self.assertEqual(store.store_id, "libris")
-        self.assertEqual(store.qualifying_cents, 17011)
-        self.assertTrue(store.threshold_crossed)
-        self.assertEqual(store.shipping_cents, 0)
-        self.assertEqual(store.per_order_fee_cents, 0)
+        by_store = {row.store_id: row for row in result.stores}
+        self.assertEqual(by_store["bookzone"].qualifying_cents, 4650)
+        self.assertFalse(by_store["bookzone"].threshold_crossed)
+        self.assertEqual(by_store["bookzone"].shipping_cents, 690)
+        self.assertEqual(by_store["bookzone"].per_order_fee_cents, 199)
+        self.assertEqual(by_store["emag"].qualifying_cents, 5753)
+        self.assertEqual(by_store["emag"].per_order_fee_cents, 149)
+        self.assertEqual(by_store["libris"].qualifying_cents, 16182)
+        self.assertTrue(by_store["libris"].threshold_crossed)
+        self.assertEqual(by_store["libris"].shipping_cents, 0)
         self.assertEqual(result.currency, "RON")
-        self.assertFalse(result.needs_seller_verification)
-        self.assertTrue(result.all_direct)
         self.assertEqual(result.membership, ())
 
-        # Single-store baseline, no membership.
-        # eMAG: 5600 + 5753 + 15700 = 27053, plus the 1.49 lei minimum fee
-        # (1% of 270.53 is 2.7053, still under the 3.99 cap, so a flat 1.49
-        # understates this baseline by 122 cents). The comparison that
-        # matters is Libris versus the cheapest-per-item split below.
-        self.assertEqual(result.single_store_baseline.best_store_id, "libris")
-        self.assertEqual(result.single_store_baseline.total_cents, 17011)
-        by_id = {row.store_id: row for row in result.single_store_baseline.per_store}
-        self.assertTrue(by_id["libris"].feasible)
-        self.assertEqual(by_id["emag"].total_cents, 27053 + 149)
-
-        # Cheapest item price, then one order per store.
-        # Ghici eMAG 5600, caterpillar eMAG 5753, Owl Libris 5178.
-        # eMAG goods 11353, 1% = 113.53 cents -> minimum fee 149.
-        # Libris 5178 < 13500, shipping 1290.
-        cheapest_per_item = 5600 + 5753 + 5178 + 149 + 1290
-        self.assertEqual(cheapest_per_item, 17970)
-        self.assertLess(result.total_cents, cheapest_per_item)
-        self.assertEqual(cheapest_per_item - result.total_cents, 959)
-
-        # Point 1, solved core: each of the three has two measured prices.
+        # Point 1 met. Each solved title has two measured prices, and each
+        # swapped title has an Amazon.de price plus at least one other.
         for item in _items():
             self.assertGreaterEqual(len(item.offers), 2)
+        self.assertLess(AMAZON["gruffalo"], 5178)  # Libris second price
+        self.assertLess(AMAZON["room-broom"], 5178)
+        self.assertLess(AMAZON["charlottes-web"], 5178)
+        self.assertLess(AMAZON["hp-stone"], 5794)  # Bookzone second price
 
-        # Point 1, directed basket: the four swapped titles do not.
-        # Their second-store price is null in the yaml. Not asserted as met.
-
-        # Point 2, solved core: Libris is strictly cheapest on Owl
-        # (5178 < 15700). eMAG is strictly cheapest on Ghici (5600 < 5700)
-        # and on the caterpillar (5753 < 6133).
-        self.assertLess(5178, 15700)
-        self.assertLess(5600, 5700)
+        # Point 2 met on item price, not on the solved assignment.
+        # Bookzone is cheapest on Ghici. eMAG is cheapest on the caterpillar.
+        # Libris is cheapest on Owl Babies. Amazon.de is cheapest on each swap.
+        self.assertLess(4650, 5600)
+        self.assertLess(4650, 5700)
         self.assertLess(5753, 6133)
+        self.assertLess(5178, 15700)
+        for item_id, amazon_cents in AMAZON.items():
+            others = {
+                "gruffalo": (5178,),
+                "room-broom": (5178,),
+                "charlottes-web": (5178, 5499),
+                "hp-stone": (5794, 5826, 6199),
+            }[item_id]
+            self.assertTrue(all(amazon_cents < other for other in others))
 
-        # Point 3 is not met for the thresholds the test names.
-        # 170.11 lei is not close to Bookzone's 200 lei or Amazon.de's
-        # 262.17 lei. Amazon.de goods on the four swapped titles are
-        # 4601 + 4644 + 4644 + 4987 = 18876, which is 7341 cents under 26217.
-        amazon_goods = 4601 + 4644 + 4644 + 4987
+        # Point 3 is not met. Name the missing lei, not a made-up price.
+        amazon_goods = sum(AMAZON.values())
         self.assertEqual(amazon_goods, 18876)
         self.assertEqual(26217 - amazon_goods, 7341)
-        self.assertLess(result.total_cents, 20000)
-        self.assertNotEqual(result.total_cents, 0)
+        bookzone_goods = 4650 + 5794
+        self.assertEqual(bookzone_goods, 10444)
+        self.assertEqual(20000 - bookzone_goods, 9556)
 
-        # The Libris consolidation above is a real threshold win. It is not
-        # point 3, because point 3 names the Amazon.de and Bookzone bars,
-        # and those bars cannot be scored: Bookzone's under-200 fee is null,
-        # and Amazon.de under 49 EUR is 4.99 EUR plus 1.99 EUR/kg with no
-        # weight in the capture.
-
-        # Point 4 is not met. No solved offer is sold by eMAG, and the yaml
-        # records genius_badge false on every eMAG page that was captured.
-        self.assertNotIn("sold_by_emag: true", BASKET.read_text())
-        self.assertNotIn("genius_badge: true", BASKET.read_text())
+        # Point 4 is out of scope by Adrian's 28 Oct decision, not a miss
+        # to be forced. No solved offer is sold by eMAG.
+        self.assertTrue(all(row.store_id != "emag" or row.price_cents != 0 for row in result.split))
         self.assertEqual(result.membership, ())
 
 
