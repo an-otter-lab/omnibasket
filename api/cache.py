@@ -3,6 +3,11 @@
 ISBN-less editions (the locked basket has two) would collide on store+ISBN+day,
 so the item id is part of the key. A hit is the saved capture. A miss is not
 filled from the network by this module.
+
+Each call opens its own connection and closes it before returning. A connection
+is never stored on the cache and never shared across threads. WAL plus a busy
+timeout let a solve run while another request is reading. Callers must finish
+every read before they start yielding a stream.
 """
 
 from __future__ import annotations
@@ -27,53 +32,63 @@ CREATE TABLE IF NOT EXISTS pages (
 );
 """
 
+_BUSY_TIMEOUT_MS = 5000
+
 
 class PageCache:
     def __init__(self, path: Path | str) -> None:
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        self._db = sqlite3.connect(self.path)
-        self._db.row_factory = sqlite3.Row
-        self._db.executescript(_SCHEMA)
+        with self._connect() as db:
+            db.executescript(_SCHEMA)
 
     def close(self) -> None:
-        self._db.close()
+        """Nothing is held open. Kept so older callers can still call close()."""
+
+    def _connect(self) -> sqlite3.Connection:
+        db = sqlite3.connect(self.path, timeout=_BUSY_TIMEOUT_MS / 1000)
+        db.row_factory = sqlite3.Row
+        db.execute(f"PRAGMA busy_timeout={_BUSY_TIMEOUT_MS}")
+        db.execute("PRAGMA journal_mode=WAL")
+        return db
 
     def put(self, row: dict) -> None:
-        self._db.execute(
-            """
-            INSERT OR REPLACE INTO pages (
-                store_id, isbn13, item_id, day, page_text,
-                screenshot_path, model_json, provenance_json
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                row["store_id"],
-                row.get("isbn13") or "",
-                row["item_id"],
-                row["day"],
-                row["page_text"],
-                row.get("screenshot_path"),
-                _dump(row.get("model_json")),
-                _dump(row.get("provenance") or {}),
-            ),
-        )
-        self._db.commit()
+        with self._connect() as db:
+            db.execute(
+                """
+                INSERT OR REPLACE INTO pages (
+                    store_id, isbn13, item_id, day, page_text,
+                    screenshot_path, model_json, provenance_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    row["store_id"],
+                    row.get("isbn13") or "",
+                    row["item_id"],
+                    row["day"],
+                    row["page_text"],
+                    row.get("screenshot_path"),
+                    _dump(row.get("model_json")),
+                    _dump(row.get("provenance") or {}),
+                ),
+            )
 
     def get(self, store_id: str, isbn13: str | None, item_id: str, day: str) -> dict | None:
-        found = self._db.execute(
-            """
-            SELECT * FROM pages
-            WHERE store_id = ? AND isbn13 = ? AND item_id = ? AND day = ?
-            """,
-            (store_id, isbn13 or "", item_id, day),
-        ).fetchone()
-        if found is None:
-            return None
-        return _row(found)
+        with self._connect() as db:
+            found = db.execute(
+                """
+                SELECT * FROM pages
+                WHERE store_id = ? AND isbn13 = ? AND item_id = ? AND day = ?
+                """,
+                (store_id, isbn13 or "", item_id, day),
+            ).fetchone()
+            if found is None:
+                return None
+            return _row(found)
 
     def count(self) -> int:
-        return int(self._db.execute("SELECT COUNT(*) FROM pages").fetchone()[0])
+        with self._connect() as db:
+            return int(db.execute("SELECT COUNT(*) FROM pages").fetchone()[0])
 
 
 def load_seed(cache: PageCache, seed_path: Path | None = None) -> int:

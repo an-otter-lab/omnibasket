@@ -66,6 +66,8 @@ def create_app(db_path: Path | None = None) -> FastAPI:
     @app.get("/events")
     def events(source: str = Query(default="cache")) -> StreamingResponse:
         def generate():
+            # Finish every cache read before the first yield. The connection
+            # opened for this request is closed inside PageCache before we get here.
             try:
                 pages, payload = _cached_solution(app, source)
             except SolverError as exc:

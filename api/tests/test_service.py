@@ -210,6 +210,128 @@ def test_built_ui_is_served_at_root() -> None:
     assert client.get("/health").json() == {"status": "ok"}
 
 
+SEVEN_BOOKS = [
+    ("ghici", "libris", 5700),
+    ("vhc", "libris", 6133),
+    ("owl", "libris", 5178),
+    ("mole", "amazon_de", 11653),
+    ("wild", "amazon_de", 3986),
+    ("matilda", "amazon_de", 9433),
+    ("charlie", "amazon_de", 9433),
+]
+
+
+def _assert_locked_split(body: dict) -> None:
+    assert body["total_cents"] == 51516
+    assert [(row["item_id"], row["store_id"], row["price_cents"]) for row in body["assignment"]] == SEVEN_BOOKS
+
+
+def test_repeated_solves_share_no_sqlite_connection(tmp_path: Path) -> None:
+    """One long-lived app: three solves, a solve during an open /events stream, two in parallel.
+
+    The old PageCache kept one connection created on the first thread. A later
+    solve from the worker pool raised sqlite3.ProgrammingError.
+    """
+    import threading
+    from concurrent.futures import ThreadPoolExecutor
+
+    app = create_app(tmp_path / "pages.sqlite")
+    client = TestClient(app)
+
+    for _ in range(3):
+        response = client.post("/solve", params={"source": "cache"})
+        assert response.status_code == 200, response.text
+        _assert_locked_split(response.json())
+
+    started = threading.Event()
+    release = threading.Event()
+    stream_error: list[BaseException] = []
+
+    def hold_stream() -> None:
+        stream_client = TestClient(app)
+        try:
+            with stream_client.stream("GET", "/events", params={"source": "cache"}) as streamed:
+                assert streamed.status_code == 200
+                chunks = streamed.iter_text()
+                first = next(chunks)
+                assert first
+                started.set()
+                assert release.wait(timeout=10)
+                rest = first + "".join(chunks)
+                assert "51516" in rest
+        except BaseException as exc:  # pragma: no cover - surfaced below
+            stream_error.append(exc)
+            started.set()
+        finally:
+            stream_client.close()
+
+    holder = threading.Thread(target=hold_stream)
+    holder.start()
+    assert started.wait(timeout=10)
+    during = client.post("/solve", params={"source": "cache"})
+    release.set()
+    holder.join(timeout=10)
+    assert not stream_error, stream_error
+    assert during.status_code == 200, during.text
+    _assert_locked_split(during.json())
+
+    def solve_once() -> dict:
+        peer = TestClient(app)
+        try:
+            response = peer.post("/solve", params={"source": "cache"})
+            assert response.status_code == 200, response.text
+            body = response.json()
+            _assert_locked_split(body)
+            return body
+        finally:
+            peer.close()
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        parallel = [future.result(timeout=15) for future in (pool.submit(solve_once), pool.submit(solve_once))]
+    assert len(parallel) == 2
+
+
+def test_one_book_basket_is_5539_at_bookzone() -> None:
+    client = TestClient(create_app())
+    response = client.post(
+        "/solve",
+        json={
+            "source": "given",
+            "stores": [
+                {
+                    "id": "bookzone",
+                    "currency": "RON",
+                    "free_shipping_threshold_cents": 20000,
+                    "shipping_fee_cents": 690,
+                    "per_order_fee_cents": 199,
+                }
+            ],
+            "items": [
+                {
+                    "id": "ghici",
+                    "offers": [
+                        {"store_id": "bookzone", "price_cents": 4650, "seller_certainty": "direct"}
+                    ],
+                }
+            ],
+        },
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["total_cents"] == 5539
+    assert body["assignment"] == [
+        {
+            "item_id": "ghici",
+            "store_id": "bookzone",
+            "price_cents": 4650,
+            "seller_certainty": "direct",
+        }
+    ]
+    assert body["stores"][0]["store_total_cents"] == 5539
+    assert body["stores"][0]["shipping_cents"] == 690
+    assert body["stores"][0]["per_order_fee_cents"] == 199
+
+
 def test_cache_miss_names_the_book_and_store(tmp_path: Path) -> None:
     app = create_app(tmp_path / "pages.sqlite")
     client = TestClient(app)
