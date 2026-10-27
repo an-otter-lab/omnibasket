@@ -1,0 +1,162 @@
+# Omnibasket v1 candidate, measured 2026-10-28, point-3 reshape.
+# Every price_cents value is copied from a saved page, not computed.
+# null is not used for a price. The Amazon.de under-bar fee is not an
+# item price; it is recorded on the store, not here.
+# spike/out is gitignored. Paths are relative to this worktree.
+checked_at: 2026-10-28
+currency: RON
+direction: >-
+  Keep Ghici, The Very Hungry Caterpillar and Owl Babies. Replace the
+  four cheap Amazon.de paperbacks (188.76 lei) with four Amazon.de-dispatched
+  editions whose Amazon prices sum to 345.05 lei, over the 262.17 lei bar.
+  Each replacement is the same ISBN at Libris.
+solved_store_ids: [libris, emag, bookzone, amazon_de]
+books:
+  - id: ghici
+    title: Ghici cât de mult te iubesc
+    role: kept-romanian
+    isbn13: "9786068996011"
+    isbn_note: Bookzone specs and the eMAG URL. The Libris page does not print an ISBN.
+    offers:
+      - store_id: bookzone
+        price_cents: 4650
+        seller_certainty: direct
+        seller: Bookzone
+        capture: spike/out/bookzone-ghici/text.txt
+        evidence: "Visible price 46.5 Lei. Cart subtotal uses this price."
+      - store_id: emag
+        price_cents: 5600
+        seller_certainty: marketplace
+        seller: CARTEA COPIILOR
+        genius_badge: false
+        sold_by_emag: false
+        capture: spike/out/headful/emag-ghici/text.txt
+        evidence: "56,00 Lei. Vândut și livrat de: CARTEA COPIILOR. No product Genius badge."
+      - store_id: libris
+        price_cents: 5700
+        seller_certainty: direct
+        seller: Libris
+        capture: spike/out/libris-ghici/text.txt
+        evidence: "57.00Lei. În stoc. Editura CARTEA COPIILOR."
+
+  - id: vhc
+    title: The Very Hungry Caterpillar
+    role: kept-amazon-de-does-not-dispatch
+    isbn13: null
+    isbn_note: >-
+      Not one edition. eMAG headful page is product code BRT9780241003008,
+      sold by Libris English SRL. Libris page is the Philomel 1994 board book.
+    offers:
+      - store_id: emag
+        price_cents: 5753
+        seller_certainty: marketplace
+        seller: Libris English SRL
+        genius_badge: false
+        sold_by_emag: false
+        capture: spike/out/headful/emag-vhc/text.txt
+        evidence: "57,53 Lei. Vândut și livrat de: Libris English SRL."
+      - store_id: libris
+        price_cents: 6133
+        seller_certainty: direct
+        seller: Libris
+        capture: spike/out/libris-vhc/text.txt
+        evidence: "61.33Lei, list 68.14 Lei. Livrare in 2-4 saptamani."
+
+  - id: owl
+    title: Owl Babies
+    role: kept-amazon-de-does-not-dispatch
+    isbn13: null
+    isbn_note: >-
+      Different editions. eMAG page ISBN 9780763695194, sold by Karte.
+      Libris page is the Walker Books 2017 board book and does not print an ISBN.
+    offers:
+      - store_id: libris
+        price_cents: 5178
+        seller_certainty: direct
+        seller: Libris
+        capture: spike/out/libris-owl/text.txt
+        evidence: "51.78Lei, list 57.53 Lei. Livrare in 2-4 saptamani."
+      - store_id: emag
+        price_cents: 15700
+        seller_certainty: marketplace
+        seller: Karte
+        genius_badge: false
+        sold_by_emag: false
+        capture: spike/out/headful/emag-owl/text.txt
+        evidence: "157,00 Lei. Vândut și livrat de: Karte."
+
+  - id: mole
+    title: The Boy, the Mole, the Fox and the Horse
+    role: swapped-amazon-de-edition
+    isbn13: "9781529105100"
+    isbn_note: Amazon.de product information and the Libris page HTML. Ebury Press hardback, 2019.
+    offers:
+      - store_id: amazon_de
+        price_cents: 11653
+        seller_certainty: direct
+        seller: Amazon
+        capture: spike/out/amz-isbn/9781529105100/text.txt
+        evidence: "116,53 RON. Gebundene Ausgabe. Versender / Verkäufer Amazon. Liefern nach Rumänien."
+      - store_id: libris
+        price_cents: 14256
+        seller_certainty: direct
+        seller: Libris
+        capture: spike/out/candidates/libris-mole-a/text.txt
+        evidence: "142.56Lei, list 158.40 Lei. Editura Ebury Publishing, 2019."
+
+  - id: wild
+    title: Where the Wild Things Are
+    role: swapped-amazon-de-edition
+    isbn13: "9780064431781"
+    isbn_note: Amazon.de dp/0064431789 and the Libris page HTML. HarperCollins paperback.
+    offers:
+      - store_id: amazon_de
+        price_cents: 3986
+        seller_certainty: direct
+        seller: Amazon
+        capture: spike/out/amz-isbn/9780064431781/text.txt
+        evidence: "39,86 RON. Taschenbuch. Versender / Verkäufer Amazon. Liefern nach Rumänien."
+      - store_id: libris
+        price_cents: 7770
+        seller_certainty: direct
+        seller: Libris
+        capture: spike/out/candidates/libris-wild-b/text.txt
+        evidence: "77.70Lei, list 86.33 Lei. Editura Harpercollins, 2012."
+
+  - id: matilda
+    title: Matilda (Colour Edition)
+    role: swapped-amazon-de-edition
+    isbn13: "9780141369365"
+    isbn_note: Amazon.de dp/0141369361 and the Libris page HTML. Puffin colour edition, 2016.
+    offers:
+      - store_id: amazon_de
+        price_cents: 9433
+        seller_certainty: direct
+        seller: Amazon
+        capture: spike/out/amz-isbn/9780141369365/text.txt
+        evidence: "94,33 RON. Taschenbuch. Versender / Verkäufer Amazon. Liefern nach Rumänien."
+      - store_id: libris
+        price_cents: 8418
+        seller_certainty: direct
+        seller: Libris
+        capture: spike/out/candidates/libris-matilda-colour/text.txt
+        evidence: "84.18Lei, list 93.53 Lei. Editura PUFFIN, 2016."
+
+  - id: charlie
+    title: Charlie and the Chocolate Factory (Colour Edition)
+    role: swapped-amazon-de-edition
+    isbn13: "9780141369372"
+    isbn_note: Amazon.de dp/014136937X and the Libris page HTML. Puffin colour edition, 2016.
+    offers:
+      - store_id: amazon_de
+        price_cents: 9433
+        seller_certainty: direct
+        seller: Amazon
+        capture: spike/out/amz-isbn/9780141369372/text.txt
+        evidence: "94,33 RON. Taschenbuch. Versender / Verkäufer Amazon. Liefern nach Rumänien."
+      - store_id: libris
+        price_cents: 8418
+        seller_certainty: direct
+        seller: Libris
+        capture: spike/out/candidates/libris-charlie-colour/text.txt
+        evidence: "84.18Lei, list 93.53 Lei. Editura PUFFIN, 2016."
