@@ -1,0 +1,79 @@
+# Romanian store rules read 2026-10-28 from each store's own page.
+# Amounts are integer cents of `currency`. null means the page did not publish
+# a single figure the solver can use. Extra keys (source_url, read_date, notes,
+# fee bands) are not on solver.types.Store; the five money fields are.
+# Membership is omitted when the price was not on a page read this pass.
+checked_at: 2026-10-28
+stores:
+  - id: libris
+    currency: RON
+    free_shipping_threshold_cents: 13500
+    shipping_fee_cents: 1290
+    per_order_fee_cents: 0
+    membership: null
+    source_url: https://www.libris.ro/informatiiUtile/beneficii
+    read_date: 2026-10-28
+    notes: >-
+      Courier in Romania is free above 135 lei, otherwise 12.90 lei.
+      Easybox uses the same fee. International shipping is calculated at
+      checkout and is not a flat fee. No membership price on this page.
+
+  - id: bookzone
+    currency: RON
+    free_shipping_threshold_cents: 20000
+    shipping_fee_cents: null
+    per_order_fee_cents: 0
+    membership: null
+    source_url: https://bookzone.ro/ajutor?section=2
+    read_date: 2026-10-28
+    notes: >-
+      The delivery page, the FAQ (section=6) and the Ghici product page all
+      say transport is free from 200 lei. None of them print the fee charged
+      under 200 lei. International fees on the FAQ (107 lei EU, 185 lei UK)
+      are not the domestic under-threshold fee.
+
+  - id: amazon_de
+    currency: EUR
+    free_shipping_threshold_cents: 4900
+    shipping_fee_cents: null
+    per_order_fee_cents: 0
+    membership: null
+    source_url: https://www.amazon.de/gp/help/customer/display.html?nodeId=GA6MMBQJBJ5QYUDW
+    read_date: 2026-10-28
+    notes: >-
+      Romania, standard delivery, books/music/DVD/software/videogames:
+      4.99 EUR per delivery plus 1.99 EUR per kg, free from 49.00 EUR.
+      Other articles: 5.99 EUR per delivery plus 2.99 EUR per kg, same
+      49.00 EUR free threshold. Express is 26.99 EUR plus 9.49 EUR per kg.
+      Applies to Versand durch Amazon, not marketplace sellers.
+      The same 49 EUR book threshold is on
+      https://www.amazon.de/gp/help/customer/display.html?nodeId=GZXW7X6AKTHNUP6H
+      (Kostenloser Versand nur für Bücher, Romania in that country list).
+      There is no single flat under-threshold fee, so shipping_fee_cents
+      is null. Prime shipping benefits on the help page do not apply to
+      addresses outside Germany and Austria.
+
+  - id: emag
+    currency: RON
+    free_shipping_threshold_cents: null
+    shipping_fee_cents: null
+    per_order_fee_cents: null
+    per_order_fee_percent: 1
+    per_order_fee_min_cents: 149
+    per_order_fee_max_cents: 399
+    membership: null
+    source_url: https://www.emag.ro/help/termeni-si-conditii/
+    read_date: 2026-10-28
+    notes: >-
+      The 1% operational fee (min 1.49 lei, max 3.99 lei per order) is in
+      the terms, applied to every order including loyalty members.
+      Marketplace delivery is not one store fee: the partner page states
+      that each partner publishes its own delivery fees and thresholds
+      (https://www.emag.ro/help/despre-emag-marketplace/, read 2026-10-28).
+      For goods sold by eMAG itself, normal-size delivery is free above
+      400 lei and 16.99 lei in Bucharest under that line
+      (https://www.emag.ro/help/livrarea-comenzilor-emag-2/). Genius waives
+      courier delivery on eMAG-sold normal-size orders from 100 lei. The
+      Genius subscription price was not on these pages, so membership is null.
+      English titles loaded this pass were marketplace sellers, so the
+      400 lei / 16.99 lei eMAG-sold rule does not apply to them.
