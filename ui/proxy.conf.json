@@ -1,0 +1,5 @@
+{
+  "/solve": { "target": "http://127.0.0.1:8765", "secure": false },
+  "/events": { "target": "http://127.0.0.1:8765", "secure": false },
+  "/health": { "target": "http://127.0.0.1:8765", "secure": false }
+}

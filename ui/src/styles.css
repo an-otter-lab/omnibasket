@@ -1,0 +1,19 @@
+:root {
+  --paper: #f7f5f2;
+  --surface: #fff;
+  --ink: #1c1917;
+  --ink-soft: #57534e;
+  --line: #e7e5e4;
+  --answer: #1e3a5f;
+  --info: #e8eef5;
+  --failed-bg: #fff7ed;
+  --failed: #9a3412;
+  --disabled-fill: #f3f1ee;
+  --disabled-label: #8a847c;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  color: var(--ink);
+  background: var(--paper);
+}
+* { box-sizing: border-box; }
+body { margin: 0; }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--answer); outline-offset: 2px; }
