@@ -1,0 +1,36 @@
+main { padding: 16px; max-width: 1120px; margin: 0 auto; }
+h1 { font-size: 22px; line-height: 28px; font-weight: 650; margin: 0 0 8px; }
+h2 { font-size: 16px; line-height: 22px; font-weight: 650; margin: 0 0 8px; }
+p { font-size: 16px; line-height: 24px; margin: 0 0 8px; }
+.meta { color: var(--ink-soft); font-size: 13px; line-height: 18px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+.total { color: var(--answer); font-size: 32px; line-height: 36px; font-weight: 700; }
+.notice { background: var(--info); color: var(--answer); border-radius: 12px; padding: 12px; }
+.failed { background: var(--failed-bg); color: var(--failed); }
+.books, .lines { list-style: none; padding: 0; margin: 0; }
+.books li, .lines li { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-top: 1px solid var(--line); }
+.lines li { display: block; }
+.lines li div { display: flex; justify-content: space-between; gap: 12px; }
+button, input { font: inherit; }
+button { min-height: 44px; min-width: 44px; }
+.primary { background: var(--answer); color: #fff; border: 0; border-radius: 12px; padding: 0 16px; }
+.primary:disabled { background: var(--disabled-fill); color: var(--disabled-label); border: 1px solid var(--line); }
+.text, .switch, .segment button { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 0 12px; }
+.segment { display: flex; }
+.segment button { flex: 1; }
+.segment button[aria-pressed='true'] { background: var(--info); color: var(--answer); }
+.switch:disabled { background: var(--disabled-fill); color: var(--disabled-label); }
+.chip { display: inline-block; background: var(--info); color: var(--answer); border-radius: 12px; padding: 4px 8px; }
+.bar { height: 8px; background: var(--line); border-radius: 12px; overflow: hidden; }
+.bar span { display: block; height: 100%; background: var(--answer); }
+.rail { display: none; }
+form { display: grid; gap: 8px; margin: 16px 0; }
+input { min-height: 44px; border: 1px solid var(--line); border-radius: 12px; padding: 0 12px; }
+@media (min-width: 900px) {
+  main { padding: 32px; }
+  .card { padding: 24px; }
+  .total { font-size: 40px; line-height: 44px; }
+  .layout { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 32px; }
+  .stack-only { display: none; }
+  .rail { display: block; }
+}

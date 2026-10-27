@@ -1,0 +1,165 @@
+<main>
+  <header>
+    <h1>Where should this order go?</h1>
+    <p class="meta">Delivery: Romania.</p>
+  </header>
+
+  @if (phase === 'entry' || phase === 'failed') {
+    <section class="card">
+      @if (books.length === 0) {
+        <p class="empty">Add at least one book to see where to buy it.</p>
+      }
+      <ul class="books">
+        @for (book of books; track book.id) {
+          <li>
+            <span>
+              <strong>{{ book.title }}</strong>
+              @if (book.isbn13) { <span class="meta">{{ book.isbn13 }}</span> }
+            </span>
+            <button type="button" class="text" (click)="removeBook(book.id)">Remove</button>
+          </li>
+        }
+      </ul>
+      <form (submit)="$event.preventDefault(); addBook()">
+        <label>
+          Book title or ISBN
+          <input name="book" [value]="draft" (input)="draft = $any($event.target).value" />
+        </label>
+        <button type="submit">Add book</button>
+      </form>
+      <ng-container *ngTemplateOutlet="controls"></ng-container>
+      <button type="button" class="primary" [disabled]="books.length === 0" (click)="findSplit()">Find the split</button>
+    </section>
+  }
+
+  @if (phase === 'failed') {
+    <section class="card failed" role="status">
+      <h2>{{ failTitle }}</h2>
+      <p>{{ failBody }}</p>
+      @if (cacheNotice) { <p class="notice">This demo is reading saved store pages, not live shops.</p> }
+    </section>
+  }
+
+  @if (phase === 'reading') {
+    <section class="card" aria-live="polite">
+      <h2>Reading store pages</h2>
+      @if (cacheNotice) {
+        <p class="notice"><span aria-hidden="true">▣</span> This demo is reading saved store pages, not live shops.</p>
+      }
+      <p>Page {{ progressDone }} of {{ progressTotal }}</p>
+      <div class="bar" role="progressbar" [attr.aria-valuenow]="progressDone" [attr.aria-valuemax]="progressTotal">
+        <span [style.width.%]="progressTotal ? (progressDone / progressTotal) * 100 : 0"></span>
+      </div>
+      <p class="meta">{{ progressTitle }} at {{ progressStore }}</p>
+      <p class="meta">{{ pagesRead }} pages read</p>
+      <button type="button" class="text stop" (click)="stop()">Stop</button>
+    </section>
+  }
+
+  @if (phase === 'result' && solution) {
+    <section class="layout">
+      <div class="main-col">
+        <article class="card answer">
+          <p class="meta">Recommended split</p>
+          <p class="total">{{ money(solution.total_cents) }}</p>
+          @if (cacheNotice) {
+            <p class="notice"><span aria-hidden="true">▣</span> This demo is reading saved store pages, not live shops.</p>
+          }
+          <p>{{ splitLine() }}</p>
+          @if (membershipVerdict) { <p>{{ membershipVerdict }}</p> }
+          @if (membershipPrice != null) {
+            <p class="meta">The membership itself costs {{ money(membershipPrice) }}. It is not included in the total.</p>
+          }
+          <p class="tradeoff">{{ tradeoff }}</p>
+        </article>
+
+        <div class="stack-only">
+          <ng-container *ngTemplateOutlet="comparisons"></ng-container>
+          <ng-container *ngTemplateOutlet="controls"></ng-container>
+        </div>
+
+        @for (store of solution.stores; track store.store_id) {
+          <article class="card">
+            <h2>{{ storeName(store.store_id) }}</h2>
+            <p>Items {{ money(store.items_cents) }}</p>
+            <p>{{ shippingLabel(store.shipping_cents) }}</p>
+            <p>Store total {{ money(store.store_total_cents) }}</p>
+            @if (store.per_order_fee_cents) {
+              <p class="meta">Includes a {{ money(store.per_order_fee_cents) }} per-order fee.</p>
+            }
+            <ul class="lines">
+              @for (row of booksFor(store.store_id); track row.item_id) {
+                <li [attr.data-moved]="chip(row.item_id, row.store_id) ? null : null">
+                  <div>
+                    <strong>{{ titleOf(row.item_id) }}</strong>
+                    <span>{{ money(row.price_cents) }}</span>
+                  </div>
+                  @if (chip(row.item_id, row.store_id)) {
+                    <p class="chip">{{ chip(row.item_id, row.store_id) }}</p>
+                    <p class="meta">Not the ISBN you entered.</p>
+                  }
+                  @if (isbnLine(row.item_id)) { <p class="meta">{{ isbnLine(row.item_id) }}</p> }
+                  @if (offerOf(row.item_id, row.store_id)?.seller) {
+                    <p class="meta">Sold by {{ offerOf(row.item_id, row.store_id)?.seller }}</p>
+                  }
+                  @if (offerOf(row.item_id, row.store_id)?.deliveryWindow) {
+                    <p class="meta">Delivery {{ offerOf(row.item_id, row.store_id)?.deliveryWindow }}</p>
+                  }
+                </li>
+              }
+            </ul>
+          </article>
+        }
+
+        @if (leftOut.length) {
+          <article class="card failed">
+            <h2>Left out</h2>
+            @for (line of leftOut; track line) { <p>{{ line }}</p> }
+          </article>
+        }
+      </div>
+      <aside class="rail">
+        <ng-container *ngTemplateOutlet="comparisons"></ng-container>
+        <ng-container *ngTemplateOutlet="controls"></ng-container>
+      </aside>
+    </section>
+  }
+</main>
+
+<ng-template #comparisons>
+  @if (solution) {
+    <article class="card quiet">
+      <h2>Cheapest listing per book</h2>
+      <p>{{ money(solution.cheapest_per_item.total_cents) }}</p>
+      <p class="meta">{{ deltaLine(solution.cheapest_per_item.total_cents) }}</p>
+    </article>
+    @if (oneShop && oneShopComparable) {
+      <article class="card quiet">
+        <h2>All at one shop</h2>
+        <p>{{ money(oneShop.total) }}</p>
+        <p class="meta">{{ oneShop.name }}</p>
+        <p class="meta">{{ deltaLine(oneShop.total) }}</p>
+      </article>
+    }
+  }
+</ng-template>
+
+<ng-template #controls>
+  <section class="card quiet controls">
+    <h2>Edition</h2>
+    <div class="segment" role="group" aria-label="Edition matching">
+      <button type="button" [attr.aria-pressed]="edition === 'exact'" (click)="setEdition('exact')">Exact edition</button>
+      <button type="button" [attr.aria-pressed]="edition === 'same'" (click)="setEdition('same')">Same story</button>
+    </div>
+    <p class="meta">{{ edition === 'exact' ? 'Only the same ISBN. A different printing, language, or format stays out.' : 'The same story may be another printing, language, or format. Each difference is named on the book.' }}</p>
+    <h2>Membership</h2>
+    <button type="button" class="switch" role="switch" [attr.aria-checked]="membershipOn" [disabled]="!membershipNamed" (click)="setMembership(!membershipOn)">What if I had it?</button>
+    <p class="meta">
+      @if (!membershipNamed) {
+        None of the offers read for this basket use a membership. The question does not change the total.
+      } @else {
+        A membership you do not have. Prices without it stay the default. For this basket that means {{ membershipName }}.
+      }
+    </p>
+  </section>
+</ng-template>
