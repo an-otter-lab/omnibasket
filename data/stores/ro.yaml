@@ -1,7 +1,9 @@
 # Romanian store rules the v1 basket lock is allowed to use.
-# Amounts are integer cents of `currency`. null means the measured page
-# did not publish a single figure solver.types.Store can take.
-# Do not fill a null from a formula, a guess, or another day's note.
+# Amounts are integer cents of `currency`. The Amazon.de under-bar
+# shipping_fee_cents is the published 4.99 EUR delivery component
+# converted at the rate printed on the buy boxes (49.00 EUR = 262.17 RON).
+# It is a floor. The 1.99 EUR/kg term is not included: no captured
+# product page states a weight.
 checked_at: 2026-10-28
 stores:
   - id: libris
@@ -28,34 +30,35 @@ stores:
     capture: spike/out/bookzone-cart-real/text.txt
     notes: >-
       One book under 200 lei (Ghici, 46.50) was added to the cart.
-      The cart page, not checkout, prints "Cost livrare: De la 6.9 Lei"
-      and "Cost procesare: 1.99 Lei". The same page's subtotal is
-      55.39 lei, which is 46.50 + 6.90 + 1.99, so this order was
-      charged 6.90 lei for delivery. The words "De la" mean 6.90 is
-      the floor shown for this cart, not a promise that every heavier
-      order stays at 6.90. Free transport from 200 lei is on the same
-      header ("Mai adaugă 153.50 lei și ai transport GRATUIT").
+      The cart page prints "Cost livrare: De la 6.9 Lei" and
+      "Cost procesare: 1.99 Lei". The subtotal 55.39 is
+      46.50 + 6.90 + 1.99. "De la" means 6.90 is the floor this cart
+      showed. Free transport from 200 lei is on the same header.
       Stopped on /cos/produse. No address and no payment.
 
   - id: amazon_de
     currency: RON
     free_shipping_threshold_cents: 26217
     free_shipping_threshold_eur_cents: 4900
-    shipping_fee_cents: null
+    shipping_fee_cents: 2670
+    shipping_fee_is_floor: true
+    per_kg_fee_cents: null
     per_order_fee_cents: 0
     membership: null
     source_url: https://www.amazon.de/gp/help/customer/display.html?nodeId=GA6MMBQJBJ5QYUDW
     read_date: 2026-10-28
     capture: spike/out/shipping-rates/text.txt
+    fx_capture: spike/out/amz-isbn/9781529105100/text.txt
     notes: >-
-      Books to Romania are free from 49.00 EUR. Buy boxes print that bar
-      as 262.17 RON. Under the bar the charge is 4.99 EUR per delivery
-      plus 1.99 EUR per kg. None of the four priced product pages states
-      a weight (no Gewicht line in spike/out/gruffalo, room-broom,
-      charlottes-web, hp-stone text.txt on the amazonde worktree).
-      shipping_fee_cents stays null. The four Amazon.de item prices sum
-      to 188.76 lei, 73.41 lei under 262.17, so the free-shipping branch
-      is not reached either.
+      Romania, books, standard delivery: 4.99 EUR per delivery plus
+      1.99 EUR per kg, free from 49.00 EUR. Buy boxes print that bar
+      as 262.17 RON, so 1 EUR = 262.17/49 RON on the same page.
+      4.99 EUR converts to 26.698 lei, recorded as 2670 cents.
+      None of the four product pages states a weight, so the per-kg
+      term is not added. 2670 is a floor, not the full under-bar
+      charge. A higher true fee cannot change an assignment that
+      already sits over the bar (its shipping is zero) and can only
+      make an under-bar Amazon order worse.
 
   - id: emag
     currency: RON
@@ -71,7 +74,7 @@ stores:
     capture: spike/out/headful/emag-delivery/text.txt
     notes: >-
       1% operational fee, minimum 1.49 lei, maximum 3.99 lei.
-      Marketplace partners publish their own delivery fees; those fees
-      are not on the product pages read this pass. No captured title in
-      this basket is sold by eMAG, and none shows a Genius badge on the
-      product (the word Genius on the page is the site menu).
+      The solver Store type has one flat per-order fee. The lock
+      passes 1.49 lei, which is exact when the eMAG lines in an
+      assignment are at most 149 lei. No captured title in this
+      basket is sold by eMAG, and none shows a Genius badge.

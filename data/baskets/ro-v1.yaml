@@ -1,20 +1,16 @@
-# Omnibasket v1 candidate, measured 2026-10-28.
+# Omnibasket v1 candidate, measured 2026-10-28, point-3 reshape.
 # Every price_cents value is copied from a saved page, not computed.
-# null means that ISBN was not found, or the page did not state a price.
-# spike/out is gitignored. Paths are relative to this worktree unless noted.
+# null is not used for a price. The Amazon.de under-bar fee is not an
+# item price; it is recorded on the store, not here.
+# spike/out is gitignored. Paths are relative to this worktree.
 checked_at: 2026-10-28
 currency: RON
 direction: >-
-  Keep the Romanian title. Keep two titles the 28 Oct Amazon.de pass does
-  not dispatch. Swap four titles for editions Amazon.de itself dispatches.
-  Second prices are for the Amazon.de ISBN, not for a different eMAG ISBN.
-solved_store_ids: [libris, emag, bookzone]
-solved_item_ids: [ghici, vhc, owl, charlottes-web, hp-stone]
-amazon_not_in_solve: >-
-  The four Amazon.de prices are measured, and each is the cheapest item
-  price. They are not passed to solve() because an order of 188.76 lei
-  is under the 262.17 lei free-delivery bar and the under-bar charge is
-  4.99 EUR plus 1.99 EUR/kg with no weight on the page.
+  Keep Ghici, The Very Hungry Caterpillar and Owl Babies. Replace the
+  four cheap Amazon.de paperbacks (188.76 lei) with four Amazon.de-dispatched
+  editions whose Amazon prices sum to 345.05 lei, over the 262.17 lei bar.
+  Each replacement is the same ISBN at Libris.
+solved_store_ids: [libris, emag, bookzone, amazon_de]
 books:
   - id: ghici
     title: Ghici cât de mult te iubesc
@@ -26,7 +22,6 @@ books:
         price_cents: 4650
         seller_certainty: direct
         seller: Bookzone
-        in_solved_basket: true
         capture: spike/out/bookzone-ghici/text.txt
         evidence: "Visible price 46.5 Lei. Cart subtotal uses this price."
       - store_id: emag
@@ -35,14 +30,12 @@ books:
         seller: CARTEA COPIILOR
         genius_badge: false
         sold_by_emag: false
-        in_solved_basket: true
         capture: spike/out/headful/emag-ghici/text.txt
         evidence: "56,00 Lei. Vândut și livrat de: CARTEA COPIILOR. No product Genius badge."
       - store_id: libris
         price_cents: 5700
         seller_certainty: direct
         seller: Libris
-        in_solved_basket: true
         capture: spike/out/libris-ghici/text.txt
         evidence: "57.00Lei. În stoc. Editura CARTEA COPIILOR."
 
@@ -60,14 +53,12 @@ books:
         seller: Libris English SRL
         genius_badge: false
         sold_by_emag: false
-        in_solved_basket: true
         capture: spike/out/headful/emag-vhc/text.txt
         evidence: "57,53 Lei. Vândut și livrat de: Libris English SRL."
       - store_id: libris
         price_cents: 6133
         seller_certainty: direct
         seller: Libris
-        in_solved_basket: true
         capture: spike/out/libris-vhc/text.txt
         evidence: "61.33Lei, list 68.14 Lei. Livrare in 2-4 saptamani."
 
@@ -83,7 +74,6 @@ books:
         price_cents: 5178
         seller_certainty: direct
         seller: Libris
-        in_solved_basket: true
         capture: spike/out/libris-owl/text.txt
         evidence: "51.78Lei, list 57.53 Lei. Livrare in 2-4 saptamani."
       - store_id: emag
@@ -92,182 +82,81 @@ books:
         seller: Karte
         genius_badge: false
         sold_by_emag: false
-        in_solved_basket: true
         capture: spike/out/headful/emag-owl/text.txt
         evidence: "157,00 Lei. Vândut și livrat de: Karte."
 
-  - id: gruffalo
-    title: The Gruffalo
+  - id: mole
+    title: The Boy, the Mole, the Fox and the Horse
     role: swapped-amazon-de-edition
-    isbn13: "9781509804757"
-    isbn_note: >-
-      Amazon.de buy box. Libris search for that ISBN returned one result;
-      the product page does not print the ISBN (Macmillan, 2016).
-      eMAG search for this ISBN returned no book. A different eMAG ISBN
-      is recorded under other_edition and is not an offer of this ISBN.
+    isbn13: "9781529105100"
+    isbn_note: Amazon.de product information and the Libris page HTML. Ebury Press hardback, 2019.
     offers:
       - store_id: amazon_de
-        price_cents: 4601
+        price_cents: 11653
         seller_certainty: direct
         seller: Amazon
-        in_solved_basket: false
-        reason_excluded: Under the 262.17 lei bar and the per-kg charge has no weight.
-        capture: spike/out/gruffalo/text.txt
-        capture_tree: omnibasket-amazonde
-        weight: null
-        weight_note: No Gewicht line on the saved product text.
-        evidence: "46,01 RON. Versender / Verkäufer Amazon."
+        capture: spike/out/amz-isbn/9781529105100/text.txt
+        evidence: "116,53 RON. Gebundene Ausgabe. Versender / Verkäufer Amazon. Liefern nach Rumänien."
       - store_id: libris
-        price_cents: 5178
+        price_cents: 14256
         seller_certainty: direct
         seller: Libris
-        in_solved_basket: false
-        reason_excluded: Kept out of solve() with the Amazon.de offer. One Libris-only line would hide the cheaper Amazon price.
-        capture: spike/out/libris-gruffalo-product/text.txt
-        evidence: "51.78Lei, list 57.53 Lei. Livrare in 2-4 saptamani. Macmillan Children's Books, 2016."
-      - store_id: bookzone
-        price_cents: null
-        seller_certainty: null
-        in_solved_basket: false
-        reason_excluded: ISBN search returned no product page.
-        capture: spike/out/bookzone-cautare-gruffalo/text.txt
-    other_edition:
-      store_id: emag
-      isbn13: "9780142403877"
-      price_cents: 9400
-      seller: Karte
-      sold_by_emag: false
-      genius_badge: false
-      capture: spike/out/headful/emag-listed-gruffalo/text.txt
-      evidence: "94,00 Lei. Cod produs 9780142403877. Vândut și livrat de: Karte."
+        capture: spike/out/candidates/libris-mole-a/text.txt
+        evidence: "142.56Lei, list 158.40 Lei. Editura Ebury Publishing, 2019."
 
-  - id: room-broom
-    title: Room on the Broom
+  - id: wild
+    title: Where the Wild Things Are
     role: swapped-amazon-de-edition
-    isbn13: "9781509804771"
-    isbn_note: Amazon.de buy box. Libris product page does not print the ISBN (Macmillan, 2016).
+    isbn13: "9780064431781"
+    isbn_note: Amazon.de dp/0064431789 and the Libris page HTML. HarperCollins paperback.
     offers:
       - store_id: amazon_de
-        price_cents: 4644
+        price_cents: 3986
         seller_certainty: direct
         seller: Amazon
-        in_solved_basket: false
-        reason_excluded: Under the 262.17 lei bar and the per-kg charge has no weight.
-        capture: spike/out/room-broom/text.txt
-        capture_tree: omnibasket-amazonde
-        weight: null
-        weight_note: No Gewicht line on the saved product text.
-        evidence: "46,44 RON. Versender / Verkäufer Amazon."
+        capture: spike/out/amz-isbn/9780064431781/text.txt
+        evidence: "39,86 RON. Taschenbuch. Versender / Verkäufer Amazon. Liefern nach Rumänien."
       - store_id: libris
-        price_cents: 5178
+        price_cents: 7770
         seller_certainty: direct
         seller: Libris
-        in_solved_basket: false
-        reason_excluded: Same as The Gruffalo. Not solved without the cheaper Amazon.de price.
-        capture: spike/out/libris-room-broom-product/text.txt
-        evidence: "51.78Lei, list 57.53 Lei. Macmillan Children's Books, 2016."
-      - store_id: bookzone
-        price_cents: null
-        seller_certainty: null
-        in_solved_basket: false
-        reason_excluded: ISBN search returned no product page.
-        capture: spike/out/bookzone-cautare-room-broom/text.txt
-    other_edition:
-      store_id: emag
-      isbn13: "9780803726574"
-      price_cents: 15100
-      seller: Karte
-      sold_by_emag: false
-      genius_badge: false
-      capture: spike/out/headful/emag-listed-room-broom/text.txt
-      evidence: "151,00 Lei. Cod produs 9780803726574. Vândut și livrat de: Karte."
+        capture: spike/out/candidates/libris-wild-b/text.txt
+        evidence: "77.70Lei, list 86.33 Lei. Editura Harpercollins, 2012."
 
-  - id: charlottes-web
-    title: Charlotte's Web
+  - id: matilda
+    title: Matilda (Colour Edition)
     role: swapped-amazon-de-edition
-    isbn13: "9780141354828"
-    isbn_note: Amazon.de, the Libris search, and the eMAG product code are this ISBN.
+    isbn13: "9780141369365"
+    isbn_note: Amazon.de dp/0141369361 and the Libris page HTML. Puffin colour edition, 2016.
     offers:
       - store_id: amazon_de
-        price_cents: 4644
+        price_cents: 9433
         seller_certainty: direct
         seller: Amazon
-        in_solved_basket: false
-        reason_excluded: Under the 262.17 lei bar and the per-kg charge has no weight.
-        capture: spike/out/charlottes-web/text.txt
-        capture_tree: omnibasket-amazonde
-        weight: null
-        weight_note: No Gewicht line on the saved product text.
-        evidence: "46,44 RON. Versender / Verkäufer Amazon."
+        capture: spike/out/amz-isbn/9780141369365/text.txt
+        evidence: "94,33 RON. Taschenbuch. Versender / Verkäufer Amazon. Liefern nach Rumänien."
       - store_id: libris
-        price_cents: 5178
+        price_cents: 8418
         seller_certainty: direct
         seller: Libris
-        in_solved_basket: true
-        capture: spike/out/libris-charlottes-web-product/text.txt
-        evidence: "51.78Lei, list 57.53 Lei. Puffin, 2022. În stoc."
-      - store_id: emag
-        price_cents: 5499
-        seller_certainty: marketplace
-        seller: Nautilus English Books
-        genius_badge: false
-        sold_by_emag: false
-        in_solved_basket: true
-        capture: spike/out/headful/emag-isbn-charlottes-web/text.txt
-        evidence: "54,99 Lei. Cod produs 9780141354828. Vândut și livrat de: Nautilus English Books."
-      - store_id: bookzone
-        price_cents: null
-        seller_certainty: null
-        in_solved_basket: false
-        reason_excluded: ISBN search returned no product page.
-        capture: spike/out/bookzone-cautare-charlottes-web/text.txt
-    other_edition:
-      store_id: emag
-      isbn13: "9780064400558"
-      price_cents: 7913
-      seller: Libris English SRL
-      sold_by_emag: false
-      genius_badge: false
-      capture: spike/out/headful/emag-listed-charlottes-web/text.txt
-      evidence: "79,13 Lei. HarperTrophy ISBN 9780064400558. Not this basket ISBN."
+        capture: spike/out/candidates/libris-matilda-colour/text.txt
+        evidence: "84.18Lei, list 93.53 Lei. Editura PUFFIN, 2016."
 
-  - id: hp-stone
-    title: Harry Potter and the Philosopher's Stone
+  - id: charlie
+    title: Charlie and the Chocolate Factory (Colour Edition)
     role: swapped-amazon-de-edition
-    isbn13: "9781408855652"
-    isbn_note: Amazon.de, Bookzone specs, and the eMAG product code are this ISBN.
+    isbn13: "9780141369372"
+    isbn_note: Amazon.de dp/014136937X and the Libris page HTML. Puffin colour edition, 2016.
     offers:
       - store_id: amazon_de
-        price_cents: 4987
+        price_cents: 9433
         seller_certainty: direct
         seller: Amazon
-        in_solved_basket: false
-        reason_excluded: Under the 262.17 lei bar and the per-kg charge has no weight.
-        capture: spike/out/hp-stone/text.txt
-        capture_tree: omnibasket-amazonde
-        weight: null
-        weight_note: No Gewicht line on the saved product text.
-        evidence: "49,87 RON. Versender / Verkäufer Amazon."
-      - store_id: bookzone
-        price_cents: 5794
-        seller_certainty: direct
-        seller: Bookzone
-        in_solved_basket: true
-        capture: spike/out/bookzone-hp-stone-product/text.txt
-        evidence: "57.94 Lei. ISBN 9781408855652. 2014 edition."
+        capture: spike/out/amz-isbn/9780141369372/text.txt
+        evidence: "94,33 RON. Taschenbuch. Versender / Verkäufer Amazon. Liefern nach Rumänien."
       - store_id: libris
-        price_cents: 5826
+        price_cents: 8418
         seller_certainty: direct
         seller: Libris
-        in_solved_basket: true
-        capture: spike/out/libris-hp-stone-product/text.txt
-        evidence: "58.26Lei, list 64.73 Lei. Bloomsbury Children's Books, 2014. În stoc."
-      - store_id: emag
-        price_cents: 6199
-        seller_certainty: marketplace
-        seller: Nautilus English Books
-        genius_badge: false
-        sold_by_emag: false
-        in_solved_basket: true
-        capture: spike/out/headful/emag-isbn-hp-stone/text.txt
-        evidence: "61,99 Lei. Cod produs 9781408855652. Vândut și livrat de: Nautilus English Books."
+        capture: spike/out/candidates/libris-charlie-colour/text.txt
+        evidence: "84.18Lei, list 93.53 Lei. Editura PUFFIN, 2016."
