@@ -119,7 +119,19 @@ def test_cache_only_solve_returns_locked_total_without_network(tmp_path: Path) -
         ("matilda", "amazon_de", 9433),
         ("charlie", "amazon_de", 9433),
     ]
-    assert body["cheapest_per_item"]["total_cents"] == 51764
+    assert body["cheapest_per_item"]["total_cents"] == 51995
+    assert body["optimum"]["total_cents"] == 51516
+    assert body["romanian_inclusive"]["total_cents"] == 51995
+    assert body["romanian_inclusive"]["romanian_stores"] == ["bookzone"]
+    assert body["excluded_stores"] == [
+        {
+            "id": "emag",
+            "reason": "unresolved fee",
+            "free_shipping_threshold_cents": None,
+            "shipping_fee_cents": None,
+            "per_order_fee_cents": None,
+        }
+    ]
     assert body["membership"] == []
     assert all(page["cache"] == "hit" and page["status"] == "ok" for page in body["pages"])
     by_store = {row["store_id"]: row for row in body["stores"]}

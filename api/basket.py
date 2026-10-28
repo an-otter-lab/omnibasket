@@ -1,9 +1,9 @@
 """Load the locked Romanian basket without changing its files.
 
-Store fees for eMAG follow the same integers the lock test passes into
-solve(): the published minimum per-order fee, no shipping line, and a
-threshold the flat fee never treats as free shipping. Null yaml fees are
-not converted from another currency.
+A store whose threshold, shipping fee, or per-order fee is null is left
+out. Those nulls are not filled from a percent, a minimum, or another
+currency. eMAG is that case: the yaml fee is a percent with a floor, and
+the solver only accepts one integer fee it was given.
 """
 
 from __future__ import annotations
@@ -12,18 +12,12 @@ from pathlib import Path
 
 import yaml
 
+from solver.optimize import unresolved_fee_fields, store_if_fees_resolved
 from solver.types import Item, Offer, Store
 
 ROOT = Path(__file__).resolve().parents[1]
 BASKET_PATH = ROOT / "data" / "baskets" / "ro-v1.yaml"
 STORES_PATH = ROOT / "data" / "stores" / "ro.yaml"
-
-# Matches solver/tests/test_ro_basket.py. The yaml records the fee as a
-# percent with a 1.49 lei floor; the solver type takes one integer.
-_EMAG_THRESHOLD = 10**9
-_EMAG_FEE = 149
-_EMAG_SHIPPING = 0
-
 
 class BasketError(ValueError):
     pass
@@ -45,24 +39,22 @@ def load_locked() -> tuple[str, str, list[Store], list[Item], list[dict]]:
     for row in rules["stores"]:
         if row["id"] not in allowed:
             continue
-        by_id[row["id"]] = _store(row, currency)
-    missing = allowed - set(by_id)
-    if missing:
-        raise BasketError("locked basket names unknown stores: " + ", ".join(sorted(missing)))
-    stores = [by_id[store_id] for store_id in basket["solved_store_ids"]]
+        store = _store(row, currency)
+        if store is None:
+            continue
+        by_id[row["id"]] = store
+    unknown = allowed - {row["id"] for row in rules["stores"] if row["id"] in allowed}
+    if unknown:
+        raise BasketError("locked basket names unknown stores: " + ", ".join(sorted(unknown)))
+    stores = [by_id[store_id] for store_id in basket["solved_store_ids"] if store_id in by_id]
     items: list[Item] = []
     pages: list[dict] = []
     for book in basket["books"]:
         offers = []
         isbn = book.get("isbn13") or ""
+        solvable = {store.id for store in stores}
         for offer in book["offers"]:
-            offers.append(
-                Offer(
-                    store_id=offer["store_id"],
-                    price_cents=int(offer["price_cents"]),
-                    seller_certainty=offer["seller_certainty"],
-                )
-            )
+            # Page rows always record the capture. An excluded store is not solved.
             pages.append(
                 {
                     "item_id": book["id"],
@@ -76,31 +68,44 @@ def load_locked() -> tuple[str, str, list[Store], list[Item], list[dict]]:
                     "currency": currency,
                 }
             )
+            if offer["store_id"] not in solvable:
+                continue
+            offers.append(
+                Offer(
+                    store_id=offer["store_id"],
+                    price_cents=int(offer["price_cents"]),
+                    seller_certainty=offer["seller_certainty"],
+                )
+            )
         items.append(Item(id=book["id"], offers=tuple(offers)))
     return day, currency, stores, items, pages
 
 
-def _store(row: dict, basket_currency: str) -> Store:
-    store_id = row["id"]
+def excluded_for_unresolved_fees() -> list[dict]:
+    """Stores named by the lock whose solver fees are still null."""
+
+    basket = yaml.safe_load(BASKET_PATH.read_text())
+    rules = yaml.safe_load(STORES_PATH.read_text())
+    allowed = set(basket["solved_store_ids"])
+    excluded = []
+    for row in rules["stores"]:
+        if row["id"] not in allowed:
+            continue
+        if store_if_fees_resolved(row) is not None:
+            continue
+        excluded.append(
+            {
+                "id": row["id"],
+                "reason": "unresolved fee",
+                **unresolved_fee_fields(row),
+            }
+        )
+    return excluded
+
+
+def _store(row: dict, basket_currency: str) -> Store | None:
     currency = row.get("currency") or ""
     if currency != basket_currency:
         # Leave the mismatch for the solver. Do not convert.
         pass
-    if store_id == "emag":
-        fee = row.get("per_order_fee_min_cents")
-        return Store(
-            id=store_id,
-            currency=currency,
-            free_shipping_threshold_cents=_EMAG_THRESHOLD if row.get("free_shipping_threshold_cents") is None else int(row["free_shipping_threshold_cents"]),
-            shipping_fee_cents=_EMAG_SHIPPING if row.get("shipping_fee_cents") is None else int(row["shipping_fee_cents"]),
-            per_order_fee_cents=_EMAG_FEE if fee is None else int(fee),
-            membership=None,
-        )
-    return Store(
-        id=store_id,
-        currency=currency,
-        free_shipping_threshold_cents=int(row["free_shipping_threshold_cents"]),
-        shipping_fee_cents=int(row["shipping_fee_cents"]),
-        per_order_fee_cents=int(row["per_order_fee_cents"]),
-        membership=None,
-    )
+    return store_if_fees_resolved(row)
