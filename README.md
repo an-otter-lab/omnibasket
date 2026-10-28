@@ -42,7 +42,7 @@ per-store thresholds.
 | Backend | Python, FastAPI. `POST /solve` and `GET /events` (server-sent events). The built UI is served from the same app. |
 | Page reading | Cache-first. Saved pages live in a SQLite page cache. The reading spike (Playwright plus a fixed schema) is separate from the demo path. |
 | Read layer | `matching/` normalises ISBNs, keeps seller certainty tri-state, and matches editions instead of averaging them. |
-| Solver | `solver/`: exhaustive assignment in integer cents. Fifteen tests in `solver/tests/`. |
+| Solver | `solver/`: exhaustive assignment in integer cents. Tests in `solver/tests/`, including the two-answer Romanian basket. |
 | Storage | SQLite page cache, seeded from the locked Romanian basket. |
 | Front end | Angular and TypeScript in `ui/`, responsive. The membership control stays disabled: the service returns an empty membership list. |
 | Stores | Bookzone, eMAG, Libris and Amazon.de for the locked basket. Books-Express is a labelled fallback, not a core store. |
@@ -67,9 +67,11 @@ Then open http://127.0.0.1:8000 . `GET /health` returns `{"status":"ok"}`.
 The v1 tree is a working cache-first demo.
 
 - A locked seven-book Romanian basket (`ro-v1`): Ghici, The Very Hungry Caterpillar, Owl Babies, and four Amazon.de titles that share an ISBN with Libris.
-- An exhaustive integer-cents solver in `solver/`, with 15 passing tests.
+- An exhaustive integer-cents solver in `solver/`. The locked basket has two answers, not one: **515.16 lei** (Amazon.de + Libris) and **530.45 lei** (Ghici at Bookzone, 15.29 lei more).
+- Bookzone under 200 lei is delivery from **10.90 lei** plus **1.99 lei** processing (cart at bookzone.ro/cos/produse), not the earlier lower delivery line.
+- Amazon.de free delivery to Romania starts at **262.19 lei**. The under-threshold per-delivery and per-kg amounts are unknown and are not priced. eMAG is excluded because its three solver fee fields are null.
 - A read layer in `matching/` with the three spike fixes: ISBN check digits, sold-by tri-state, and edition matching that does not average different books.
-- A cache-first service (`api/`) and the Angular UI (`ui/`), which the API serves after `ng build`. The demo runs on cached pages and says so.
+- A cache-first service (`api/`) and the Angular UI (`ui/`), which the API serves after `ng build`. The demo runs on cached pages, shows both answers, and says the pages are cached.
 
 Membership is not implemented. The service returns an empty membership list and the UI control is disabled. No Genius-badged eMAG-sold title was found for this basket.
 
