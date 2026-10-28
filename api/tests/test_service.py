@@ -119,7 +119,35 @@ def test_cache_only_solve_returns_locked_total_without_network(tmp_path: Path) -
         ("matilda", "amazon_de", 9433),
         ("charlie", "amazon_de", 9433),
     ]
-    assert body["cheapest_per_item"]["total_cents"] == 51764
+    assert body["cheapest_per_item"]["total_cents"] is None
+    baseline_stores = {row["store_id"]: row for row in body["cheapest_per_item"]["stores"]}
+    assert baseline_stores["amazon_de"]["shipping_cents"] is None
+    assert baseline_stores["bookzone"]["shipping_cents"] == 1090
+    assert baseline_stores["bookzone"]["per_order_fee_cents"] == 199
+    assert body["optimum"]["total_cents"] == 51516
+    assert body["romanian_inclusive"]["total_cents"] == 53045
+    assert body["romanian_inclusive"]["romanian_stores"] == ["bookzone"]
+    assert [
+        (row["item_id"], row["store_id"], row["price_cents"])
+        for row in body["romanian_inclusive"]["assignment"]
+    ] == [
+        ("ghici", "bookzone", 4650),
+        ("vhc", "libris", 6133),
+        ("owl", "libris", 5178),
+        ("mole", "amazon_de", 11653),
+        ("wild", "amazon_de", 3986),
+        ("matilda", "amazon_de", 9433),
+        ("charlie", "amazon_de", 9433),
+    ]
+    assert body["excluded_stores"] == [
+        {
+            "id": "emag",
+            "reason": "unresolved fee",
+            "free_shipping_threshold_cents": None,
+            "shipping_fee_cents": None,
+            "per_order_fee_cents": None,
+        }
+    ]
     assert body["membership"] == []
     assert all(page["cache"] == "hit" and page["status"] == "ok" for page in body["pages"])
     by_store = {row["store_id"]: row for row in body["stores"]}

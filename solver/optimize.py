@@ -18,6 +18,15 @@ from solver.types import (
     StoreBreakdown,
 )
 
+# Core Romanian shops for the pitch. Libris is Romanian too, but a forced-RO
+# split must include one of these two.
+ROMANIAN_STORE_IDS = frozenset({"emag", "bookzone"})
+FEE_FIELDS = (
+    "free_shipping_threshold_cents",
+    "shipping_fee_cents",
+    "per_order_fee_cents",
+)
+
 _CERTAINTIES = frozenset({"direct", "marketplace", "unknown"})
 # 8**10 is about 1e9; keep the search obviously small and fail closed.
 _MAX_ASSIGNMENTS = 500_000
@@ -27,17 +36,61 @@ class SolverError(ValueError):
     """The basket or registry cannot be solved as given."""
 
 
-def solve(stores: list[Store] | tuple[Store, ...], items: list[Item] | tuple[Item, ...]) -> Solution:
+def solve(
+    stores: list[Store] | tuple[Store, ...],
+    items: list[Item] | tuple[Item, ...],
+    *,
+    require_any_store: frozenset[str] | set[str] | None = None,
+) -> Solution:
     """Return the cheapest split and the membership verdicts.
 
     The headline ``total_cents`` is the optimum with no membership applied.
     Each store that offers a membership is solved a second time with that
     membership covering shipping, and compared with the headline total.
+
+    ``require_any_store`` keeps only assignments that use at least one of
+    those store ids. No such assignment raises ``SolverError``.
     """
 
     store_by_id = _validate(stores, items)
-    assignment = _optimal_assignment(store_by_id, items, membership_store_id=None)
+    required = frozenset(require_any_store) if require_any_store else None
+    assignment = _optimal_assignment(
+        store_by_id, items, membership_store_id=None, require_any_store=required
+    )
     return _build_solution(store_by_id, items, assignment, membership_store_id=None)
+
+
+def store_if_fees_resolved(row: dict) -> Store | None:
+    """Build a store when the threshold and per-order fee are integers.
+
+    A null threshold or per-order fee stays null and the store is left out.
+    A published minimum or percent is not copied in to fill that gap.
+    A null shipping fee is not filled in either: the store can still be
+    solved when the order is over the free-shipping bar (shipping 0).
+    An under-bar order on that store is not a feasible assignment.
+    """
+
+    threshold = row.get("free_shipping_threshold_cents")
+    per_order = row.get("per_order_fee_cents")
+    if threshold is None or per_order is None:
+        return None
+    shipping = row.get("shipping_fee_cents")
+    known = shipping is not None
+    return Store(
+        id=row["id"],
+        currency=row.get("currency") or "",
+        free_shipping_threshold_cents=int(threshold),
+        shipping_fee_cents=int(shipping) if known else 0,
+        per_order_fee_cents=int(per_order),
+        membership=None,
+        shipping_fee_known=known,
+    )
+
+
+def unresolved_fee_fields(row: dict) -> dict[str, int | None]:
+    """The three solver fee fields, unchanged. Null stays null."""
+
+    return {field: row.get(field) for field in FEE_FIELDS}
 
 
 def _validate(stores: list[Store] | tuple[Store, ...], items: list[Item] | tuple[Item, ...]) -> dict[str, Store]:
@@ -110,6 +163,7 @@ def _optimal_assignment(
     store_by_id: dict[str, Store],
     items: list[Item] | tuple[Item, ...],
     membership_store_id: str | None,
+    require_any_store: frozenset[str] | None = None,
 ) -> tuple[Offer, ...]:
     """Pick the assignment with the lowest total, then a stable tie break."""
 
@@ -117,15 +171,22 @@ def _optimal_assignment(
     best: tuple[Offer, ...] | None = None
     offer_lists = [item.offers for item in items]
     for combo in product(*offer_lists):
-        total = _evaluate(store_by_id, items, combo, membership_store_id)
         store_ids = tuple(offer.store_id for offer in combo)
+        if require_any_store and require_any_store.isdisjoint(store_ids):
+            continue
+        total = _evaluate(store_by_id, items, combo, membership_store_id)
+        if total is None:
+            # Under-bar delivery was not printed. Do not price it.
+            continue
         # Fewer orders wins a tie, then lexicographic store assignment,
         # so the same inputs always return the same split.
         key = (total, len(set(store_ids)), store_ids)
         if best_key is None or key < best_key:
             best_key = key
             best = combo
-    assert best is not None
+    if best is None:
+        needed = ", ".join(sorted(require_any_store or ())) or "(none)"
+        raise SolverError(f"no feasible assignment includes one of: {needed}")
     return best
 
 
@@ -134,7 +195,7 @@ def _evaluate(
     items: list[Item] | tuple[Item, ...],
     combo: tuple[Offer, ...],
     membership_store_id: str | None,
-) -> int:
+) -> int | None:
     by_store: dict[str, list[tuple[Item, Offer]]] = {}
     for item, offer in zip(items, combo, strict=True):
         by_store.setdefault(offer.store_id, []).append((item, offer))
@@ -142,7 +203,10 @@ def _evaluate(
     total = 0
     for store_id, rows in by_store.items():
         store = store_by_id[store_id]
-        total += _store_cost(store, rows, membership_on=store_id == membership_store_id)
+        cost = _store_cost(store, rows, membership_on=store_id == membership_store_id)
+        if cost is None:
+            return None
+        total += cost
     if membership_store_id is not None:
         membership = store_by_id[membership_store_id].membership
         assert membership is not None
@@ -150,10 +214,12 @@ def _evaluate(
     return total
 
 
-def _store_cost(store: Store, rows: list[tuple[Item, Offer]], membership_on: bool) -> int:
+def _store_cost(store: Store, rows: list[tuple[Item, Offer]], membership_on: bool) -> int | None:
     items_cents = sum(offer.price_cents for _, offer in rows)
     qualifying = _qualifying_cents(rows)
     shipping = _shipping_cents(store, qualifying, membership_on)
+    if shipping is None:
+        return None
     # One fee per store that received at least one item, never per item.
     return items_cents + shipping + store.per_order_fee_cents
 
@@ -166,11 +232,13 @@ def _qualifying_cents(rows: list[tuple[Item, Offer]]) -> int:
     )
 
 
-def _shipping_cents(store: Store, qualifying_cents: int, membership_on: bool) -> int:
+def _shipping_cents(store: Store, qualifying_cents: int, membership_on: bool) -> int | None:
     if qualifying_cents >= store.free_shipping_threshold_cents:
         return 0
     if membership_on and store.membership is not None and store.membership.covers_shipping:
         return 0
+    if not store.shipping_fee_known:
+        return None
     return store.shipping_fee_cents
 
 

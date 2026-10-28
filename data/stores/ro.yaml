@@ -1,9 +1,7 @@
 # Romanian store rules the v1 basket lock is allowed to use.
-# Amounts are integer cents of `currency`. The Amazon.de under-bar
-# shipping_fee_cents is the published 4.99 EUR delivery component
-# converted at the rate printed on the buy boxes (49.00 EUR = 262.17 RON).
-# It is a floor. The 1.99 EUR/kg term is not included: no captured
-# product page states a weight.
+# Amounts are integer cents of `currency`. A null fee is unknown:
+# the cart or checkout step named in `notes` did not print a number.
+# No order was placed and no payment data was entered.
 checked_at: 2026-10-28
 stores:
   - id: libris
@@ -22,43 +20,51 @@ stores:
   - id: bookzone
     currency: RON
     free_shipping_threshold_cents: 20000
-    shipping_fee_cents: 690
+    shipping_fee_cents: 1090
+    shipping_fee_is_floor: true
     per_order_fee_cents: 199
     membership: null
     source_url: https://bookzone.ro/cos/produse
     read_date: 2026-10-28
-    capture: spike/out/bookzone-cart-real/text.txt
+    capture: spike/out/fee-confirm-2026-10-28/bz3-cart/text.txt
     notes: >-
-      One book under 200 lei (Ghici, 46.50) was added to the cart.
-      The cart page prints "Cost livrare: De la 6.9 Lei" and
-      "Cost procesare: 1.99 Lei". The subtotal 55.39 is
-      46.50 + 6.90 + 1.99. "De la" means 6.90 is the floor this cart
-      showed. Free transport from 200 lei is on the same header.
-      Stopped on /cos/produse. No address and no payment.
+      Cart step: https://bookzone.ro/cos/produse after adding
+      Ghici cat de mult te iubesc (46.50 lei), still under 200 lei.
+      The cart prints "Cost livrare: De la 10.9 Lei" and
+      "Cost procesare: 1.99 Lei". Subtotal 59.39 is
+      46.50 + 10.90 + 1.99. "De la" means 10.90 lei is the floor
+      this cart showed, not a proven flat fee for every basket.
+      The header says free transport from 200 lei
+      ("Mai adaugă 153.50 lei și ai transport GRATUIT").
+      Stopped on the cart. Did not click "Trimite comanda".
+      No address and no payment.
 
   - id: amazon_de
     currency: RON
-    free_shipping_threshold_cents: 26217
-    free_shipping_threshold_eur_cents: 4900
-    shipping_fee_cents: 2670
-    shipping_fee_is_floor: true
+    free_shipping_threshold_cents: 26219
+    free_shipping_threshold_eur_cents: null
+    shipping_fee_cents: null
     per_kg_fee_cents: null
     per_order_fee_cents: 0
     membership: null
-    source_url: https://www.amazon.de/gp/help/customer/display.html?nodeId=GA6MMBQJBJ5QYUDW
+    source_url: https://www.amazon.de/gp/cart/view.html
     read_date: 2026-10-28
-    capture: spike/out/shipping-rates/text.txt
-    fx_capture: spike/out/amz-isbn/9781529105100/text.txt
+    capture: spike/out/fee-confirm-2026-10-28/amz3-cart/text.txt
     notes: >-
-      Romania, books, standard delivery: 4.99 EUR per delivery plus
-      1.99 EUR per kg, free from 49.00 EUR. Buy boxes print that bar
-      as 262.17 RON, so 1 EUR = 262.17/49 RON on the same page.
-      4.99 EUR converts to 26.698 lei, recorded as 2670 cents.
-      None of the four product pages states a weight, so the per-kg
-      term is not added. 2670 is a floor, not the full under-bar
-      charge. A higher true fee cannot change an assignment that
-      already sits over the bar (its shipping is zero) and can only
-      make an under-bar Amazon order worse.
+      Cart step, logged out, deliver-to Romania: one book,
+      Where the Wild Things Are (dp/0064431789), 38.42 RON,
+      under the free-shipping bar. The cart prints
+      "Füge qualifizierte Produkte im Wert von mind. 223,77 RON hinzu,
+      um dich für GRATIS Standardversand zu qualifizieren"
+      and "GRATIS-Versand für Bestellungen ab 262,19 RON".
+      38.42 + 223.77 = 262.19. It does not print a per-delivery
+      amount or a per-kg amount. The Details control on that line
+      stays on the same cart page and still shows no fee.
+      "Zur Kasse gehen" redirects to Amazon sign-in and was not
+      completed. No account, no address form, no payment.
+      per-delivery and per-kg stay unknown. The step that would
+      confirm them is the shipping summary after sign-in, before
+      any payment field.
 
   - id: emag
     currency: RON

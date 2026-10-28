@@ -10,10 +10,11 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from api.basket import load_locked
+from api.basket import excluded_for_unresolved_fees, load_locked
 from api.cache import PageCache, open_seeded
 from api.solve_service import items_from_body, solution_payload, stores_from_body
 from solver.optimize import SolverError
+from solver.types import Item
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_DB = ROOT / "data" / "cache" / "ro-v1.sqlite"
@@ -43,6 +44,7 @@ class SolveIn(BaseModel):
     stores: list[StoreIn] | None = None
     items: list[ItemIn] | None = None
     source: str = Field(default="cache")
+    require_romanian_store: bool = False
 
 
 def create_app(db_path: Path | None = None) -> FastAPI:
@@ -55,10 +57,15 @@ def create_app(db_path: Path | None = None) -> FastAPI:
         return {"status": "ok"}
 
     @app.post("/solve")
-    def solve_route(body: SolveIn | None = None, source: str = Query(default="cache")) -> JSONResponse:
+    def solve_route(
+        body: SolveIn | None = None,
+        source: str = Query(default="cache"),
+        require_romanian_store: bool = Query(default=False),
+    ) -> JSONResponse:
         mode = body.source if body and body.source else source
+        forced = require_romanian_store or bool(body and body.require_romanian_store)
         try:
-            payload = _solve(app, body, mode)
+            payload = _solve(app, body, mode, require_romanian_store=forced)
         except SolverError as exc:
             return JSONResponse(status_code=400, content={"error": str(exc)})
         return JSONResponse(payload)
@@ -107,29 +114,59 @@ def _cache(app: FastAPI) -> PageCache:
     return cache
 
 
-def _solve(app: FastAPI, body: SolveIn | None, source: str) -> dict:
+def _solve(
+    app: FastAPI,
+    body: SolveIn | None,
+    source: str,
+    *,
+    require_romanian_store: bool = False,
+) -> dict:
     if body and body.stores and body.items:
         if source not in {"given", "cache"}:
             raise SolverError(f"unsupported solve source {source!r}")
         # A caller-supplied basket is arithmetic only. It does not fetch pages.
         stores = stores_from_body([row.model_dump() for row in body.stores])
         items = items_from_body([row.model_dump() for row in body.items])
-        return solution_payload(stores, items)
-    _, payload = _cached_solution(app, source)
+        return solution_payload(stores, items, require_romanian_store=require_romanian_store)
+    _, payload = _cached_solution(app, source, require_romanian_store=require_romanian_store)
     return payload
 
 
-def _cached_solution(app: FastAPI, source: str) -> tuple[list[dict], dict]:
+def _cached_solution(
+    app: FastAPI,
+    source: str,
+    *,
+    require_romanian_store: bool = False,
+) -> tuple[list[dict], dict]:
     from api.solve_service import offers_from_cache
 
     _day, _currency, stores, _items, pages = load_locked()
     if source != "cache":
         raise SolverError("live solve is not the demo path; use source=cache")
     items, events = offers_from_cache(_cache(app), pages, source="cache")
-    payload = solution_payload(stores, items)
+    items = _drop_excluded_store_offers(stores, items)
+    payload = solution_payload(
+        stores,
+        items,
+        require_romanian_store=require_romanian_store,
+        excluded_stores=excluded_for_unresolved_fees(),
+    )
     payload["source"] = "cache"
     payload["pages"] = events
     return events, payload
+
+
+def _drop_excluded_store_offers(stores: list, items: list[Item]) -> list[Item]:
+    """A store left out for an unresolved fee must not re-enter through the cache."""
+
+    allowed = {store.id for store in stores}
+    kept: list[Item] = []
+    for item in items:
+        offers = tuple(offer for offer in item.offers if offer.store_id in allowed)
+        if not offers:
+            raise SolverError(f"item {item.id!r} has no offers after excluding unresolved fees")
+        kept.append(Item(item.id, offers))
+    return kept
 
 
 def _sse(event: str, data: dict) -> str:
