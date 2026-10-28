@@ -47,6 +47,21 @@ per-store thresholds.
 | Front end | Angular and TypeScript in `ui/`, responsive. The membership control stays disabled: the service returns an empty membership list. |
 | Stores | Bookzone, eMAG, Libris and Amazon.de for the locked basket. Books-Express is a labelled fallback, not a core store. |
 
+## Run the demo
+
+One command from a fresh clone. It creates a Python 3.12 virtualenv, installs the pinned
+dependencies in `requirements.txt`, builds the Angular UI, seeds the SQLite page cache from
+`data/cache/ro-v1-seed.json`, and serves the API and the built UI together.
+
+You need [uv](https://docs.astral.sh/uv/) and Node.js (npm). No API key is required: the demo
+reads the seeded cache and does not call a store or a model.
+
+```bash
+./scripts/start-demo.sh
+```
+
+Then open http://127.0.0.1:8000 . `GET /health` returns `{"status":"ok"}`.
+
 ## Status
 
 The v1 tree is a working cache-first demo.

@@ -134,3 +134,6 @@ def _cached_solution(app: FastAPI, source: str) -> tuple[list[dict], dict]:
 
 def _sse(event: str, data: dict) -> str:
     return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
+
+
+app = create_app()
