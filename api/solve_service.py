@@ -34,9 +34,14 @@ def cheapest_per_item(stores: list[Store], items: list[Item]) -> dict:
     for store_id in sorted(goods_by_store):
         store = store_by_id[store_id]
         goods = goods_by_store[store_id]
-        shipping = 0 if goods >= store.free_shipping_threshold_cents else store.shipping_fee_cents
-        row_total = goods + shipping + store.per_order_fee_cents
-        total += row_total
+        under_bar = goods < store.free_shipping_threshold_cents
+        unknown = under_bar and not store.shipping_fee_known
+        shipping = None if unknown else (0 if not under_bar else store.shipping_fee_cents)
+        row_total = None if shipping is None else goods + shipping + store.per_order_fee_cents
+        if row_total is None:
+            total = None
+        elif total is not None:
+            total += row_total
         store_rows.append(
             {
                 "store_id": store_id,

@@ -36,6 +36,9 @@ class Store:
     shipping_fee_cents: int
     per_order_fee_cents: int
     membership: Membership | None = None
+    # False when shipping_fee_cents is only a stand-in because the cart
+    # did not print the under-bar charge. Over-bar orders still pay 0.
+    shipping_fee_known: bool = True
 
 
 @dataclass(frozen=True)

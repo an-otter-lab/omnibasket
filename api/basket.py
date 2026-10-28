@@ -23,6 +23,10 @@ STORES_PATH = ROOT / "data" / "stores" / "ro.yaml"
 _EMAG_THRESHOLD = 10**9
 _EMAG_FEE = 149
 _EMAG_SHIPPING = 0
+# Not a measured rate. A null yaml shipping fee means the cart did not
+# print one. Zero would price an under-bar order as free. The locked
+# Amazon order is over the threshold, so this stand-in is not charged.
+_UNKNOWN_SHIPPING_CENTS = 10**9
 
 
 class BasketError(ValueError):
@@ -96,11 +100,19 @@ def _store(row: dict, basket_currency: str) -> Store:
             per_order_fee_cents=_EMAG_FEE if fee is None else int(fee),
             membership=None,
         )
+    shipping = row.get("shipping_fee_cents")
+    per_order = row.get("per_order_fee_cents")
+    if per_order is None:
+        raise BasketError(f"{store_id} per-order fee is unknown")
+    known = shipping is not None
+    if shipping is None:
+        shipping = _UNKNOWN_SHIPPING_CENTS
     return Store(
         id=store_id,
         currency=currency,
         free_shipping_threshold_cents=int(row["free_shipping_threshold_cents"]),
-        shipping_fee_cents=int(row["shipping_fee_cents"]),
-        per_order_fee_cents=int(row["per_order_fee_cents"]),
+        shipping_fee_cents=int(shipping),
+        per_order_fee_cents=int(per_order),
         membership=None,
+        shipping_fee_known=known,
     )

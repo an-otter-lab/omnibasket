@@ -29,7 +29,7 @@ interface SolveBody {
   assignment: AssignmentRow[];
   stores: StoreRow[];
   cheapest_per_item: {
-    total_cents: number;
+    total_cents: number | null;
     lines: { item_id: string; store_id: string; price_cents: number }[];
     stores: StoreRow[];
   };
@@ -312,8 +312,8 @@ export class AppComponent {
   }
 
   private async applySolution(body: SolveBody, fromCache: boolean): Promise<void> {
-    const baseline = body.cheapest_per_item?.total_cents ?? body.total_cents;
-    if (baseline < body.total_cents) {
+    const baseline = body.cheapest_per_item?.total_cents;
+    if (baseline != null && baseline < body.total_cents) {
       this.showFailure('The result contradicted itself. Nothing is recommended.');
       return;
     }
@@ -400,6 +400,9 @@ export class AppComponent {
   }
 
   private buildTradeoff(body: SolveBody): string {
+    if (body.cheapest_per_item.total_cents == null) {
+      return 'The split is priced. The shop-by-shop comparison is not, because a delivery charge on that comparison was not printed on the cart.';
+    }
     const storeIds = new Set(body.assignment.map((row) => row.store_id));
     if (storeIds.size === 1) {
       const only = this.storeName([...storeIds][0]);

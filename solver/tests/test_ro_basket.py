@@ -1,9 +1,10 @@
 """Lock for the Romanian v1 basket after the 28 Oct point-3 reshape.
 
-Prices, store thresholds and fees are read from data/baskets/ro-v1.yaml
-and data/stores/ro.yaml. The Amazon.de under-bar charge is the published
-4.99 EUR delivery component (2670 cents in the store file), a floor.
-The winning assignment is over the bar, so its shipping is zero.
+Prices and store thresholds are read from data/baskets/ro-v1.yaml and
+data/stores/ro.yaml. Amazon.de's under-bar per-delivery and per-kg
+amounts are null in the store file: the Romania cart did not print them.
+The winning assignment is over the bar, so its shipping is zero. A null
+shipping fee is not loaded as zero.
 """
 
 from __future__ import annotations
@@ -22,6 +23,7 @@ STORES_PATH = ROOT / "data" / "stores" / "ro.yaml"
 # eMAG's yaml fee is a percent with a 1.49 lei floor. The solver takes one integer.
 _EMAG_THRESHOLD = 10**9
 _EMAG_SHIPPING = 0
+_UNKNOWN_SHIPPING_CENTS = 10**9
 
 
 def _load() -> tuple[list[Store], list[Item]]:
@@ -47,8 +49,13 @@ def _load() -> tuple[list[Store], list[Item]]:
                 id=store_id,
                 currency=row["currency"],
                 free_shipping_threshold_cents=int(row["free_shipping_threshold_cents"]),
-                shipping_fee_cents=int(row["shipping_fee_cents"]),
+                shipping_fee_cents=(
+                    _UNKNOWN_SHIPPING_CENTS
+                    if row["shipping_fee_cents"] is None
+                    else int(row["shipping_fee_cents"])
+                ),
                 per_order_fee_cents=int(row["per_order_fee_cents"]),
+                shipping_fee_known=row["shipping_fee_cents"] is not None,
             )
         )
     items = []
@@ -116,9 +123,13 @@ class RoV1BasketLock(unittest.TestCase):
         self.assertEqual(isbns["matilda"], "9780141369365")
         self.assertEqual(isbns["charlie"], "9780141369372")
         amazon = next(row for row in rules["stores"] if row["id"] == "amazon_de")
-        self.assertEqual(amazon["free_shipping_threshold_cents"], 26217)
-        self.assertEqual(amazon["shipping_fee_cents"], 2670)
-        self.assertIs(amazon["shipping_fee_is_floor"], True)
+        bookzone = next(row for row in rules["stores"] if row["id"] == "bookzone")
+        self.assertEqual(amazon["free_shipping_threshold_cents"], 26219)
+        self.assertIsNone(amazon["shipping_fee_cents"])
+        self.assertIsNone(amazon["per_kg_fee_cents"])
+        self.assertEqual(bookzone["shipping_fee_cents"], 1090)
+        self.assertEqual(bookzone["per_order_fee_cents"], 199)
+        self.assertIs(bookzone["shipping_fee_is_floor"], True)
 
     def test_point_3_consolidation_beats_cheapest_per_item(self) -> None:
         stores, items = _load()
@@ -165,11 +176,6 @@ class RoV1BasketLock(unittest.TestCase):
         self.assertTrue(by_store["libris"].threshold_crossed)
         self.assertEqual(by_store["libris"].shipping_cents, 0)
 
-        cheapest = _cheapest_per_item_cents(stores, items)
-        self.assertEqual(cheapest, 51764)
-        self.assertLess(result.total_cents, cheapest)
-        margin_cents = cheapest - result.total_cents
-        self.assertEqual(margin_cents, 248)
         self.assertEqual(result.currency, "RON")
         self.assertEqual(result.membership, ())
         self.assertTrue(all(row.store_id != "emag" for row in result.split))
