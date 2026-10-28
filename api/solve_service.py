@@ -165,6 +165,10 @@ def solution_payload(
     ]
     payload["needs_seller_verification"] = headline.needs_seller_verification
     payload["optimum"] = _public_solution(optimum)
+    payload["single_store_baseline"] = {
+        "best_store_id": optimum.single_store_baseline.best_store_id,
+        "total_cents": optimum.single_store_baseline.total_cents,
+    }
     payload["romanian_inclusive"] = _romanian_answer(romanian)
     payload["excluded_stores"] = list(excluded_stores or [])
     return payload

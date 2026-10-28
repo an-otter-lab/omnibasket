@@ -125,6 +125,8 @@ def test_cache_only_solve_returns_locked_total_without_network(tmp_path: Path) -
     assert baseline_stores["bookzone"]["shipping_cents"] == 1090
     assert baseline_stores["bookzone"]["per_order_fee_cents"] == 199
     assert body["optimum"]["total_cents"] == 51516
+    assert body["single_store_baseline"]["best_store_id"] == "libris"
+    assert body["single_store_baseline"]["total_cents"] == 55873
     assert body["romanian_inclusive"]["total_cents"] == 53045
     assert body["romanian_inclusive"]["romanian_stores"] == ["bookzone"]
     assert [

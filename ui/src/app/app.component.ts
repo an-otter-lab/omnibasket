@@ -38,6 +38,10 @@ interface SolveBody extends AnswerBody {
     lines: { item_id: string; store_id: string; price_cents: number }[];
     stores: StoreRow[];
   };
+  single_store_baseline?: {
+    best_store_id: string | null;
+    total_cents: number | null;
+  };
   membership: {
     store_id?: string;
     membership_price_cents?: number | null;
@@ -78,7 +82,8 @@ export class AppComponent {
   draft = '';
   solution: SolveBody | null = null;
   oneShop: { name: string; total: number } | null = null;
-  oneShopComparable = false;
+  oneCheckout = '';
+  romanianMeta = '';
   cacheNotice = false;
   progressDone = 0;
   progressTotal = 0;
@@ -92,9 +97,6 @@ export class AppComponent {
   membershipVerdict = '';
   differenceLine = '';
   excludedNote = '';
-  romanianLine = '';
-  sameSplitLine = '';
-  romanianMissingLine = '';
   romanian: AnswerBody | null = null;
   private reviewStores: string[] | null = null;
   private timer: ReturnType<typeof setInterval> | null = null;
@@ -128,10 +130,12 @@ export class AppComponent {
   }
 
   constructor() {
-    const state = new URLSearchParams(window.location.search).get('state');
+    const params = new URLSearchParams(window.location.search);
+    const state = params.get('state');
+    if (params.get('edition') === 'exact') this.edition = 'exact';
     if (state === 'empty') this.books = [];
     if (state === 'failure') {
-      const kind = new URLSearchParams(window.location.search).get('kind') || 'stopped';
+      const kind = params.get('kind') || 'stopped';
       this.phase = 'failed';
       this.solution = null;
       this.cacheNotice = kind === 'all';
@@ -146,6 +150,9 @@ export class AppComponent {
       this.reviewStores = ['libris'];
       void this.solveGiven(true);
     }
+    if (state === 'twoAnswers' || state === 'excludedStore') {
+      void this.solveGiven(true);
+    }
   }
 
   optimumAnswer(): AnswerBody | null {
@@ -153,20 +160,40 @@ export class AppComponent {
     return this.solution.optimum ?? this.solution;
   }
 
-  splitLine(answer: AnswerBody | null = this.optimumAnswer()): string {
+  orderLine(answer: AnswerBody | null = this.optimumAnswer()): string {
     if (!answer) return '';
-    const counts = new Map<string, number>();
-    for (const row of answer.assignment) {
-      counts.set(row.store_id, (counts.get(row.store_id) || 0) + 1);
-    }
-    const parts = [...answer.stores]
+    const used = new Set(answer.assignment.map((row) => row.store_id));
+    const names = [...answer.stores]
+      .filter((store) => used.has(store.store_id))
       .sort((a, b) => b.items_cents - a.items_cents || this.storeName(a.store_id).localeCompare(this.storeName(b.store_id)))
-      .map((store) => {
-        const n = counts.get(store.store_id) || store.item_ids?.length || 0;
-        const noun = n === 1 ? 'book' : 'books';
-        return `${n} ${noun} at ${this.storeName(store.store_id)}`;
-      });
-    return parts.join(', ');
+      .map((store) => this.storeName(store.store_id));
+    const n = used.size;
+    const list = this.joinNames(names);
+    return n === 1 ? `1 order · ${list}` : `${n} orders · ${list}`;
+  }
+
+  cheapestNote(itemId: string, priceCents: number): string {
+    const line = this.solution?.cheapest_per_item?.lines?.find((row) => row.item_id === itemId);
+    if (!line || typeof line.price_cents !== 'number') return '';
+    if (priceCents === line.price_cents) return 'Cheapest listing';
+    if (priceCents > line.price_cents) {
+      return `${this.money(priceCents - line.price_cents)} more than the cheapest listing`;
+    }
+    return '';
+  }
+
+  deliveryLabel(raw: string | null | undefined): string {
+    if (!raw) return '';
+    const trimmed = raw.trim();
+    if (trimmed.toLowerCase() === '2-4 saptamani') return '2–4 weeks';
+    if (/[^A-Za-z0-9 \u2013/-]/.test(trimmed)) return '';
+    return trimmed;
+  }
+
+  private joinNames(names: string[]): string {
+    if (names.length <= 1) return names[0] ?? '';
+    if (names.length === 2) return `${names[0]} and ${names[1]}`;
+    return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
   }
 
   proofStores(): StoreRow[] {
@@ -282,6 +309,8 @@ export class AppComponent {
     this.phase = 'reading';
     this.solution = null;
     this.oneShop = null;
+    this.oneCheckout = '';
+    this.romanianMeta = '';
     this.cacheNotice = false;
     this.leftOut = [];
     this.progressDone = 0;
@@ -410,33 +439,48 @@ export class AppComponent {
       return;
     }
     this.solution = { ...body, ...optimum, optimum, romanian_inclusive: romanian };
-    this.romanian = romanian;
+    this.romanian = null;
     this.cacheNotice = fromCache || body.source === 'cache';
     this.tradeoff = this.buildTradeoff(this.solution);
     this.membershipVerdict = this.buildMembership(this.solution);
-    this.differenceLine = '';
-    this.romanianLine = '';
-    this.sameSplitLine = '';
-    this.romanianMissingLine = '';
     this.excludedNote = this.excludedCopy(body.excluded_stores || []);
-    const same = romanian != null && this.sameAssignment(optimum, romanian);
-    if (romanian == null) {
-      this.romanianMissingLine = 'No split could include eMAG or Bookzone. Only the lowest total is shown.';
-    } else if (!romanian.romanian_stores?.length) {
-      this.showFailure('No Romanian shop could be included. Nothing extra is recommended.');
-      return;
-    } else if (same) {
-      this.sameSplitLine = `This lowest total already includes ${this.romanianNames(romanian)}.`;
-      this.romanian = null;
-    } else {
-      this.romanianLine = `Romanian shop: ${this.romanianNames(romanian)}.`;
-      this.differenceLine = this.differenceCopy(optimum, romanian);
-    }
+    this.oneCheckout = this.oneCheckoutCopy(optimum, body.single_store_baseline);
+    this.romanianMeta = this.romanianMetaCopy(optimum, romanian);
     const optimumStores = new Set(optimum.assignment.map((row) => row.store_id));
-    this.oneShopComparable = optimumStores.size > 1;
-    this.oneShop = this.oneShopComparable ? await this.bestOneShop(this.solution) : null;
-    if (!this.oneShop) this.oneShopComparable = false;
+    const singleBaseline = body.single_store_baseline;
+    this.oneShop = optimumStores.size > 1 && singleBaseline?.best_store_id && singleBaseline.total_cents != null
+      ? { name: this.storeName(singleBaseline.best_store_id), total: singleBaseline.total_cents }
+      : null;
     this.phase = 'result';
+  }
+
+  private oneCheckoutCopy(
+    optimum: AnswerBody,
+    baseline: { best_store_id?: string | null; total_cents?: number | null } | null | undefined,
+  ): string {
+    if (!baseline?.best_store_id || baseline.total_cents == null) return '';
+    const used = new Set(optimum.assignment.map((row) => row.store_id));
+    if (used.size === 1 && used.has(baseline.best_store_id)) return '';
+    const store = this.storeName(baseline.best_store_id);
+    const n = used.size;
+    if (baseline.total_cents === optimum.total_cents) {
+      return `One checkout at ${store} costs the same, in 1 order instead of ${n}.`;
+    }
+    if (baseline.total_cents < optimum.total_cents) return '';
+    const gap = baseline.total_cents - optimum.total_cents;
+    return `One checkout at ${store} is ${this.money(baseline.total_cents)} — ${this.money(gap)} more, for 1 order instead of ${n}.`;
+  }
+
+  private romanianMetaCopy(optimum: AnswerBody, romanian: AnswerBody | null): string {
+    if (!romanian?.romanian_stores?.length) return '';
+    if (this.sameAssignment(optimum, romanian)) return '';
+    if (romanian.total_cents < optimum.total_cents) return '';
+    const name = this.romanianNames(romanian);
+    if (romanian.total_cents === optimum.total_cents) {
+      return `Also compared: a split that includes ${name} costs the same. Not a recommendation.`;
+    }
+    const gap = romanian.total_cents - optimum.total_cents;
+    return `Also compared: a split that includes ${name} is ${this.money(romanian.total_cents)}, ${this.money(gap)} more. Not a recommendation.`;
   }
 
   private romanianNames(answer: AnswerBody): string {
@@ -487,11 +531,9 @@ export class AppComponent {
     this.phase = 'failed';
     this.solution = null;
     this.romanian = null;
-    this.differenceLine = '';
+    this.oneCheckout = '';
+    this.romanianMeta = '';
     this.excludedNote = '';
-    this.romanianLine = '';
-    this.sameSplitLine = '';
-    this.romanianMissingLine = '';
     this.failTitle = 'No recommendation';
     this.failBody = text;
     this.cacheNotice = true;
