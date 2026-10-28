@@ -5,6 +5,11 @@ p { font-size: 16px; line-height: 24px; margin: 0 0 8px; }
 .meta { color: var(--ink-soft); font-size: 13px; line-height: 18px; }
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
 .total { color: var(--answer); font-size: 32px; line-height: 36px; font-weight: 700; }
+.answer.alt .total { color: var(--ink); }
+.answers { display: flex; flex-direction: column; gap: 16px; }
+.answers .card { margin-bottom: 0; }
+.difference { margin-top: 16px; }
+.excluded { margin: 16px 0; }
 .notice { background: var(--info); color: var(--answer); border-radius: 12px; padding: 12px; }
 .failed { background: var(--failed-bg); color: var(--failed); }
 .books, .lines { list-style: none; padding: 0; margin: 0; }
@@ -34,6 +39,8 @@ input { min-height: 44px; border: 1px solid var(--line); border-radius: 12px; pa
   main { padding: 32px; }
   .card { padding: 24px; }
   .total { font-size: 40px; line-height: 44px; }
+  .answers { flex-direction: row; align-items: stretch; gap: 24px; }
+  .answers .card { flex: 1 1 0; }
   .layout { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 32px; }
   .stack-only { display: none; }
   .rail { display: block; }

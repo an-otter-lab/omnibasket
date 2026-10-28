@@ -119,7 +119,35 @@ def test_cache_only_solve_returns_locked_total_without_network(tmp_path: Path) -
         ("matilda", "amazon_de", 9433),
         ("charlie", "amazon_de", 9433),
     ]
-    assert body["cheapest_per_item"]["total_cents"] == 51764
+    assert body["cheapest_per_item"]["total_cents"] is None
+    baseline_stores = {row["store_id"]: row for row in body["cheapest_per_item"]["stores"]}
+    assert baseline_stores["amazon_de"]["shipping_cents"] is None
+    assert baseline_stores["bookzone"]["shipping_cents"] == 1090
+    assert baseline_stores["bookzone"]["per_order_fee_cents"] == 199
+    assert body["optimum"]["total_cents"] == 51516
+    assert body["romanian_inclusive"]["total_cents"] == 53045
+    assert body["romanian_inclusive"]["romanian_stores"] == ["bookzone"]
+    assert [
+        (row["item_id"], row["store_id"], row["price_cents"])
+        for row in body["romanian_inclusive"]["assignment"]
+    ] == [
+        ("ghici", "bookzone", 4650),
+        ("vhc", "libris", 6133),
+        ("owl", "libris", 5178),
+        ("mole", "amazon_de", 11653),
+        ("wild", "amazon_de", 3986),
+        ("matilda", "amazon_de", 9433),
+        ("charlie", "amazon_de", 9433),
+    ]
+    assert body["excluded_stores"] == [
+        {
+            "id": "emag",
+            "reason": "unresolved fee",
+            "free_shipping_threshold_cents": None,
+            "shipping_fee_cents": None,
+            "per_order_fee_cents": None,
+        }
+    ]
     assert body["membership"] == []
     assert all(page["cache"] == "hit" and page["status"] == "ok" for page in body["pages"])
     by_store = {row["store_id"]: row for row in body["stores"]}
@@ -289,6 +317,57 @@ def test_repeated_solves_share_no_sqlite_connection(tmp_path: Path) -> None:
     with ThreadPoolExecutor(max_workers=2) as pool:
         parallel = [future.result(timeout=15) for future in (pool.submit(solve_once), pool.submit(solve_once))]
     assert len(parallel) == 2
+
+
+def test_given_demo_basket_returns_both_answers_and_excludes_emag() -> None:
+    """Edition re-solve posts the books on screen. One call still has both answers."""
+
+    from api.basket import load_locked
+
+    _day, currency, stores, items, _pages = load_locked()
+    client = TestClient(create_app())
+    response = client.post(
+        "/solve",
+        json={
+            "source": "given",
+            "stores": [
+                {
+                    "id": store.id,
+                    "currency": store.currency,
+                    "free_shipping_threshold_cents": store.free_shipping_threshold_cents,
+                    "shipping_fee_cents": store.shipping_fee_cents if store.shipping_fee_known else None,
+                    "per_order_fee_cents": store.per_order_fee_cents,
+                }
+                for store in stores
+            ],
+            "items": [
+                {
+                    "id": item.id,
+                    "offers": [
+                        {
+                            "store_id": offer.store_id,
+                            "price_cents": offer.price_cents,
+                            "seller_certainty": offer.seller_certainty,
+                        }
+                        for offer in item.offers
+                    ],
+                }
+                for item in items
+            ],
+        },
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert currency == "RON"
+    assert body["optimum"]["total_cents"] == 51516
+    assert body["romanian_inclusive"]["total_cents"] == 53045
+    assert body["romanian_inclusive"]["romanian_stores"] == ["bookzone"]
+    assert body["excluded_stores"][0]["id"] == "emag"
+    assert body["excluded_stores"][0]["per_order_fee_cents"] is None
+    assert body["excluded_stores"][0]["shipping_fee_cents"] is None
+    assert "1.49" not in response.text
+    assert all(row["store_id"] != "emag" for row in body["optimum"]["assignment"])
+    assert all(row["store_id"] != "emag" for row in body["romanian_inclusive"]["assignment"])
 
 
 def test_one_book_basket_is_5539_at_bookzone() -> None:

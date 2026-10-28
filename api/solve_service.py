@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from solver import solve
-from solver.optimize import SolverError
-from solver.types import Item, Offer, Store
+from solver.optimize import ROMANIAN_STORE_IDS, SolverError
+from solver.types import Assignment, Item, Offer, Solution, Store, StoreBreakdown
 
 from api.cache import PageCache
 
@@ -34,9 +34,14 @@ def cheapest_per_item(stores: list[Store], items: list[Item]) -> dict:
     for store_id in sorted(goods_by_store):
         store = store_by_id[store_id]
         goods = goods_by_store[store_id]
-        shipping = 0 if goods >= store.free_shipping_threshold_cents else store.shipping_fee_cents
-        row_total = goods + shipping + store.per_order_fee_cents
-        total += row_total
+        under_bar = goods < store.free_shipping_threshold_cents
+        unknown = under_bar and not store.shipping_fee_known
+        shipping = None if unknown else (0 if not under_bar else store.shipping_fee_cents)
+        row_total = None if shipping is None else goods + shipping + store.per_order_fee_cents
+        if row_total is None:
+            total = None
+        elif total is not None:
+            total += row_total
         store_rows.append(
             {
                 "store_id": store_id,
@@ -116,66 +121,117 @@ def offers_from_cache(
     return items, events
 
 
-def solution_payload(stores: list[Store], items: list[Item]) -> dict:
-    result = solve(stores, items)
+def solution_payload(
+    stores: list[Store],
+    items: list[Item],
+    *,
+    require_romanian_store: bool = False,
+    excluded_stores: list[dict] | None = None,
+) -> dict:
+    """Honest optimum plus the cheapest split that uses eMAG or Bookzone.
+
+    The top-level total is the optimum unless ``require_romanian_store``
+    is set, in which case it is the constrained split. Both answers are
+    always present. An infeasible constraint raises ``SolverError``.
+    """
+
+    optimum = solve(stores, items)
+    try:
+        romanian = solve(stores, items, require_any_store=ROMANIAN_STORE_IDS)
+    except SolverError:
+        romanian = None
+    if require_romanian_store and romanian is None:
+        raise SolverError(
+            "no feasible assignment includes one of: " + ", ".join(sorted(ROMANIAN_STORE_IDS))
+        )
+    headline = romanian if require_romanian_store else optimum
+    assert headline is not None
     baseline = cheapest_per_item(stores, items)
+    payload = _public_solution(headline)
+    payload["cheapest_per_item"] = baseline
+    payload["membership"] = [
+        {
+            "store_id": row.store_id,
+            "period": row.period,
+            "membership_price_cents": row.membership_price_cents,
+            "without_membership_total_cents": row.without_membership_total_cents,
+            "with_membership_total_cents": row.with_membership_total_cents,
+            "cost_difference_cents": row.cost_difference_cents,
+            "gross_savings_cents": row.gross_savings_cents,
+            "pays_for_itself": row.pays_for_itself,
+            "break_even_orders": row.break_even_orders,
+        }
+        for row in headline.membership
+    ]
+    payload["needs_seller_verification"] = headline.needs_seller_verification
+    payload["optimum"] = _public_solution(optimum)
+    payload["romanian_inclusive"] = _romanian_answer(romanian)
+    payload["excluded_stores"] = list(excluded_stores or [])
+    return payload
+
+
+def _assignment_rows(split: tuple[Assignment, ...]) -> list[dict]:
+    return [
+        {
+            "item_id": row.item_id,
+            "store_id": row.store_id,
+            "price_cents": row.price_cents,
+            "seller_certainty": row.seller_certainty,
+        }
+        for row in split
+    ]
+
+
+def _store_rows(stores: tuple[StoreBreakdown, ...]) -> list[dict]:
+    return [
+        {
+            "store_id": row.store_id,
+            "currency": row.currency,
+            "item_ids": list(row.item_ids),
+            "items_cents": row.items_cents,
+            "qualifying_cents": row.qualifying_cents,
+            "shipping_cents": row.shipping_cents,
+            "per_order_fee_cents": row.per_order_fee_cents,
+            "store_total_cents": row.store_total_cents,
+            "threshold_cents": row.threshold_cents,
+            "threshold_crossed": row.threshold_crossed,
+        }
+        for row in stores
+    ]
+
+
+def _public_solution(result: Solution) -> dict:
     return {
         "currency": result.currency,
         "total_cents": result.total_cents,
-        "assignment": [
-            {
-                "item_id": row.item_id,
-                "store_id": row.store_id,
-                "price_cents": row.price_cents,
-                "seller_certainty": row.seller_certainty,
-            }
-            for row in result.split
-        ],
-        "stores": [
-            {
-                "store_id": row.store_id,
-                "currency": row.currency,
-                "item_ids": list(row.item_ids),
-                "items_cents": row.items_cents,
-                "qualifying_cents": row.qualifying_cents,
-                "shipping_cents": row.shipping_cents,
-                "per_order_fee_cents": row.per_order_fee_cents,
-                "store_total_cents": row.store_total_cents,
-                "threshold_cents": row.threshold_cents,
-                "threshold_crossed": row.threshold_crossed,
-            }
-            for row in result.stores
-        ],
-        "cheapest_per_item": baseline,
-        "membership": [
-            {
-                "store_id": row.store_id,
-                "period": row.period,
-                "membership_price_cents": row.membership_price_cents,
-                "without_membership_total_cents": row.without_membership_total_cents,
-                "with_membership_total_cents": row.with_membership_total_cents,
-                "cost_difference_cents": row.cost_difference_cents,
-                "gross_savings_cents": row.gross_savings_cents,
-                "pays_for_itself": row.pays_for_itself,
-                "break_even_orders": row.break_even_orders,
-            }
-            for row in result.membership
-        ],
-        "needs_seller_verification": result.needs_seller_verification,
+        "assignment": _assignment_rows(result.split),
+        "stores": _store_rows(result.stores),
     }
+
+
+def _romanian_answer(result: Solution | None) -> dict | None:
+    if result is None:
+        return None
+    used = sorted({row.store_id for row in result.split if row.store_id in ROMANIAN_STORE_IDS})
+    body = _public_solution(result)
+    body["romanian_stores"] = used
+    return body
 
 
 def stores_from_body(rows: list[dict]) -> list[Store]:
     stores = []
     for row in rows:
+        shipping = row["shipping_fee_cents"]
+        known = shipping is not None
         stores.append(
             Store(
                 id=row["id"],
                 currency=row["currency"],
                 free_shipping_threshold_cents=int(row["free_shipping_threshold_cents"]),
-                shipping_fee_cents=int(row["shipping_fee_cents"]),
+                shipping_fee_cents=int(shipping) if known else 0,
                 per_order_fee_cents=int(row["per_order_fee_cents"]),
                 membership=None,
+                shipping_fee_known=known,
             )
         )
     return stores

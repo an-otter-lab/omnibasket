@@ -61,26 +61,42 @@
   @if (phase === 'result' && solution) {
     <section class="layout">
       <div class="main-col">
-        <article class="card answer">
-          <p class="meta">Recommended split</p>
-          <p class="total">{{ money(solution.total_cents) }}</p>
-          @if (cacheNotice) {
-            <p class="notice"><span aria-hidden="true">▣</span> This demo is reading saved store pages, not live shops.</p>
+        <div class="answers">
+          <article class="card answer">
+            <p class="meta">{{ romanian ? 'Lowest total' : 'Recommended split' }}</p>
+            <p class="total">{{ money(optimumAnswer()!.total_cents) }}</p>
+            @if (cacheNotice) {
+              <p class="notice"><span aria-hidden="true">▣</span> This demo is reading saved store pages, not live shops.</p>
+            }
+            <p>{{ splitLine(optimumAnswer()) }}</p>
+            @if (sameSplitLine) { <p class="meta">{{ sameSplitLine }}</p> }
+            @if (romanianMissingLine) { <p class="meta">{{ romanianMissingLine }}</p> }
+          </article>
+          @if (romanian) {
+            <article class="card answer alt">
+              <p class="meta">Includes a Romanian shop</p>
+              <p class="total">{{ money(romanian.total_cents) }}</p>
+              <p>{{ splitLine(romanian) }}</p>
+              @if (romanianLine) { <p class="meta">{{ romanianLine }}</p> }
+            </article>
           }
-          <p>{{ splitLine() }}</p>
-          @if (membershipVerdict) { <p>{{ membershipVerdict }}</p> }
-          @if (membershipPrice != null) {
-            <p class="meta">The membership itself costs {{ money(membershipPrice) }}. It is not included in the total.</p>
-          }
-          <p class="tradeoff">{{ tradeoff }}</p>
-        </article>
+        </div>
+        @if (differenceLine) { <p class="difference">{{ differenceLine }}</p> }
+        @if (excludedNote) {
+          <p class="notice excluded"><span aria-hidden="true">▣</span> {{ excludedNote }}</p>
+        }
+        @if (membershipVerdict) { <p>{{ membershipVerdict }}</p> }
+        @if (membershipPrice != null) {
+          <p class="meta">The membership itself costs {{ money(membershipPrice) }}. It is not included in the total.</p>
+        }
+        @if (tradeoff) { <p class="tradeoff">{{ tradeoff }}</p> }
 
         <div class="stack-only">
           <ng-container *ngTemplateOutlet="comparisons"></ng-container>
           <ng-container *ngTemplateOutlet="controls"></ng-container>
         </div>
 
-        @for (store of solution.stores; track store.store_id) {
+        @for (store of proofStores(); track store.store_id) {
           <article class="card">
             <h2>{{ storeName(store.store_id) }}</h2>
             <p>Items {{ money(store.items_cents) }}</p>
@@ -130,11 +146,13 @@
 
 <ng-template #comparisons>
   @if (solution) {
+    @if (showBaseline()) {
     <article class="card quiet">
       <h2>Cheapest listing per book</h2>
       <p>{{ money(solution.cheapest_per_item.total_cents) }}</p>
       <p class="meta">{{ deltaLine(solution.cheapest_per_item.total_cents) }}</p>
     </article>
+    }
     @if (oneShop && oneShopComparable) {
       <article class="card quiet">
         <h2>All at one shop</h2>

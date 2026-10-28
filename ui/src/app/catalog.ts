@@ -22,7 +22,7 @@ export interface CatalogStore {
   name: string;
   currency: string;
   freeShippingThresholdCents: number;
-  shippingFeeCents: number;
+  shippingFeeCents: number | null;
   perOrderFeeCents: number;
 }
 
@@ -35,9 +35,8 @@ export const STORE_NAME: Record<string, string> = {
 
 export const CATALOG_STORES: CatalogStore[] = [
   { id: 'libris', name: 'Libris', currency: 'RON', freeShippingThresholdCents: 13500, shippingFeeCents: 1290, perOrderFeeCents: 0 },
-  { id: 'emag', name: 'eMAG', currency: 'RON', freeShippingThresholdCents: 1000000000, shippingFeeCents: 0, perOrderFeeCents: 149 },
-  { id: 'bookzone', name: 'Bookzone', currency: 'RON', freeShippingThresholdCents: 20000, shippingFeeCents: 690, perOrderFeeCents: 199 },
-  { id: 'amazon_de', name: 'Amazon.de', currency: 'RON', freeShippingThresholdCents: 26217, shippingFeeCents: 2670, perOrderFeeCents: 0 },
+  { id: 'bookzone', name: 'Bookzone', currency: 'RON', freeShippingThresholdCents: 20000, shippingFeeCents: 1090, perOrderFeeCents: 199 },
+  { id: 'amazon_de', name: 'Amazon.de', currency: 'RON', freeShippingThresholdCents: 26219, shippingFeeCents: null, perOrderFeeCents: 0 },
 ];
 
 export const CATALOG_BOOKS: CatalogBook[] = [
