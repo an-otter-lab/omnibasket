@@ -36,7 +36,7 @@ class StoreIn(BaseModel):
     id: str
     currency: str
     free_shipping_threshold_cents: int
-    shipping_fee_cents: int
+    shipping_fee_cents: int | None = None
     per_order_fee_cents: int
 
 
@@ -127,7 +127,12 @@ def _solve(
         # A caller-supplied basket is arithmetic only. It does not fetch pages.
         stores = stores_from_body([row.model_dump() for row in body.stores])
         items = items_from_body([row.model_dump() for row in body.items])
-        return solution_payload(stores, items, require_romanian_store=require_romanian_store)
+        return solution_payload(
+            stores,
+            items,
+            require_romanian_store=require_romanian_store,
+            excluded_stores=_excluded_for_posted_stores(stores),
+        )
     _, payload = _cached_solution(app, source, require_romanian_store=require_romanian_store)
     return payload
 
@@ -154,6 +159,25 @@ def _cached_solution(
     payload["source"] = "cache"
     payload["pages"] = events
     return events, payload
+
+
+# Stores the locked basket is allowed to solve. A given basket that
+# includes all of them is the demo re-solve (edition change included).
+# eMAG stays off that list while its fee fields are null.
+_DEMO_SOLVED_STORE_IDS = frozenset({"libris", "bookzone", "amazon_de"})
+
+
+def _excluded_for_posted_stores(stores: list) -> list[dict]:
+    """Attach the locked exclusion note only for the full demo basket.
+
+    A one-store comparison post must not grow an eMAG note the caller
+    did not compare. Null fee fields are copied through unchanged.
+    """
+
+    posted = {store.id for store in stores}
+    if not _DEMO_SOLVED_STORE_IDS <= posted:
+        return []
+    return [row for row in excluded_for_unresolved_fees() if row["id"] not in posted]
 
 
 def _drop_excluded_store_offers(stores: list, items: list[Item]) -> list[Item]:

@@ -221,14 +221,17 @@ def _romanian_answer(result: Solution | None) -> dict | None:
 def stores_from_body(rows: list[dict]) -> list[Store]:
     stores = []
     for row in rows:
+        shipping = row["shipping_fee_cents"]
+        known = shipping is not None
         stores.append(
             Store(
                 id=row["id"],
                 currency=row["currency"],
                 free_shipping_threshold_cents=int(row["free_shipping_threshold_cents"]),
-                shipping_fee_cents=int(row["shipping_fee_cents"]),
+                shipping_fee_cents=int(shipping) if known else 0,
                 per_order_fee_cents=int(row["per_order_fee_cents"]),
                 membership=None,
+                shipping_fee_known=known,
             )
         )
     return stores
