@@ -61,6 +61,7 @@ button { min-height: 44px; min-width: 44px; }
   border: 0;
   border-radius: 12px 0 0 12px;
   padding: 0 12px;
+  font-weight: 400;
   background: transparent;
   color: var(--ink);
 }
@@ -73,7 +74,7 @@ button { min-height: 44px; min-width: 44px; }
   border-radius: 0 12px 12px 0;
   background: var(--paper);
   color: var(--ink);
-  font-weight: 650;
+  font-weight: 400;
   padding: 0 16px;
 }
 .layout, .stage, .main-top, .proof { display: flex; flex-direction: column; min-width: 0; }

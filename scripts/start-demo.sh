@@ -12,7 +12,9 @@ if ! command -v npm >/dev/null 2>&1; then
   exit 1
 fi
 
-uv venv --python 3.12 .venv
+if [[ ! -d .venv ]]; then
+  uv venv --python 3.12 .venv
+fi
 uv pip install --python .venv/bin/python -r requirements.txt
 
 (cd ui && npm ci && npm run build)
