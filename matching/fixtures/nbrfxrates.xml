@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Hand-written nbrfxrates fixture. The numbers are not a BNR publication. -->
+<DataSet xmlns="http://www.bnr.ro/xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.bnr.ro/xsd nbrfxrates.xsd">
+	<Header>
+		<Publisher>National Bank of Romania</Publisher>
+		<PublishingDate>2026-10-30</PublishingDate>
+		<MessageType>DR</MessageType>
+	</Header>
+	<Body>
+		<Subject>Reference rates</Subject>
+		<OrigCurrency>RON</OrigCurrency>
+		<Cube date="2026-10-30">
+			<Rate currency="EUR">5.0891</Rate>
+			<Rate currency="USD">4.3752</Rate>
+			<Rate currency="GBP">5.8126</Rate>
+			<Rate currency="HUF" multiplier="100">1.3084</Rate>
+			<Rate currency="JPY" multiplier="100">2.9147</Rate>
+		</Cube>
+		<Cube date="2026-10-29">
+			<Rate currency="EUR">5.0800</Rate>
+			<Rate currency="USD">4.3600</Rate>
+			<Rate currency="GBP">5.8000</Rate>
+			<Rate currency="HUF" multiplier="100">1.3000</Rate>
+			<Rate currency="JPY" multiplier="100">2.9000</Rate>
+			<Rate currency="KRW" multiplier="100">0.3125</Rate>
+		</Cube>
+	</Body>
+</DataSet>

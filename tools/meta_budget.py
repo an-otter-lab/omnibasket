@@ -56,6 +56,10 @@ PROVIDERS = {
     },
 }
 MAIN_ENV = Path("~/Projects/omnibasket/.env")
+# Dated spend windows on top of the lifetime cap, e.g. Adrian's 10 USD limit on Meta
+# for the 30 Oct overnight session. Read from the main checkout so every worktree's
+# copy of this file obeys the same windows.
+WINDOWS = Path("~/Projects/omnibasket/config/spend-windows.json")
 TZ = ZoneInfo("Europe/Bucharest")
 
 
@@ -65,6 +69,18 @@ class CapExceeded(RuntimeError):
         self.estimate = estimate
         super().__init__(
             "refused: spend %.6f + estimate %.6f would reach the %.2f USD cap" % (spent, estimate, CAP_USD)
+        )
+
+
+class WindowCapExceeded(CapExceeded):
+    def __init__(self, window, spent, estimate):
+        self.window = window
+        self.spent = spent
+        self.estimate = estimate
+        RuntimeError.__init__(
+            self,
+            "refused: %s spend since %s is %.6f + estimate %.6f, over the %.2f USD window cap (%s)"
+            % (window["provider"], window["from"], spent, estimate, float(window["cap_usd"]), window.get("note", "")),
         )
 
 
@@ -137,6 +153,59 @@ def tonight_usd(path=None):
     return total
 
 
+def windows_path():
+    override = os.environ.get("META_SPEND_WINDOWS")
+    return Path(override) if override else WINDOWS
+
+
+def active_windows(now=None):
+    """Windows in force now. An unreadable file refuses everything: a cap that
+    silently disappears is worse than a stopped call."""
+    path = windows_path()
+    if not path.exists():
+        return []
+    try:
+        rows = json.loads(path.read_text())["windows"]
+    except (OSError, ValueError, KeyError, TypeError):
+        return [{"provider": "*", "from": "1970-01-01T00:00:00+00:00", "until": None, "cap_usd": 0.0,
+                 "note": "unreadable %s" % path}]
+    now = now or datetime.now(TZ)
+    live = []
+    for w in rows:
+        start = datetime.fromisoformat(w["from"])
+        end = datetime.fromisoformat(w["until"]) if w.get("until") else None
+        if start <= now and (end is None or now < end):
+            live.append(w)
+    return live
+
+
+def window_spent_usd(window, path=None):
+    path = path or ledger_path()
+    start = datetime.fromisoformat(window["from"])
+    end = datetime.fromisoformat(window["until"]) if window.get("until") else None
+    total = 0.0
+    for row in _iter_rows(path):
+        if window["provider"] != "*" and row.get("provider", "meta") != window["provider"]:
+            continue
+        try:
+            ts = datetime.fromisoformat(str(row.get("ts")))
+        except ValueError:
+            continue
+        if ts >= start and (end is None or ts < end):
+            total += float(row["cost_usd"])
+    return total
+
+
+def window_exceeded(estimate_usd, path=None):
+    """The first window this call would take past its cap, or None. A window
+    applies to every call, whichever provider makes it, so a capped night stops
+    all model spend rather than shifting it elsewhere."""
+    for w in active_windows():
+        if window_spent_usd(w, path) + float(estimate_usd) > float(w["cap_usd"]):
+            return w
+    return None
+
+
 def would_exceed(estimate_usd, path=None):
     """True if this call would take the ledger total to or past the cap.
     The audit sums every cost_usd line, so the cap is that same total, not a
@@ -145,10 +214,13 @@ def would_exceed(estimate_usd, path=None):
     estimate_usd = float(estimate_usd)
     if estimate_usd < 0:
         raise ValueError("estimate must be >= 0")
-    return spent_usd(path) + estimate_usd >= CAP_USD
+    return spent_usd(path) + estimate_usd >= CAP_USD or window_exceeded(estimate_usd, path) is not None
 
 
 def assert_can_spend(estimate_usd, path=None):
+    w = window_exceeded(estimate_usd, path)
+    if w is not None:
+        raise WindowCapExceeded(w, window_spent_usd(w, path), float(estimate_usd))
     if would_exceed(estimate_usd, path):
         raise CapExceeded(spent_usd(path), float(estimate_usd))
 
@@ -196,6 +268,10 @@ def status_lines():
         "tonight_usd: %.6f" % night,
         "cap_usd: %.2f" % CAP_USD,
         "remaining_usd: %.6f" % (CAP_USD - spent),
+    ] + [
+        "window_%s_since_%s: %.6f of %.2f" % (w["provider"], w["from"], window_spent_usd(w, path), float(w["cap_usd"]))
+        for w in active_windows()
+    ] + [
         "rates_usd_per_mtok: in %.2f out %.2f" % (RATE_IN_PER_M, RATE_OUT_PER_M),
         "baseten_priced: %s" % ("yes" if provider_rates("baseten")[0] is not None else "no (set BASETEN_RATE_IN_PER_M / BASETEN_RATE_OUT_PER_M)"),
         "baseten_key: %s" % ("set" if os.environ.get("BASETEN_API_KEY") else "absent"),
@@ -410,6 +486,7 @@ def cmd_selftest(_a):
     tmp = Path(tempfile.mkdtemp(prefix="meta-budget-")) / "spend.jsonl"
     os.environ["META_SPEND_PATH"] = str(tmp)
     os.environ["META_API_KEY"] = "test-key-should-not-appear-9f3c"
+    os.environ["META_SPEND_WINDOWS"] = str(tmp.parent / "no-windows.json")
     record(10, 10, 49.99, note="selftest-fill")
     if not would_exceed(0.02):
         print("selftest fail: 49.99 + 0.02 must be refused")

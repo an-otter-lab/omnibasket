@@ -12,6 +12,7 @@ The plan being built is `docs/ops/omnibasket-hackathon-push-2026-10-29.md`. Wher
 - `main` is pushed to `origin` only after a merge whose checks are green (`pytest`, `ng test`, `ng build`).
 - A feature branch may be pushed to `origin` only to open a PR for review (Grok Bot works this way). Nobody merges a PR on GitHub: merges happen locally into `main` after review.
 - The public demo VM deploys `main` from git with `scripts/deploy-vm.sh`.
+- Until go-live day the public URL shows only a static "Coming soon" page (Adrian, 30 Oct): `omnibasket-gate soon` on the VM. The app is never public before then. Testing uses the Mac's Tailscale URL and SSH tunnels. Only Adrian decides when to switch to `omnibasket-gate live`.
 - The repo stays private. Never change its visibility.
 
 ## Shops and live reads
@@ -24,6 +25,7 @@ The plan being built is `docs/ops/omnibasket-hackathon-push-2026-10-29.md`. Wher
 
 ## Models and money
 - Every model call goes through `tools/meta_budget.py`. Commit `data/meta-spend.jsonl` after any model run.
+- Never call a model API directly; scripts in `tmp/` included. `config/spend-windows.json` holds dated caps that `meta_budget.py` enforces on every call: 30 Oct overnight, USD 10 of Meta credits at most (Adrian). Never edit a window or re-enable a disabled key; only Adrian lifts a cap.
 - Prices, ISBN checks, currency conversion and all money arithmetic are plain code, never a model.
 - Every number in a model's output is checked against captured data before it is shown.
 

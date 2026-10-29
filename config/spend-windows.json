@@ -1,0 +1,11 @@
+{
+  "windows": [
+    {
+      "provider": "meta",
+      "from": "2026-10-30T00:00:00+02:00",
+      "until": null,
+      "cap_usd": 10.0,
+      "note": "Adrian, 30 Oct ~01:50: the overnight session may spend at most 10 USD of Meta API credits. Open-ended until Adrian lifts it."
+    }
+  ]
+}
