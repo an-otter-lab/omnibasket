@@ -131,7 +131,7 @@ books:
         seller: Libris
         capture: spike/out/candidates/libris-mole-a/text.txt
         listing_url: https://www.libris.ro/carte-engleza/boy-the-mole-the-fox-and-the-horse-charlie-mackesy/11893594
-        edition: hardcover
+        edition: null
         read_at: 2026-10-28
         evidence: "142.56Lei, list 158.40 Lei. Editura Ebury Publishing, 2019."
 
@@ -156,7 +156,7 @@ books:
         seller: Libris
         capture: spike/out/candidates/libris-wild-b/text.txt
         listing_url: https://www.libris.ro/carte-engleza/where-the-wild-things-are-maurice-sendak/16027753
-        edition: paperback
+        edition: null
         read_at: 2026-10-28
         evidence: "77.70Lei, list 86.33 Lei. Editura Harpercollins, 2012."
 
@@ -181,7 +181,7 @@ books:
         seller: Libris
         capture: spike/out/candidates/libris-matilda-colour/text.txt
         listing_url: https://www.libris.ro/carte-engleza/matilda-colour-edition-roald-dahl/11022035
-        edition: paperback
+        edition: null
         read_at: 2026-10-28
         evidence: "84.18Lei, list 93.53 Lei. Editura PUFFIN, 2016."
 
@@ -206,6 +206,6 @@ books:
         seller: Libris
         capture: spike/out/candidates/libris-charlie-colour/text.txt
         listing_url: https://www.libris.ro/carte-engleza/charlie-and-the-chocolate-factory-colour-edition-roald-dahl/11030485
-        edition: paperback
+        edition: null
         read_at: 2026-10-28
         evidence: "84.18Lei, list 93.53 Lei. Editura PUFFIN, 2016."
