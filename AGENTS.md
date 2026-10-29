@@ -12,7 +12,7 @@ The plan being built is `docs/ops/omnibasket-hackathon-push-2026-10-29.md`. Wher
 - `main` is pushed to `origin` only after a merge whose checks are green (`pytest`, `ng test`, `ng build`).
 - A feature branch may be pushed to `origin` only to open a PR for review (Grok Bot works this way). Nobody merges a PR on GitHub: merges happen locally into `main` after review.
 - The public demo VM deploys `main` from git with `scripts/deploy-vm.sh`.
-- The public URL stays closed until go-live day (Adrian, 30 Oct): `omnibasket-gate closed` on the VM, with no 80/443 and Caddy off. Testing uses the Mac's Tailscale URL. Only Adrian decides to open it.
+- Until go-live day the public URL shows only a static "Coming soon" page (Adrian, 30 Oct): `omnibasket-gate soon` on the VM. The app is never public before then. Testing uses the Mac's Tailscale URL and SSH tunnels. Only Adrian decides when to switch to `omnibasket-gate live`.
 - The repo stays private. Never change its visibility.
 
 ## Shops and live reads
