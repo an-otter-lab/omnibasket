@@ -1,0 +1,1 @@
+"""Daily sitemap-backed index."""
