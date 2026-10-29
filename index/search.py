@@ -71,6 +71,10 @@ def search(query: str, limit: int = 10, db_path: Path | str = DB, opener=None) -
             title, author, isbn = row["title"] or "", row["author_hint"], row["isbn"]
             fields = [normalize(title), normalize(author), normalize(isbn)]
             score = sum(1 for token in tokens if any(token in field for field in fields))
+            if normalize(query) == fields[0]:
+                score += 2 * len(tokens) + 1
+            elif normalize(query) in fields[0]:
+                score += len(tokens) + 1
             if not score:
                 continue
             key = ("isbn", isbn) if isbn else ("title-author", normalize(title), normalize(author))

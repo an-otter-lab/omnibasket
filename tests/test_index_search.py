@@ -32,6 +32,8 @@ def test_accent_insensitive_romanian_and_english(tmp_path):
     assert search_module.search("piatra filozofala", db_path=path, opener=lambda *a, **k: Response({"docs": []}))[0]["title"] == "Piatra filozofală"
     result = search_module.search("VERY hungry", db_path=path, opener=lambda *a, **k: Response({"docs": []}))
     assert result[0]["title"] == "The Very Hungry Caterpillar"
+    exact = search_module.search("The Very Hungry Caterpillar", db_path=path)
+    assert exact[0]["title"] == "The Very Hungry Caterpillar"
 
 
 def test_exact_isbn_and_duplicate_merge(tmp_path):
