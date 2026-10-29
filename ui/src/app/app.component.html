@@ -1,13 +1,14 @@
 <main>
   <header>
-    <h1>Where should this order go?</h1>
+    <h1>The cheapest way to buy these books</h1>
+    <p class="lead">One basket, split across shops. Shipping and per-order fees are counted. You get one total, and how many orders that takes.</p>
     <p class="meta">Delivery: Romania.</p>
   </header>
 
   @if (phase === 'entry' || phase === 'failed') {
     <section class="card">
       @if (books.length === 0) {
-        <p class="empty">Add at least one book to see where to buy it.</p>
+        <p class="empty">Add a book. You will see the lowest total that includes shipping, and whether one checkout costs more.</p>
       }
       <ul class="books">
         @for (book of books; track book.id) {
@@ -20,12 +21,14 @@
           </li>
         }
       </ul>
-      <form (submit)="$event.preventDefault(); addBook()">
-        <label>
-          Book title or ISBN
-          <input name="book" [value]="draft" (input)="draft = $any($event.target).value" />
+      <form class="add-book" (submit)="$event.preventDefault(); addBook()">
+        <label class="field">
+          <span>Book title or ISBN</span>
+          <span class="combo">
+            <input name="book" [value]="draft" (input)="draft = $any($event.target).value" />
+            <button type="submit">Add book</button>
+          </span>
         </label>
-        <button type="submit">Add book</button>
       </form>
       <ng-container *ngTemplateOutlet="controls"></ng-container>
       <button type="button" class="primary" [disabled]="books.length === 0" (click)="findSplit()">Find the split</button>
@@ -60,58 +63,69 @@
 
   @if (phase === 'result' && solution) {
     <section class="layout">
-      <div class="main-col">
-        <div class="answers">
-          <article class="card answer">
-            <p class="meta">{{ romanian ? 'Lowest total' : 'Recommended split' }}</p>
-            <p class="total">{{ money(optimumAnswer()!.total_cents) }}</p>
-            @if (cacheNotice) {
-              <p class="notice"><span aria-hidden="true">▣</span> This demo is reading saved store pages, not live shops.</p>
-            }
-            <p>{{ splitLine(optimumAnswer()) }}</p>
-            @if (sameSplitLine) { <p class="meta">{{ sameSplitLine }}</p> }
-            @if (romanianMissingLine) { <p class="meta">{{ romanianMissingLine }}</p> }
-          </article>
-          @if (romanian) {
-            <article class="card answer alt">
-              <p class="meta">Includes a Romanian shop</p>
-              <p class="total">{{ money(romanian.total_cents) }}</p>
-              <p>{{ splitLine(romanian) }}</p>
-              @if (romanianLine) { <p class="meta">{{ romanianLine }}</p> }
-            </article>
-          }
-        </div>
-        @if (differenceLine) { <p class="difference">{{ differenceLine }}</p> }
-        @if (excludedNote) {
-          <p class="notice excluded"><span aria-hidden="true">▣</span> {{ excludedNote }}</p>
+      <div class="stage">
+      <div class="main-top">
+      <article class="card answer">
+        <p class="meta">Lowest total</p>
+        <p class="total">{{ money(optimumAnswer()!.total_cents) }}</p>
+        <p class="orders">{{ orderLine(optimumAnswer()) }}</p>
+        @if (cacheNotice) {
+          <p class="notice"><span aria-hidden="true">▣</span> This demo is reading saved store pages, not live shops.</p>
         }
-        @if (membershipVerdict) { <p>{{ membershipVerdict }}</p> }
-        @if (membershipPrice != null) {
-          <p class="meta">The membership itself costs {{ money(membershipPrice) }}. It is not included in the total.</p>
-        }
-        @if (tradeoff) { <p class="tradeoff">{{ tradeoff }}</p> }
+      </article>
 
-        <div class="stack-only">
-          <ng-container *ngTemplateOutlet="comparisons"></ng-container>
-          <ng-container *ngTemplateOutlet="controls"></ng-container>
-        </div>
+      @if (oneCheckout) { <p class="one-checkout">{{ oneCheckout }}</p> }
 
+      <div class="controls-stack">
+        <ng-container *ngTemplateOutlet="controls"></ng-container>
+      </div>
+
+      @if (excludedNote) {
+        <p class="notice excluded"><span aria-hidden="true">▣</span> {{ excludedNote }}</p>
+      }
+      @if (tradeoff) { <p class="tradeoff">{{ tradeoff }}</p> }
+
+      <div class="comparisons-stack">
+        <ng-container *ngTemplateOutlet="comparisons"></ng-container>
+      </div>
+      </div>
+      <aside class="rail">
+        <ng-container *ngTemplateOutlet="controls"></ng-container>
+        <ng-container *ngTemplateOutlet="comparisons"></ng-container>
+      </aside>
+      </div>
+
+      <div class="proof">
         @for (store of proofStores(); track store.store_id) {
           <article class="card">
             <h2>{{ storeName(store.store_id) }}</h2>
-            <p>Items {{ money(store.items_cents) }}</p>
-            <p>{{ shippingLabel(store.shipping_cents) }}</p>
-            <p>Store total {{ money(store.store_total_cents) }}</p>
+            <div class="money-rows">
+              <div class="money-row">
+                <span>Items</span>
+                <span class="amt">{{ money(store.items_cents) }}</span>
+              </div>
+              <div class="money-row">
+                <span>Shipping</span>
+                <span class="amt">{{ store.shipping_cents === 0 ? 'Free' : money(store.shipping_cents) }}</span>
+              </div>
+              <div class="money-row total-row">
+                <span>Total</span>
+                <span class="amt">{{ money(store.store_total_cents) }}</span>
+              </div>
+            </div>
             @if (store.per_order_fee_cents) {
               <p class="meta">Includes a {{ money(store.per_order_fee_cents) }} per-order fee.</p>
             }
             <ul class="lines">
               @for (row of booksFor(store.store_id); track row.item_id) {
-                <li [attr.data-moved]="chip(row.item_id, row.store_id) ? null : null">
-                  <div>
+                <li>
+                  <div class="money-row book-row">
                     <strong>{{ titleOf(row.item_id) }}</strong>
-                    <span>{{ money(row.price_cents) }}</span>
+                    <span class="amt">{{ money(row.price_cents) }}</span>
                   </div>
+                  @if (cheapestNote(row.item_id, row.price_cents); as note) {
+                    <p class="meta">{{ note }}</p>
+                  }
                   @if (chip(row.item_id, row.store_id)) {
                     <p class="chip">{{ chip(row.item_id, row.store_id) }}</p>
                     <p class="meta">Not the ISBN you entered.</p>
@@ -120,47 +134,36 @@
                   @if (offerOf(row.item_id, row.store_id)?.seller) {
                     <p class="meta">Sold by {{ offerOf(row.item_id, row.store_id)?.seller }}</p>
                   }
-                  @if (offerOf(row.item_id, row.store_id)?.deliveryWindow) {
-                    <p class="meta">Delivery {{ offerOf(row.item_id, row.store_id)?.deliveryWindow }}</p>
+                  @if (deliveryLabel(offerOf(row.item_id, row.store_id)?.deliveryWindow)) {
+                    <p class="meta">Delivery {{ deliveryLabel(offerOf(row.item_id, row.store_id)?.deliveryWindow) }}</p>
                   }
                 </li>
               }
             </ul>
           </article>
         }
-
-        @if (leftOut.length) {
-          <article class="card failed">
-            <h2>Left out</h2>
-            @for (line of leftOut; track line) { <p>{{ line }}</p> }
-          </article>
-        }
       </div>
-      <aside class="rail">
-        <ng-container *ngTemplateOutlet="comparisons"></ng-container>
-        <ng-container *ngTemplateOutlet="controls"></ng-container>
-      </aside>
+
+      @if (romanianMeta) { <p class="meta romanian-line">{{ romanianMeta }}</p> }
+
+      @if (leftOut.length) {
+        <article class="card failed left-out">
+          <h2>Left out</h2>
+          @for (line of leftOut; track line) { <p>{{ line }}</p> }
+        </article>
+      }
+
     </section>
   }
 </main>
 
 <ng-template #comparisons>
-  @if (solution) {
-    @if (showBaseline()) {
+  @if (solution && showBaseline()) {
     <article class="card quiet">
       <h2>Cheapest listing per book</h2>
-      <p>{{ money(solution.cheapest_per_item.total_cents) }}</p>
+      <p class="quiet-total">{{ money(solution.cheapest_per_item.total_cents) }}</p>
       <p class="meta">{{ deltaLine(solution.cheapest_per_item.total_cents) }}</p>
     </article>
-    }
-    @if (oneShop && oneShopComparable) {
-      <article class="card quiet">
-        <h2>All at one shop</h2>
-        <p>{{ money(oneShop.total) }}</p>
-        <p class="meta">{{ oneShop.name }}</p>
-        <p class="meta">{{ deltaLine(oneShop.total) }}</p>
-      </article>
-    }
   }
 </ng-template>
 
@@ -172,14 +175,18 @@
       <button type="button" [attr.aria-pressed]="edition === 'same'" (click)="setEdition('same')">Same story</button>
     </div>
     <p class="meta">{{ edition === 'exact' ? 'Only the same ISBN. A different printing, language, or format stays out.' : 'The same story may be another printing, language, or format. Each difference is named on the book.' }}</p>
-    <h2>Membership</h2>
-    <button type="button" class="switch" role="switch" [attr.aria-checked]="membershipOn" [disabled]="!membershipNamed" (click)="setMembership(!membershipOn)">What if I had it?</button>
-    <p class="meta">
-      @if (!membershipNamed) {
-        None of the offers read for this basket use a membership. The question does not change the total.
+    @if (phase === 'result') {
+      <h2>Membership</h2>
+      @if (membershipNamed) {
+        <button type="button" class="switch" role="switch" [attr.aria-checked]="membershipOn" (click)="setMembership(!membershipOn)">What if I had it?</button>
+        <p class="meta">A membership you do not have. Prices without it stay the default. For this basket that means {{ membershipName }}.</p>
+        @if (membershipVerdict) { <p>{{ membershipVerdict }}</p> }
+        @if (membershipPrice != null) {
+          <p class="meta">The membership itself costs {{ money(membershipPrice) }}. It is not included in the total.</p>
+        }
       } @else {
-        A membership you do not have. Prices without it stay the default. For this basket that means {{ membershipName }}.
+        <p class="meta">No membership applies to this basket.</p>
       }
-    </p>
+    }
   </section>
 </ng-template>
