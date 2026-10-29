@@ -19,7 +19,7 @@ The screens are the same at every size: 00 flow map · 01 entry · 02 adding boo
 
 ## Decisions baked in
 - The result has three tabs: 1 parcel / 2 parcels, cheapest / Custom, choose stores. The 1-parcel tab has no bottom buttons, and there is no Finalize or summary step.
-- Custom: each shop has an on/off switch. A switched-on shop is allowed, not required. Books from switched-off shops move to the remaining shops, the cheapest way.
+- Custom: each shop has an on/off switch. The switched-on shops are the ones the shopper orders from, and each gets at least one book. Books from switched-off shops move to the switched-on ones, the cheapest way. If a switched-on shop can't take any book, the screen says why and gives no total.
 - Every book opens a book detail screen with a button to that shop's listing. Parcel rows have an "Open ↗" button on each book, so shoppers fill each cart themselves.
 - Borders are solid everywhere. Unknowns are a solid orange "not printed" tag, never a number.
 - Bookzone's delivery at 200 lei and above is treated as not printed, so the custom split keeps Bookzone under 200.
