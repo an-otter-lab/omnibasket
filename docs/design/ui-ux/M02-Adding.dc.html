@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Mobile adding books</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="/_blob/bfa2a24d08ae7f7048e2f237e4414e2f">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="app mob" style="font-family:Inter,sans-serif;color:#1a1a1a">
+  <div class="hdr"><a class="brand" href="M01-Entry.dc.html">omnibasket</a><span class="s">6 books</span></div>
+  <div class="body" style="gap:12px">
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <label class="lbl" for="m2">Book title or ISBN</label>
+      <input class="inp focus" id="m2" value="room on the broom">
+    </div>
+    <div class="card">
+      <div style="display:flex;gap:12px">
+        <div class="cover" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8a7a5c" stroke-width="1.5"><path d="M5 4h12a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2z"></path><path d="M5 18a2 2 0 0 1 2-2h12"></path></svg></div>
+        <div style="display:flex;flex-direction:column;gap:3px;min-width:0">
+          <p class="pt">Room on the Broom</p>
+          <p class="s">Julia Donaldson · Axel Scheffler</p>
+          <p class="s n">ISBN [ISBN-13] · 3 editions</p>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;border-top:1px solid #e5e5e5;padding-top:10px">
+        <p class="s" style="color:#1a1a1a">First found at <strong>Libris</strong> · <span class="n">79,90 lei</span></p>
+        <a class="store" href="https://www.libris.ro" target="_blank" rel="noopener">Libris ↗</a>
+      </div>
+      <div class="chips"><span class="chip sel">Any edition</span><span class="chip">Paperback</span><span class="chip">Board book</span><span class="chip">Hardcover</span></div>
+      <button class="btn full">Add to basket</button>
+    </div>
+    <div class="row last" style="padding:4px 0"><span style="display:flex;flex-direction:column"><span>Room on the Broom Sticker Book</span><span class="s">Activity book, a different item</span></span><span class="s" aria-hidden="true">›</span></div>
+    <div style="margin-top:auto;display:flex;flex-direction:column;gap:10px;border-top:1px solid #e5e5e5;padding-top:12px">
+      <p class="k">In your basket · 6</p>
+      <div class="chips">
+        <sc-for list="{{basket}}" as="b" hint-placeholder-count="6"><a class="chip" href="M07-Book.dc.html">{{b}}</a></sc-for>
+      </div>
+      <a class="btn2 full" href="M03-Cheapest.dc.html">See parcels</a>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { basket: ['The Gruffalo', 'Dear Zoo', 'Where the Wild Things Are', 'Owl Babies', 'The Very Hungry Caterpillar', 'We’re Going on a Bear Hunt'] };
+  }
+}
+</script>
+</body>
+</html>

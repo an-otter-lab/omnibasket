@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Mobile result one parcel</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="/_blob/bfa2a24d08ae7f7048e2f237e4414e2f">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="app mob" style="font-family:Inter,sans-serif;color:#1a1a1a">
+  <div class="hdr"><a class="brand" href="M01-Entry.dc.html">omnibasket</a><a class="lnk" href="M02-Adding.dc.html">7 books · Edit</a></div>
+  <div class="body" style="gap:12px">
+    <div style="display:flex;gap:8px"><a class="pill" href="M08-Editions.dc.html">Editions: any</a><button class="pill">Memberships: none</button></div>
+    <nav class="tabs" aria-label="Ways to buy"><a class="on" href="M04-OneParcel.dc.html">1 parcel<span>+43,57</span></a><a href="M03-Cheapest.dc.html">2 parcels<span>cheapest</span></a><a href="M05-Custom.dc.html">Custom<span>choose stores</span></a></nav>
+    <div style="display:flex;flex-direction:column;gap:6px;padding-top:2px">
+      <p class="big alt">558,73 lei</p>
+      <p class="s" style="color:#1a1a1a">All 7 from Libris in one parcel · <strong class="n">43,57 lei more</strong> than the cheapest</p>
+    </div>
+    <div class="parcel on">
+      <div style="display:flex;justify-content:space-between;align-items:center"><p class="pt">Libris · 7 books</p><strong class="n" style="font:600 15px Inter">558,73</strong></div>
+      <div class="chips">
+        <sc-for list="{{books}}" as="b" hint-placeholder-count="7"><a class="chip" href="M07-Book.dc.html">{{b}}</a></sc-for>
+      </div>
+      <p class="s">Free delivery on this order · 2–4 days</p>
+    </div>
+    <p class="k" style="margin-top:4px">Where the 43,57 comes from</p>
+    <div>
+      <sc-for list="{{delta}}" as="d" hint-placeholder-count="4">
+        <a class="row" href="M07-Book.dc.html" style="padding:8px 0"><span>{{d.t}}</span><span class="v"><span class="s">{{d.a}} → {{d.l}}</span>  <strong>+{{d.x}}</strong></span></a>
+      </sc-for>
+      <div class="row tot"><span>These 4 cost more at Libris</span><span class="v">+43,57</span></div>
+    </div>
+    <p class="s">The other 3 books cost the same either way. Switch tabs to compare.</p>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      books: ['Gruffalo', 'Broom', 'Dear Zoo', 'Wild Things', 'Owl Babies', 'Caterpillar', 'Bear Hunt'],
+      delta: [
+        { t: 'The Gruffalo', a: '64,87', l: '84,90', x: '20,03' },
+        { t: 'Room on the Broom', a: '72,36', l: '79,90', x: '7,54' },
+        { t: 'Dear Zoo', a: '58,38', l: '64,90', x: '6,52' },
+        { t: 'Where the Wild Things Are', a: '79,85', l: '89,33', x: '9,48' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

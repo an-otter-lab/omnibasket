@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Mobile result custom stores</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="/_blob/bfa2a24d08ae7f7048e2f237e4414e2f">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="app mob" style="font-family:Inter,sans-serif;color:#1a1a1a">
+  <div class="hdr"><a class="brand" href="M01-Entry.dc.html">omnibasket</a><a class="lnk" href="M02-Adding.dc.html">7 books · Edit</a></div>
+  <div class="body" style="gap:12px">
+    <div style="display:flex;gap:8px"><a class="pill" href="M08-Editions.dc.html">Editions: any</a><button class="pill">Memberships: none</button></div>
+    <nav class="tabs" aria-label="Ways to buy"><a href="M04-OneParcel.dc.html">1 parcel<span>+43,57</span></a><a href="M03-Cheapest.dc.html">2 parcels<span>cheapest</span></a><a class="on" href="M05-Custom.dc.html">Custom<span>choose stores</span></a></nav>
+    <p class="s" style="color:#1a1a1a">Switch off shops you’d rather not use. Their books move to the shops you keep, the cheapest way.</p>
+    <div>
+      <label class="tog" style="min-height:52px"><span style="display:flex;flex-direction:column"><span style="font-weight:600">Amazon.de</span><span class="s n">5 books · 349,62</span></span><input type="checkbox" checked aria-label="Use Amazon.de"></label>
+      <label class="tog" style="min-height:52px"><span style="display:flex;flex-direction:column"><span style="font-weight:600">Libris</span><span class="s">Off · its 3 books moved</span></span><input type="checkbox" aria-label="Use Libris"></label>
+      <label class="tog" style="min-height:52px"><span style="display:flex;flex-direction:column"><span style="font-weight:600">Bookzone <span class="s">· local</span></span><span class="s n">2 books · 180,83 with fees</span></span><input type="checkbox" checked aria-label="Use Bookzone"></label>
+      <label class="tog" style="min-height:52px"><span style="display:flex;flex-direction:column"><span style="font-weight:600;color:#525252">eMAG</span><span class="s">Can’t be priced: fees not printed</span></span><input type="checkbox" disabled aria-label="eMAG unavailable"></label>
+      <label class="tog" style="min-height:52px;border-bottom:0"><span style="display:flex;flex-direction:column"><span style="font-weight:600;color:#525252">Cărturești</span><span class="s">Couldn’t read its pages</span></span><input type="checkbox" disabled aria-label="Cărturești unavailable"></label>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px;border-top:1px solid #e5e5e5;padding-top:12px">
+      <p class="big alt">530,45 lei</p>
+      <p class="s" style="color:#1a1a1a">2 parcels · <strong class="n">15,29 lei more</strong> than the cheapest</p>
+    </div>
+    <div>
+      <p class="k" style="margin-bottom:2px">Moved from Libris</p>
+      <a class="row" href="M07-Book.dc.html" style="padding:7px 0"><span>Owl Babies → Amazon.de</span><span class="v">74,16</span></a>
+      <a class="row" href="M07-Book.dc.html" style="padding:7px 0"><span>Hungry Caterpillar → Bookzone</span><span class="v">79,99</span></a>
+      <a class="row last" href="M07-Book.dc.html" style="padding:7px 0"><span>Bear Hunt → Bookzone</span><span class="v">87,95</span></a>
+    </div>
+    <p class="s">Bookzone is kept under 200 lei: its delivery above that isn’t printed.</p>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

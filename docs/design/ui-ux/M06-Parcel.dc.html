@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Mobile parcel detail</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="/_blob/bfa2a24d08ae7f7048e2f237e4414e2f">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="app mob" style="font-family:Inter,sans-serif;color:#1a1a1a">
+  <div class="hdr"><a class="lnk" href="M03-Cheapest.dc.html">‹ Parcels</a><span class="stamp">prices from 09:40</span></div>
+  <div class="body" style="gap:12px">
+    <h2 class="h2">Inside the Amazon.de parcel</h2>
+    <div>
+      <sc-for list="{{books}}" as="b" hint-placeholder-count="4">
+        <div class="row" style="padding:8px 0">
+          <a href="M07-Book.dc.html" style="display:flex;flex-direction:column;gap:2px;text-decoration:none;color:#1a1a1a;min-height:44px;justify-content:center;flex:1;min-width:0"><span style="font-weight:500">{{b.t}}</span><span class="s n">{{b.ed}} · {{b.eur}} → {{b.lei}} lei</span></a>
+          <a class="store" href="https://www.amazon.de" target="_blank" rel="noopener" aria-label="Open {{b.t}} on Amazon.de">Open ↗</a>
+        </div>
+      </sc-for>
+    </div>
+    <div class="parcel" style="gap:8px">
+      <p class="s" style="color:#1a1a1a;font-weight:600">Free delivery from 262,19 lei</p>
+      <div class="meter" style="height:14px"><div class="fill" style="width:100%"></div><div class="mark" style="left:95%;top:-6px;height:26px"></div></div>
+      <div style="display:flex;justify-content:space-between" class="s n"><span>this parcel 275,46</span><span>13,27 over</span></div>
+    </div>
+    <div>
+      <div class="row"><span>Books</span><span class="v">275,46</span></div>
+      <div class="row"><span>Delivery</span><span class="v">0,00</span></div>
+      <div class="row"><span>Order fee</span><span class="v">0,00</span></div>
+      <div class="row"><span>Arrives</span><span class="unk">not printed</span></div>
+      <div class="row tot" style="font-size:17px"><span>Parcel total</span><span class="v" style="color:#14532d">275,46 lei</span></div>
+    </div>
+    <p class="s">€55,16 on the pages × 4,9938 lei/€ (our rate at 09:40) = 275,46. Open each book to add it to your Amazon.de cart.</p>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      books: [
+        { t: 'The Gruffalo', ed: 'Paperback', eur: '€12,99', lei: '64,87' },
+        { t: 'Room on the Broom', ed: 'Paperback', eur: '€14,49', lei: '72,36' },
+        { t: 'Dear Zoo', ed: 'Paperback', eur: '€11,69', lei: '58,38' },
+        { t: 'Where the Wild Things Are', ed: 'Paperback', eur: '€15,99', lei: '79,85' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

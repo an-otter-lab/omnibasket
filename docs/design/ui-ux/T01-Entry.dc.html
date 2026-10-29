@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Tablet entry</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="/_blob/bfa2a24d08ae7f7048e2f237e4414e2f">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="app tab" style="font-family:Inter,sans-serif;color:#1a1a1a">
+  <div class="hdr"><a class="brand" href="T00-Flow.dc.html">omnibasket</a></div>
+  <div class="body" style="align-items:center;padding-top:120px;gap:28px">
+    <div style="width:620px;display:flex;flex-direction:column;gap:24px">
+      <h1 class="h1">One parcel, or the cheapest?</h1>
+      <p class="p" style="color:#404040;font-size:19px">List the books. We’ll show what each way of buying them costs, with postage in and nothing guessed.</p>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <label class="lbl" for="t1">Book title or ISBN</label>
+        <div style="display:flex;gap:10px"><input class="inp" id="t1" placeholder="e.g. Room on the Broom"><a class="btn" href="T02-Adding.dc.html">Find book</a></div>
+      </div>
+    </div>
+    <div class="box" style="width:620px;padding:24px;gap:16px;margin-top:16px">
+      <p class="k">How it works</p>
+      <div style="display:grid;grid-template-columns:repeat(3, minmax(0, 1fr));gap:20px">
+        <div class="step" style="flex-direction:column;gap:10px"><span class="num">1</span><p class="p" style="font-size:15px">Add the books you want, by title or ISBN.</p></div>
+        <div class="step" style="flex-direction:column;gap:10px"><span class="num">2</span><p class="p" style="font-size:15px">We read five shops: prices, postage, free-delivery thresholds.</p></div>
+        <div class="step" style="flex-direction:column;gap:10px"><span class="num">3</span><p class="p" style="font-size:15px">Pick one parcel, the cheapest split, or your own shops.</p></div>
+      </div>
+    </div>
+    <p class="s" style="width:620px;margin-top:auto">We read Amazon.de, Libris, Bookzone, eMAG and Cărturești. A fee a shop doesn’t print stays blank. We never guess it.</p>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":834,"height":1194}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

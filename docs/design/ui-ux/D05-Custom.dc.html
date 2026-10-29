@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Desktop result custom stores</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="/_blob/bfa2a24d08ae7f7048e2f237e4414e2f">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="app desk" style="font-family:Inter,sans-serif;color:#1a1a1a">
+  <div class="hdr"><a class="brand" href="D01-Entry.dc.html">omnibasket</a><div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap"><span class="stamp">prices from 09:40 today</span><button class="lnk">Re-check</button><a class="lnk" href="D02-Adding.dc.html">7 books · Edit</a></div></div>
+  <div class="wrap">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap">
+      <nav class="tabs" aria-label="Ways to buy" style="flex:1 1 560px;max-width:760px"><a href="D04-OneParcel.dc.html">1 parcel<span>+43,57</span></a><a href="D03-Cheapest.dc.html">2 parcels<span>cheapest</span></a><a class="on" href="D05-Custom.dc.html">Custom<span>choose stores</span></a></nav>
+      <div style="display:flex;gap:8px"><a class="pill" href="D08-Editions.dc.html">Editions: any</a><button class="pill">Memberships: none</button></div>
+    </div>
+    <div class="split">
+      <div class="rail" style="flex:1 1 340px;order:0">
+        <p class="p">Switch off shops you’d rather not use. Their books move to the shops you keep, the cheapest way.</p>
+        <div>
+          <label class="tog"><span style="display:flex;flex-direction:column"><span style="font-weight:600">Amazon.de</span><span class="s n">5 books · 349,62</span></span><input type="checkbox" checked aria-label="Use Amazon.de"></label>
+          <label class="tog"><span style="display:flex;flex-direction:column"><span style="font-weight:600">Libris</span><span class="s">Off · its 3 books moved</span></span><input type="checkbox" aria-label="Use Libris"></label>
+          <label class="tog"><span style="display:flex;flex-direction:column"><span style="font-weight:600">Bookzone <span class="s">· local</span></span><span class="s n">2 books · 180,83 with fees</span></span><input type="checkbox" checked aria-label="Use Bookzone"></label>
+          <label class="tog"><span style="display:flex;flex-direction:column"><span style="font-weight:600;color:#525252">eMAG</span><span class="s">Can’t be priced: fees not printed</span></span><input type="checkbox" disabled aria-label="eMAG unavailable"></label>
+          <label class="tog" style="border-bottom:0"><span style="display:flex;flex-direction:column"><span style="font-weight:600;color:#525252">Cărturești</span><span class="s">Couldn’t read its pages</span></span><input type="checkbox" disabled aria-label="Cărturești unavailable"></label>
+        </div>
+      </div>
+      <div class="main">
+        <div style="display:flex;align-items:baseline;gap:20px;flex-wrap:wrap"><p class="big alt">530,45 lei</p><p class="p">2 parcels · <strong class="n">15,29 lei more</strong> than the cheapest</p></div>
+        <div class="g2">
+          <div class="parcel on">
+            <div style="display:flex;justify-content:space-between;align-items:center"><p class="pt">Amazon.de · 5 books</p><strong class="n" style="font:600 18px Inter">349,62</strong></div>
+            <div class="chips"><a class="chip" href="D07-Book.dc.html">The Gruffalo</a><a class="chip" href="D07-Book.dc.html">Room on the Broom</a><a class="chip" href="D07-Book.dc.html">Dear Zoo</a><a class="chip" href="D07-Book.dc.html">Wild Things</a><a class="chip" href="D07-Book.dc.html">Owl Babies · moved</a></div>
+            <p class="s">Free delivery from 262,19 ✓</p>
+          </div>
+          <div class="parcel on">
+            <div style="display:flex;justify-content:space-between;align-items:center"><p class="pt">Bookzone · 2 books</p><strong class="n" style="font:600 18px Inter">180,83</strong></div>
+            <div class="chips"><a class="chip" href="D07-Book.dc.html">Hungry Caterpillar · moved</a><a class="chip" href="D07-Book.dc.html">Bear Hunt · moved</a></div>
+            <p class="s n">167,94 + delivery 10,90 + processing 1,99 (under 200)</p>
+          </div>
+        </div>
+        <p class="s">Bookzone is kept under 200 lei: its delivery above that isn’t printed.</p>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1000}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

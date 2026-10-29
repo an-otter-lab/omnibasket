@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Desktop flow map</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="/_blob/bfa2a24d08ae7f7048e2f237e4414e2f">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="app" style="width:1600px;height:1000px;padding:56px 64px;gap:28px;font-family:Inter,sans-serif;color:#1a1a1a;background:#fafafa">
+  <div style="display:flex;justify-content:space-between;align-items:flex-end">
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <p class="k">{{sizeLabel}} · flow map</p>
+      <h1 style="margin:0;font:700 44px/1 'Bricolage Grotesque',sans-serif;letter-spacing:-0.02em">Every scenario, click to walk it</h1>
+    </div>
+    <a class="btn" href="{{start}}">Start at Entry ›</a>
+  </div>
+  <sc-for list="{{lanes}}" as="lane" hint-placeholder-count="6">
+    <div style="display:flex;gap:24px;align-items:center;border-top:1px solid #e5e5e5;padding-top:18px">
+      <div style="width:220px;flex:none;display:flex;flex-direction:column;gap:4px">
+        <p class="pt">{{lane.name}}</p>
+        <p class="s">{{lane.note}}</p>
+      </div>
+      <div class="lane">
+        <sc-for list="{{lane.nodes}}" as="n" hint-placeholder-count="4">
+          <a class="node" href="{{n.href}}"><b>{{n.label}}</b><span>{{n.sub}}</span></a>
+          <sc-if value="{{n.more}}" hint-placeholder-val="{{ true }}"><span class="arr" aria-hidden="true">→</span></sc-if>
+        </sc-for>
+      </div>
+    </div>
+  </sc-for>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1600,"height":1000}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const P = 'D';
+    const S = {
+      '01': ['Entry', '01-Entry'], '02': ['Adding books', '02-Adding'], '03': ['2 parcels · cheapest', '03-Cheapest'],
+      '04': ['1 parcel', '04-OneParcel'], '05': ['Custom · choose stores', '05-Custom'], '06': ['Parcel detail', '06-Parcel'],
+      '07': ['Book detail', '07-Book'], '08': ['Exact edition', '08-Editions'], '09': ['Store excluded', '09-Excluded'],
+      '10': ['Failed read', '10-Failed'], '11': ['1 book', '11-OneBook'], '12': ['Only one shop', '12-OneShop']
+    };
+    const node = (id, sub) => ({ label: S[id][0], sub: P + id + (sub ? ' · ' + sub : ''), href: P + S[id][1] + '.dc.html' });
+    const lane = (name, note, nodes) => ({ name, note, nodes: nodes.map((n, i) => ({ ...n, more: i < nodes.length - 1 })) });
+    return {
+      sizeLabel: 'Desktop · 1440',
+      start: P + '01-Entry.dc.html',
+      lanes: [
+        lane('Cheapest, then shop', 'The main path. Ends on the shop’s own listing.', [node('01'), node('02', 'ISBN, first shop'), node('03', '515,16 lei'), node('06', 'Amazon.de'), node('07', 'Open on Amazon.de ↗')]),
+        lane('One parcel instead', 'Compare by tab, no extra buttons.', [node('03'), node('04', '558,73 · +43,57'), node('07', 'any book')]),
+        lane('Choose my stores', 'Libris off: its books move.', [node('03'), node('05', '530,45 · +15,29'), node('07', 'any book')]),
+        lane('Exact edition', 'Dear Zoo as a board book.', [node('03'), node('08', '520,94 · +5,78'), node('03', 'applied')]),
+        lane('Shops left out', 'Calm, honest states.', [node('03'), node('09', 'eMAG · fees not printed'), node('03'), node('10', 'Cărturești · try again')]),
+        lane('Edge cases', 'How it degrades.', [node('01'), node('11', 'The Gruffalo'), node('01'), node('12', 'Libris only')])
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

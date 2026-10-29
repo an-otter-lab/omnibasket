@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Tablet only one shop</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="/_blob/bfa2a24d08ae7f7048e2f237e4414e2f">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}.tabs .off{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;height:64px;border-radius:999px;color:#737373;font:600 16px/1.1 Inter,sans-serif}.tabs .off span{font:400 13px Inter,sans-serif;color:#737373}</style>
+</helmet>
+<div class="app tab" style="font-family:Inter,sans-serif;color:#1a1a1a">
+  <div class="hdr"><a class="brand" href="T01-Entry.dc.html">omnibasket</a><div style="display:flex;gap:16px;align-items:center"><span class="stamp">prices from 09:40</span><a class="lnk" href="T02-Adding.dc.html">3 books · Edit</a></div></div>
+  <div class="body">
+    <div style="display:flex;gap:8px"><a class="pill" href="T08-Editions.dc.html">Editions: 1 pinned</a><button class="pill">Memberships: none</button></div>
+    <nav class="tabs" aria-label="Ways to buy"><a class="on" href="T12-OneShop.dc.html">1 parcel<span>only way</span></a><span class="off" aria-disabled="true">2 parcels<span>not possible</span></span><span class="off" aria-disabled="true">Custom<span>no other shop</span></span></nav>
+    <div style="display:flex;align-items:baseline;gap:20px;flex-wrap:wrap">
+      <p class="big">144,69 lei</p>
+      <p class="p">Only Libris has all three in stock · delivery included</p>
+    </div>
+    <div class="parcel on">
+      <div style="display:flex;justify-content:space-between;align-items:center"><p class="pt">Libris · 3 books</p><strong class="n" style="font:600 17px Inter">144,69</strong></div>
+      <sc-for list="{{books}}" as="b" hint-placeholder-count="3">
+        <div class="row" style="border-color:#d9cfbd"><a href="T07-Book.dc.html" style="color:#1a1a1a;text-decoration:none;flex:1;min-height:40px;display:flex;align-items:center">{{b.t}}</a><span style="display:flex;gap:14px;align-items:center"><span class="v">{{b.p}}</span><a class="store" href="https://www.libris.ro" target="_blank" rel="noopener" aria-label="Open {{b.t}} on Libris">Libris ↗</a></span></div>
+      </sc-for>
+      <div class="row last"><span>Delivery <span class="s">under threshold</span></span><span class="v">14,99</span></div>
+    </div>
+    <div class="box">
+      <p class="pt" style="font-size:17px">Why not 2 parcels?</p>
+      <p class="s">Amazon.de has all 3 out of stock. Bookzone lists none of them. eMAG can’t be priced.</p>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":834,"height":1194}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { books: [{ t: 'Owl Babies · board book', p: '39,90' }, { t: 'Peace at Last', p: '44,90' }, { t: 'Whatever Next!', p: '44,90' }] };
+  }
+}
+</script>
+</body>
+</html>

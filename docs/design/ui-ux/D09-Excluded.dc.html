@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Desktop store excluded</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="/_blob/bfa2a24d08ae7f7048e2f237e4414e2f">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="app desk" style="font-family:Inter,sans-serif;color:#1a1a1a">
+  <div class="hdr"><a class="lnk" href="D03-Cheapest.dc.html">‹ Parcels</a><span class="stamp">checked 09:40 today</span></div>
+  <div class="wrap" style="max-width:820px">
+    <h1 class="h1" style="font-size:44px">eMAG: checked, can’t be priced</h1>
+    <p class="p" style="color:#404040">Some books look cheaper here. Without the delivery and order fee we can’t tell whether the parcel is, so we leave eMAG out rather than guess.</p>
+    <div class="box" style="gap:0;padding:8px 24px">
+      <sc-for list="{{books}}" as="b" hint-placeholder-count="6">
+        <div class="row"><a href="D07-Book.dc.html" style="color:#1a1a1a;text-decoration:none;min-height:40px;display:flex;align-items:center;flex:1">{{b.t}}</a><span style="display:flex;align-items:center;gap:14px"><span class="v">{{b.p}}</span><a class="store" href="https://www.emag.ro" target="_blank" rel="noopener" aria-label="Open {{b.t}} on eMAG">eMAG ↗</a></span></div>
+      </sc-for>
+      <div class="row"><span style="color:#525252">Where the Wild Things Are</span><span class="s">not listed</span></div>
+      <div class="row"><span>Delivery</span><span class="unk">not printed</span></div>
+      <div class="row"><span>Order fee</span><span class="unk">not printed</span></div>
+      <div class="row tot"><span>Parcel total</span><span class="s">no total</span></div>
+    </div>
+    <a class="btn2" href="https://www.emag.ro" target="_blank" rel="noopener" style="align-self:flex-start">See eMAG’s fees at checkout ↗</a>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1000}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      books: [
+        { t: 'The Gruffalo', p: '62,99' }, { t: 'Room on the Broom', p: '71,50' }, { t: 'Dear Zoo', p: '55,00' },
+        { t: 'Owl Babies', p: '66,99' }, { t: 'The Very Hungry Caterpillar', p: '74,99' }, { t: 'We’re Going on a Bear Hunt', p: '82,49' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

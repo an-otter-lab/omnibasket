@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Omnibasket UI UX overview</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="/_blob/bfa2a24d08ae7f7048e2f237e4414e2f">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div class="app" style="width:1440px;height:1000px;padding:72px 80px;gap:40px;font-family:Inter,sans-serif;color:#1a1a1a">
+  <div style="display:flex;flex-direction:column;gap:12px;max-width:980px">
+    <p class="k">Direction B · Parcels · final flow</p>
+    <h1 style="margin:0;font:700 72px/1 'Bricolage Grotesque',sans-serif;letter-spacing:-0.02em">Omnibasket - UI / UX</h1>
+    <p class="p" style="font-size:19px;color:#404040">Twelve screens for mobile, tablet and desktop, each joined into a clickable flow. Start from a size’s flow map: every box opens that screen, and every screen links on to the next one.</p>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(3, minmax(0, 1fr));gap:24px">
+    <a class="node" href="M00-Flow.dc.html" style="padding:24px;border-radius:24px;gap:8px"><b style="font-size:26px">Mobile</b><span style="font-size:14px">390 × 844 · 12 screens · start the flow ›</span></a>
+    <a class="node" href="T00-Flow.dc.html" style="padding:24px;border-radius:24px;gap:8px"><b style="font-size:26px">Tablet</b><span style="font-size:14px">834 × 1194 · 12 screens · start the flow ›</span></a>
+    <a class="node" href="D00-Flow.dc.html" style="padding:24px;border-radius:24px;gap:8px"><b style="font-size:26px">Desktop</b><span style="font-size:14px">1440, fluid · 12 screens · start the flow ›</span></a>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(2, minmax(0, 1fr));gap:48px;border-top:1px solid #e5e5e5;padding-top:28px">
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <p class="k">What changed from direction B</p>
+      <p class="p">· Solid borders everywhere. Dashed lines no longer appear anywhere, so nothing reads as a drop zone.</p>
+      <p class="p">· The entry screen explains the three steps instead of showing an empty outline.</p>
+      <p class="p">· Adding books uses the same label and field as the entry screen. Results show the ISBN, a cover slot and the first shop that has the book, and the basket sits at the bottom.</p>
+      <p class="p">· The result has three tabs: 1 parcel · 2 parcels, cheapest · Custom, choose stores.</p>
+      <p class="p">· Custom: switch shops off, and their books move to the others, the cheapest way.</p>
+      <p class="p">· Every book opens a detail screen with a button to that shop’s listing, so you can fill each cart yourself.</p>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <p class="k">System</p>
+      <p class="p">Bricolage Grotesque for display, Inter for text. White ground, kraft #f4efe6 for parcels only, green #14532d for the chosen answer, ink #1a1a1a for known values. Unknowns are a solid orange tag reading “not printed”. Shops we left out sit on a grey panel. Radii: 24 for parcels, 16 for fields, pills fully rounded. Every control is at least 44px.</p>
+      <p class="k" style="margin-top:12px">About the numbers</p>
+      <p class="s" style="font-size:14px">Real launch data: 515,16 · 558,73 (+43,57) · 530,45 (+15,29) · Amazon.de free from 262,19 · Bookzone 10,90 + 1,99 under 200 · eMAG excluded. The per-book prices, the € rate, Libris’s delivery terms and the edge-case baskets are made up, built to add up exactly to those totals. ISBNs are shown as placeholders.</p>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1000}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

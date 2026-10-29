@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Mobile only one shop</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="/_blob/bfa2a24d08ae7f7048e2f237e4414e2f">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}.tabs .off{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;height:56px;border-radius:999px;color:#737373;font:600 14px/1.1 Inter,sans-serif}.tabs .off span{font:400 12px Inter,sans-serif;color:#737373}</style>
+</helmet>
+<div class="app mob" style="font-family:Inter,sans-serif;color:#1a1a1a">
+  <div class="hdr"><a class="brand" href="M01-Entry.dc.html">omnibasket</a><a class="lnk" href="M02-Adding.dc.html">3 books · Edit</a></div>
+  <div class="body" style="gap:12px">
+    <div style="display:flex;gap:8px"><a class="pill" href="M08-Editions.dc.html">Editions: 1 pinned</a><button class="pill">Memberships: none</button></div>
+    <nav class="tabs" aria-label="Ways to buy"><a class="on" href="M12-OneShop.dc.html">1 parcel<span>only way</span></a><span class="off" aria-disabled="true">2 parcels<span>not possible</span></span><span class="off" aria-disabled="true">Custom<span>no other shop</span></span></nav>
+    <div style="display:flex;flex-direction:column;gap:6px;padding-top:2px">
+      <p class="big">144,69 lei</p>
+      <p class="s" style="color:#1a1a1a">Only Libris has all three in stock · delivery included</p>
+    </div>
+    <div class="parcel on">
+      <div style="display:flex;justify-content:space-between;align-items:center"><p class="pt">Libris · 3 books</p><span class="stamp">prices from 09:40</span></div>
+      <div class="row" style="border-color:#d9cfbd"><a href="M07-Book.dc.html" style="color:#1a1a1a;text-decoration:none;flex:1;min-height:36px;display:flex;align-items:center">Owl Babies · board book</a><span style="display:flex;gap:10px;align-items:center"><span class="v">39,90</span><a class="store" href="https://www.libris.ro" target="_blank" rel="noopener" aria-label="Open Owl Babies on Libris">↗</a></span></div>
+      <div class="row" style="border-color:#d9cfbd"><a href="M07-Book.dc.html" style="color:#1a1a1a;text-decoration:none;flex:1;min-height:36px;display:flex;align-items:center">Peace at Last</a><span style="display:flex;gap:10px;align-items:center"><span class="v">44,90</span><a class="store" href="https://www.libris.ro" target="_blank" rel="noopener" aria-label="Open Peace at Last on Libris">↗</a></span></div>
+      <div class="row" style="border-color:#d9cfbd"><a href="M07-Book.dc.html" style="color:#1a1a1a;text-decoration:none;flex:1;min-height:36px;display:flex;align-items:center">Whatever Next!</a><span style="display:flex;gap:10px;align-items:center"><span class="v">44,90</span><a class="store" href="https://www.libris.ro" target="_blank" rel="noopener" aria-label="Open Whatever Next! on Libris">↗</a></span></div>
+      <div class="row last"><span>Delivery <span class="s">under threshold</span></span><span class="v">14,99</span></div>
+    </div>
+    <div class="box">
+      <p class="s" style="color:#1a1a1a;font-weight:600">Why not 2 parcels?</p>
+      <p class="s">Amazon.de has all 3 out of stock. Bookzone lists none of them. eMAG can’t be priced.</p>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>
