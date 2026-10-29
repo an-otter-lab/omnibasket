@@ -43,17 +43,24 @@ stores:
 
   - id: amazon_de
     currency: RON
-    free_shipping_threshold_cents: 26219
+    free_shipping_threshold_cents: 26217
     free_shipping_threshold_eur_cents: null
     shipping_fee_cents: null
     per_kg_fee_cents: null
     per_order_fee_cents: 0
     membership: null
     source_url: https://www.amazon.de/gp/cart/view.html
+    free_shipping_threshold_source: Amazon.de product buy boxes (Liefern nach Rumänien), the four saved product pages in the basket
+    free_shipping_threshold_read_at: 2026-10-28
     read_date: 2026-10-28
     capture: spike/out/fee-confirm-2026-10-28/amz3-cart/text.txt
     read_at: 2026-10-28
     notes: >-
+      Threshold 262,17 RON is the value printed on the four product buy
+      boxes, read 2026-10-28, the same pages the Amazon.de prices come
+      from. The 28 Oct cart printed 262,19 RON (cart note below). Both
+      convert the 49,00 EUR help-page bar, and the lei value moves with
+      the exchange rate; it stays in RON as the shop prints it.
       Cart step, logged out, deliver-to Romania: one book,
       Where the Wild Things Are (dp/0064431789), 38.42 RON,
       under the free-shipping bar. The cart prints

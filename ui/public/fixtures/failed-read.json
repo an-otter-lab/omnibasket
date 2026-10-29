@@ -60,7 +60,7 @@
    "shipping_cents": 0,
    "per_order_fee_cents": 0,
    "store_total_cents": 34505,
-   "threshold_cents": 26219,
+   "threshold_cents": 26217,
    "threshold_crossed": true
   },
   {
@@ -208,7 +208,7 @@
     "shipping_cents": 0,
     "per_order_fee_cents": 0,
     "store_total_cents": 34505,
-    "threshold_cents": 26219,
+    "threshold_cents": 26217,
     "threshold_crossed": true
    },
    {
@@ -295,7 +295,7 @@
     "shipping_cents": 0,
     "per_order_fee_cents": 0,
     "store_total_cents": 34505,
-    "threshold_cents": 26219,
+    "threshold_cents": 26217,
     "threshold_crossed": true
    },
    {
@@ -407,7 +407,7 @@
    "read_at": "2026-10-28",
    "books_listed": 4,
    "failed_reads": [],
-   "free_delivery_threshold_cents": 26219,
+   "free_delivery_threshold_cents": 26217,
    "delivery_cents": null,
    "delivery_known": false,
    "order_fee_cents": 0
@@ -506,7 +506,13 @@
      "seller_certainty": "direct",
      "edition": "board_book",
      "listing_url": "https://www.libris.ro/carte/ghici-cat-de-mult-te-iubesc-sam-mcbratney/21197307",
-     "read_at": "2026-10-28"
+     "read_at": "2026-10-28",
+     "model_read": {
+      "status": "match",
+      "model": "muse-spark-1.3",
+      "read_at": "2026-10-29T19:01:27+02:00",
+      "mismatch_fields": []
+     }
     },
     {
      "store_id": "emag",
@@ -516,7 +522,13 @@
      "seller_certainty": "marketplace",
      "edition": "board_book",
      "listing_url": "https://www.emag.ro/ghici-cat-de-mult-carte-cartonata-integral-sam-mcbratney-cco978-606-8996-01-1/pd/DGJW95BBM/",
-     "read_at": "2026-10-27"
+     "read_at": "2026-10-27",
+     "model_read": {
+      "status": "match",
+      "model": "muse-spark-1.3",
+      "read_at": "2026-10-29T19:01:19+02:00",
+      "mismatch_fields": []
+     }
     },
     {
      "store_id": "bookzone",
@@ -526,7 +538,13 @@
      "seller_certainty": "direct",
      "edition": "board_book",
      "listing_url": "https://bookzone.ro/carte/ghici-cat-de-mult-te-iubesc",
-     "read_at": "2026-10-27"
+     "read_at": "2026-10-27",
+     "model_read": {
+      "status": "match",
+      "model": "muse-spark-1.3",
+      "read_at": "2026-10-29T19:01:11+02:00",
+      "mismatch_fields": []
+     }
     },
     {
      "store_id": "amazon_de",
@@ -536,7 +554,13 @@
      "seller_certainty": null,
      "edition": null,
      "listing_url": null,
-     "read_at": null
+     "read_at": null,
+     "model_read": {
+      "status": "not_read",
+      "model": null,
+      "read_at": null,
+      "mismatch_fields": []
+     }
     },
     {
      "store_id": "carturesti",
@@ -546,7 +570,13 @@
      "seller_certainty": null,
      "edition": null,
      "listing_url": null,
-     "read_at": null
+     "read_at": null,
+     "model_read": {
+      "status": "not_read",
+      "model": null,
+      "read_at": null,
+      "mismatch_fields": []
+     }
     }
    ]
   },
@@ -575,7 +605,13 @@
      "seller_certainty": "direct",
      "edition": "board_book",
      "listing_url": "https://www.libris.ro/carte-engleza/the-very-hungry-caterpillar-eric-carle/15743846",
-     "read_at": "2026-10-28"
+     "read_at": "2026-10-28",
+     "model_read": {
+      "status": "match",
+      "model": "muse-spark-1.3",
+      "read_at": "2026-10-29T19:01:46+02:00",
+      "mismatch_fields": []
+     }
     },
     {
      "store_id": "emag",
@@ -585,7 +621,13 @@
      "seller_certainty": "marketplace",
      "edition": "board_book",
      "listing_url": "https://www.emag.ro/the-very-hungry-caterpillar-eric-carle-author-brt9780241003008/pd/DF4KXHBBM/",
-     "read_at": "2026-10-27"
+     "read_at": "2026-10-27",
+     "model_read": {
+      "status": "match",
+      "model": "muse-spark-1.3",
+      "read_at": "2026-10-29T19:01:36+02:00",
+      "mismatch_fields": []
+     }
     },
     {
      "store_id": "bookzone",
@@ -595,7 +637,13 @@
      "seller_certainty": null,
      "edition": null,
      "listing_url": null,
-     "read_at": null
+     "read_at": null,
+     "model_read": {
+      "status": "not_read",
+      "model": null,
+      "read_at": null,
+      "mismatch_fields": []
+     }
     },
     {
      "store_id": "amazon_de",
@@ -605,7 +653,13 @@
      "seller_certainty": null,
      "edition": null,
      "listing_url": null,
-     "read_at": null
+     "read_at": null,
+     "model_read": {
+      "status": "not_read",
+      "model": null,
+      "read_at": null,
+      "mismatch_fields": []
+     }
     },
     {
      "store_id": "carturesti",
@@ -615,7 +669,13 @@
      "seller_certainty": null,
      "edition": null,
      "listing_url": null,
-     "read_at": null
+     "read_at": null,
+     "model_read": {
+      "status": "not_read",
+      "model": null,
+      "read_at": null,
+      "mismatch_fields": []
+     }
     }
    ]
   },
@@ -643,7 +703,13 @@
      "seller_certainty": "direct",
      "edition": "board_book",
      "listing_url": "https://www.libris.ro/carte-engleza/owl-babies/10852618",
-     "read_at": "2026-10-28"
+     "read_at": "2026-10-28",
+     "model_read": {
+      "status": "match",
+      "model": "muse-spark-1.3",
+      "read_at": "2026-10-29T19:01:54+02:00",
+      "mismatch_fields": []
+     }
     },
     {
      "store_id": "emag",
@@ -653,7 +719,13 @@
      "seller_certainty": "marketplace",
      "edition": null,
      "listing_url": "https://www.emag.ro/owl-babies-martin-waddell-9780763695194/pd/DZ65L02BM/",
-     "read_at": "2026-10-28"
+     "read_at": "2026-10-28",
+     "model_read": {
+      "status": "match",
+      "model": "muse-spark-1.3",
+      "read_at": "2026-10-29T19:02:04+02:00",
+      "mismatch_fields": []
+     }
     },
     {
      "store_id": "bookzone",
@@ -663,7 +735,13 @@
      "seller_certainty": null,
      "edition": null,
      "listing_url": null,
-     "read_at": null
+     "read_at": null,
+     "model_read": {
+      "status": "not_read",
+      "model": null,
+      "read_at": null,
+      "mismatch_fields": []
+     }
     },
     {
      "store_id": "amazon_de",
@@ -673,7 +751,13 @@
      "seller_certainty": null,
      "edition": null,
      "listing_url": null,
-     "read_at": null
+     "read_at": null,
+     "model_read": {
+      "status": "not_read",
+      "model": null,
+      "read_at": null,
+      "mismatch_fields": []
+     }
     },
     {
      "store_id": "carturesti",
@@ -683,7 +767,13 @@
      "seller_certainty": null,
      "edition": null,
      "listing_url": null,
-     "read_at": null
+     "read_at": null,
+     "model_read": {
+      "status": "not_read",
+      "model": null,
+      "read_at": null,
+      "mismatch_fields": []
+     }
     }
    ]
   },
@@ -711,7 +801,13 @@
      "seller_certainty": "direct",
      "edition": null,
      "listing_url": "https://www.libris.ro/carte-engleza/boy-the-mole-the-fox-and-the-horse-charlie-mackesy/11893594",
-     "read_at": "2026-10-28"
+     "read_at": "2026-10-28",
+     "model_read": {
+      "status": "match",
+      "model": "muse-spark-1.3",
+      "read_at": "2026-10-29T19:02:19+02:00",
+      "mismatch_fields": []
+     }
     },
     {
      "store_id": "emag",
@@ -721,7 +817,13 @@
      "seller_certainty": null,
      "edition": null,
      "listing_url": null,
-     "read_at": null
+     "read_at": null,
+     "model_read": {
+      "status": "not_read",
+      "model": null,
+      "read_at": null,
+      "mismatch_fields": []
+     }
     },
     {
      "store_id": "bookzone",
@@ -731,7 +833,13 @@
      "seller_certainty": null,
      "edition": null,
      "listing_url": null,
-     "read_at": null
+     "read_at": null,
+     "model_read": {
+      "status": "not_read",
+      "model": null,
+      "read_at": null,
+      "mismatch_fields": []
+     }
     },
     {
      "store_id": "amazon_de",
@@ -741,7 +849,13 @@
      "seller_certainty": "direct",
      "edition": "hardcover",
      "listing_url": "https://www.amazon.de/dp/1529105102",
-     "read_at": "2026-10-28"
+     "read_at": "2026-10-28",
+     "model_read": {
+      "status": "match",
+      "model": "muse-spark-1.3",
+      "read_at": "2026-10-29T19:02:11+02:00",
+      "mismatch_fields": []
+     }
     },
     {
      "store_id": "carturesti",
@@ -751,7 +865,13 @@
      "seller_certainty": null,
      "edition": null,
      "listing_url": null,
-     "read_at": null
+     "read_at": null,
+     "model_read": {
+      "status": "not_read",
+      "model": null,
+      "read_at": null,
+      "mismatch_fields": []
+     }
     }
    ]
   },
@@ -779,7 +899,13 @@
      "seller_certainty": "direct",
      "edition": null,
      "listing_url": "https://www.libris.ro/carte-engleza/where-the-wild-things-are-maurice-sendak/16027753",
-     "read_at": "2026-10-28"
+     "read_at": "2026-10-28",
+     "model_read": {
+      "status": "match",
+      "model": "muse-spark-1.3",
+      "read_at": "2026-10-29T19:02:33+02:00",
+      "mismatch_fields": []
+     }
     },
     {
      "store_id": "emag",
@@ -789,7 +915,13 @@
      "seller_certainty": null,
      "edition": null,
      "listing_url": null,
-     "read_at": null
+     "read_at": null,
+     "model_read": {
+      "status": "not_read",
+      "model": null,
+      "read_at": null,
+      "mismatch_fields": []
+     }
     },
     {
      "store_id": "bookzone",
@@ -799,7 +931,13 @@
      "seller_certainty": null,
      "edition": null,
      "listing_url": null,
-     "read_at": null
+     "read_at": null,
+     "model_read": {
+      "status": "not_read",
+      "model": null,
+      "read_at": null,
+      "mismatch_fields": []
+     }
     },
     {
      "store_id": "amazon_de",
@@ -809,7 +947,13 @@
      "seller_certainty": "direct",
      "edition": "paperback",
      "listing_url": "https://www.amazon.de/dp/0064431789",
-     "read_at": "2026-10-28"
+     "read_at": "2026-10-28",
+     "model_read": {
+      "status": "match",
+      "model": "muse-spark-1.3",
+      "read_at": "2026-10-29T19:02:25+02:00",
+      "mismatch_fields": []
+     }
     },
     {
      "store_id": "carturesti",
@@ -819,7 +963,13 @@
      "seller_certainty": null,
      "edition": null,
      "listing_url": null,
-     "read_at": null
+     "read_at": null,
+     "model_read": {
+      "status": "not_read",
+      "model": null,
+      "read_at": null,
+      "mismatch_fields": []
+     }
     }
    ]
   },
@@ -847,7 +997,13 @@
      "seller_certainty": "direct",
      "edition": null,
      "listing_url": "https://www.libris.ro/carte-engleza/matilda-colour-edition-roald-dahl/11022035",
-     "read_at": "2026-10-28"
+     "read_at": "2026-10-28",
+     "model_read": {
+      "status": "match",
+      "model": "muse-spark-1.3",
+      "read_at": "2026-10-29T19:02:50+02:00",
+      "mismatch_fields": []
+     }
     },
     {
      "store_id": "emag",
@@ -857,7 +1013,13 @@
      "seller_certainty": null,
      "edition": null,
      "listing_url": null,
-     "read_at": null
+     "read_at": null,
+     "model_read": {
+      "status": "not_read",
+      "model": null,
+      "read_at": null,
+      "mismatch_fields": []
+     }
     },
     {
      "store_id": "bookzone",
@@ -867,7 +1029,13 @@
      "seller_certainty": null,
      "edition": null,
      "listing_url": null,
-     "read_at": null
+     "read_at": null,
+     "model_read": {
+      "status": "not_read",
+      "model": null,
+      "read_at": null,
+      "mismatch_fields": []
+     }
     },
     {
      "store_id": "amazon_de",
@@ -877,7 +1045,13 @@
      "seller_certainty": "direct",
      "edition": "paperback",
      "listing_url": "https://www.amazon.de/dp/0141369361",
-     "read_at": "2026-10-28"
+     "read_at": "2026-10-28",
+     "model_read": {
+      "status": "match",
+      "model": "muse-spark-1.3",
+      "read_at": "2026-10-29T19:02:40+02:00",
+      "mismatch_fields": []
+     }
     },
     {
      "store_id": "carturesti",
@@ -887,7 +1061,13 @@
      "seller_certainty": null,
      "edition": null,
      "listing_url": null,
-     "read_at": null
+     "read_at": null,
+     "model_read": {
+      "status": "not_read",
+      "model": null,
+      "read_at": null,
+      "mismatch_fields": []
+     }
     }
    ]
   },
@@ -915,7 +1095,13 @@
      "seller_certainty": "direct",
      "edition": null,
      "listing_url": "https://www.libris.ro/carte-engleza/charlie-and-the-chocolate-factory-colour-edition-roald-dahl/11030485",
-     "read_at": "2026-10-28"
+     "read_at": "2026-10-28",
+     "model_read": {
+      "status": "match",
+      "model": "muse-spark-1.3",
+      "read_at": "2026-10-29T19:03:01+02:00",
+      "mismatch_fields": []
+     }
     },
     {
      "store_id": "emag",
@@ -925,7 +1111,13 @@
      "seller_certainty": null,
      "edition": null,
      "listing_url": null,
-     "read_at": null
+     "read_at": null,
+     "model_read": {
+      "status": "not_read",
+      "model": null,
+      "read_at": null,
+      "mismatch_fields": []
+     }
     },
     {
      "store_id": "bookzone",
@@ -935,7 +1127,13 @@
      "seller_certainty": null,
      "edition": null,
      "listing_url": null,
-     "read_at": null
+     "read_at": null,
+     "model_read": {
+      "status": "not_read",
+      "model": null,
+      "read_at": null,
+      "mismatch_fields": []
+     }
     },
     {
      "store_id": "amazon_de",
@@ -945,7 +1143,13 @@
      "seller_certainty": "direct",
      "edition": "paperback",
      "listing_url": "https://www.amazon.de/dp/014136937X",
-     "read_at": "2026-10-28"
+     "read_at": "2026-10-28",
+     "model_read": {
+      "status": "match",
+      "model": "muse-spark-1.3",
+      "read_at": "2026-10-29T19:02:56+02:00",
+      "mismatch_fields": []
+     }
     },
     {
      "store_id": "carturesti",
@@ -955,7 +1159,13 @@
      "seller_certainty": null,
      "edition": null,
      "listing_url": null,
-     "read_at": null
+     "read_at": null,
+     "model_read": {
+      "status": "not_read",
+      "model": null,
+      "read_at": null,
+      "mismatch_fields": []
+     }
     }
    ]
   }
@@ -1019,9 +1229,9 @@
     ],
     "books_subtotal_cents": 34505,
     "qualifying_cents": 34505,
-    "free_delivery_threshold_cents": 26219,
+    "free_delivery_threshold_cents": 26217,
     "threshold_crossed": true,
-    "over_under_threshold_cents": 8286,
+    "over_under_threshold_cents": 8288,
     "short_of_threshold_cents": 0,
     "delivery_known": true,
     "delivery_cents": 0,
@@ -1116,10 +1326,10 @@
       ],
       "books_subtotal_cents": 15639,
       "qualifying_cents": 15639,
-      "free_delivery_threshold_cents": 26219,
+      "free_delivery_threshold_cents": 26217,
       "threshold_crossed": false,
-      "over_under_threshold_cents": -10580,
-      "short_of_threshold_cents": 10580,
+      "over_under_threshold_cents": -10578,
+      "short_of_threshold_cents": 10578,
       "delivery_known": false,
       "delivery_cents": null,
       "order_fee_cents": 0,
@@ -1539,10 +1749,10 @@
       ],
       "books_subtotal_cents": 15639,
       "qualifying_cents": 15639,
-      "free_delivery_threshold_cents": 26219,
+      "free_delivery_threshold_cents": 26217,
       "threshold_crossed": false,
-      "over_under_threshold_cents": -10580,
-      "short_of_threshold_cents": 10580,
+      "over_under_threshold_cents": -10578,
+      "short_of_threshold_cents": 10578,
       "delivery_known": false,
       "delivery_cents": null,
       "order_fee_cents": 0,

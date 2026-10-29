@@ -98,7 +98,7 @@ class ForcedRomanianStore(unittest.TestCase):
         partial = {
             "id": "amazon_de",
             "currency": "RON",
-            "free_shipping_threshold_cents": 26219,
+            "free_shipping_threshold_cents": 26217,
             "shipping_fee_cents": None,
             "per_order_fee_cents": 0,
         }
@@ -106,7 +106,7 @@ class ForcedRomanianStore(unittest.TestCase):
         self.assertIsNotNone(built)
         assert built is not None
         self.assertFalse(built.shipping_fee_known)
-        self.assertEqual(built.free_shipping_threshold_cents, 26219)
+        self.assertEqual(built.free_shipping_threshold_cents, 26217)
         self.assertEqual(built.per_order_fee_cents, 0)
         fields = unresolved_fee_fields(row)
         self.assertEqual(fields["free_shipping_threshold_cents"], None)
