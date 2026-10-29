@@ -28,6 +28,33 @@ RATE_IN_PER_M = 1.25
 RATE_OUT_PER_M = 4.25
 MODEL = "muse-spark-1.3"
 LEDGER = Path("~/Projects/omnibasket/data/meta-spend.jsonl")
+
+# One row per provider this ledger can hold. A provider with no rate cannot be
+# priced, so a call to it is refused instead of being recorded as free: the cap
+# would otherwise be a lie. Baseten's list rate is not published in this repo,
+# so set BASETEN_RATE_IN_PER_M and BASETEN_RATE_OUT_PER_M before its first call.
+PROVIDERS = {
+    "meta": {
+        "model": MODEL,
+        "base_env": "META_API_BASE",
+        "default_base": "https://api.meta.ai/v1",
+        "key_env": "META_API_KEY",
+        "rate_in": RATE_IN_PER_M,
+        "rate_out": RATE_OUT_PER_M,
+        "rate_in_env": None,
+        "rate_out_env": None,
+    },
+    "baseten": {
+        "model": "meta-models/muse-spark-open-1026",
+        "base_env": "BASETEN_API_BASE",
+        "default_base": "https://inference.baseten.co/v1",
+        "key_env": "BASETEN_API_KEY",
+        "rate_in": None,
+        "rate_out": None,
+        "rate_in_env": "BASETEN_RATE_IN_PER_M",
+        "rate_out_env": "BASETEN_RATE_OUT_PER_M",
+    },
+}
 MAIN_ENV = Path("~/Projects/omnibasket/.env")
 TZ = ZoneInfo("Europe/Bucharest")
 
@@ -46,8 +73,33 @@ def ledger_path():
     return Path(override) if override else LEDGER
 
 
-def compute_cost(tokens_in, tokens_out):
-    return (int(tokens_in) / 1_000_000.0) * RATE_IN_PER_M + (int(tokens_out) / 1_000_000.0) * RATE_OUT_PER_M
+def provider_config(provider="meta"):
+    cfg = PROVIDERS.get(provider)
+    if cfg is None:
+        raise RuntimeError("unknown provider %r" % provider)
+    return cfg
+
+
+def provider_rates(provider="meta"):
+    """(in, out) USD per million tokens, or (None, None) when unpriced."""
+    cfg = provider_config(provider)
+    rin, rout = cfg["rate_in"], cfg["rate_out"]
+    if cfg["rate_in_env"]:
+        raw = os.environ.get(cfg["rate_in_env"])
+        rin = None if not raw else float(raw)
+    if cfg["rate_out_env"]:
+        raw = os.environ.get(cfg["rate_out_env"])
+        rout = None if not raw else float(raw)
+    return rin, rout
+
+
+def compute_cost(tokens_in, tokens_out, provider="meta"):
+    rin, rout = provider_rates(provider)
+    if rin is None or rout is None:
+        raise RuntimeError(
+            "provider %r has no published rate in this repo; set its rate env vars before calling it" % provider
+        )
+    return (int(tokens_in) / 1_000_000.0) * rin + (int(tokens_out) / 1_000_000.0) * rout
 
 
 def _iter_rows(path):
@@ -101,11 +153,13 @@ def assert_can_spend(estimate_usd, path=None):
         raise CapExceeded(spent_usd(path), float(estimate_usd))
 
 
-def record(tokens_in, tokens_out, cost_usd, model=MODEL, note=None, extra=None):
+def record(tokens_in, tokens_out, cost_usd, model=None, note=None, extra=None, provider="meta"):
     path = ledger_path()
     path.parent.mkdir(parents=True, exist_ok=True)
+    model = model or provider_config(provider)["model"]
     row = {
         "ts": datetime.now(TZ).isoformat(timespec="seconds"),
+        "provider": provider,
         "model": model,
         "tokens_in": int(tokens_in),
         "tokens_out": int(tokens_out),
@@ -143,6 +197,8 @@ def status_lines():
         "cap_usd: %.2f" % CAP_USD,
         "remaining_usd: %.6f" % (CAP_USD - spent),
         "rates_usd_per_mtok: in %.2f out %.2f" % (RATE_IN_PER_M, RATE_OUT_PER_M),
+        "baseten_priced: %s" % ("yes" if provider_rates("baseten")[0] is not None else "no (set BASETEN_RATE_IN_PER_M / BASETEN_RATE_OUT_PER_M)"),
+        "baseten_key: %s" % ("set" if os.environ.get("BASETEN_API_KEY") else "absent"),
         "key: not shown",
     ]
 
@@ -189,11 +245,12 @@ def load_dotenv():
                 os.environ[k] = v
 
 
-def _post(path, body):
-    base = os.environ.get("META_API_BASE", "https://api.meta.ai/v1").rstrip("/")
-    key = os.environ.get("META_API_KEY")
+def _post(path, body, provider="meta"):
+    cfg = provider_config(provider)
+    base = os.environ.get(cfg["base_env"], cfg["default_base"]).rstrip("/")
+    key = os.environ.get(cfg["key_env"])
     if not key:
-        raise RuntimeError("META_API_KEY is not set")
+        raise RuntimeError("%s is not set" % cfg["key_env"])
     req = urllib.request.Request(
         base + path,
         data=json.dumps(body).encode(),
@@ -225,21 +282,21 @@ def _response_cost(payload):
     return None
 
 
-def guarded_post(body, estimate_usd, note):
+def guarded_post(body, estimate_usd, note, provider="meta"):
     """Check the cap, send one Meta call, record tokens and computed cost."""
     assert_can_spend(estimate_usd)
     t0 = time.time()
     endpoint = "/responses"
     try:
-        payload = _post("/responses", body)
+        payload = _post("/responses", body, provider=provider)
     except urllib.error.HTTPError as e:
         if e.code != 404:
             # Do not include the body: it can echo request headers in some proxies.
             raise RuntimeError("model HTTP %s" % e.code) from None
         endpoint = "/chat/completions"
-        payload = _post("/chat/completions", body)
+        payload = _post("/chat/completions", body, provider=provider)
     tin, tout = _usage_tokens(payload.get("usage"))
-    computed = compute_cost(tin, tout)
+    computed = compute_cost(tin, tout, provider=provider)
     billed = _response_cost(payload)
     # A call that already happened is recorded even if the actual cost crosses
     # the cap; the next call is refused. The pre-check uses the estimate.
@@ -248,6 +305,7 @@ def guarded_post(body, estimate_usd, note):
         tout,
         computed,
         note=note,
+        provider=provider,
         extra={
             "endpoint": endpoint,
             "latency_ms": int((time.time() - t0) * 1000),
@@ -258,17 +316,18 @@ def guarded_post(body, estimate_usd, note):
     return payload, row
 
 
-def cmd_calibrate(_a):
+def cmd_calibrate(a):
     load_dotenv()
+    provider = getattr(a, "provider", "meta")
     # Worst case for this prompt: ~50 input tokens and 32 output tokens.
-    estimate = compute_cost(50, 32)
+    estimate = compute_cost(50, 32, provider=provider)
     body = {
-        "model": os.environ.get("META_MODEL", MODEL),
+        "model": os.environ.get("META_MODEL", provider_config(provider)["model"]) if provider == "meta" else provider_config(provider)["model"],
         "input": [{"role": "user", "content": [{"type": "input_text", "text": "Reply with the single word pong."}]}],
         "max_output_tokens": 16,
     }
     try:
-        payload, row = guarded_post(body, estimate, note="calibrate")
+        payload, row = guarded_post(body, estimate, note="calibrate", provider=provider)
     except CapExceeded as e:
         print(_redact(str(e)))
         return 2
@@ -406,7 +465,9 @@ def main(argv=None):
     c = sub.add_parser("check")
     c.add_argument("--usd", type=float, required=True)
     c.set_defaults(fn=cmd_check)
-    sub.add_parser("calibrate").set_defaults(fn=cmd_calibrate)
+    cal = sub.add_parser("calibrate")
+    cal.add_argument("--provider", default="meta", choices=sorted(PROVIDERS))
+    cal.set_defaults(fn=cmd_calibrate)
     m = sub.add_parser("model")
     m.add_argument("--replay", required=True)
     m.add_argument("--stores", default="")
