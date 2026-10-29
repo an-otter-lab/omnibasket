@@ -1,0 +1,33 @@
+id: amazon_de
+name: Amazon.de
+domain: www.amazon.de
+status: checked
+currency: RON
+robots:
+  source_url: https://www.amazon.de/robots.txt
+  read_date: 2026-10-30
+  allowed_paths: ["/dp/*", "/gp/product/*"]
+  disallowed_paths: ["/dp/product-availability/", "/dp/rate-this-item/", "/exec/obidos/account-access-login", "/exec/obidos/change-style", "/exec/obidos/di", "/exec/obidos/dt", "/exec/obidos/dt/assoc/handle-buy-box", "/exec/obidos/flex-sign-in", "/exec/obidos/handle-buy-box", "/exec/obidos/refer-a-friend-login", "/exec/obidos/subst/associates/join", "/exec/obidos/subst/marketplace/sell-your-collection.html", "/exec/obidos/subst/marketplace/sell-your-stuff.html", "/exec/obidos/subst/partners/friends/access.html", "/exec/obidos/tg/cm/member/", "/gp/cart", "/gp/content-form", "/gp/customer-images", "/gp/customer-media/upload", "/gp/customer-reviews/common/du", "/gp/customer-reviews/write-a-review.html", "/gp/flex", "/gp/gfix", "/gp/history", "/gp/item-dispatch", "/gp/legacy-handle-buy-box.html", "/gp/reader", "/gp/richpub/listmania/createpipeline", "/gp/music/clipserve", "/gp/music/wma-pop-up", "/gp/recsradio", "/gp/sign-in", "/gp/slides/make-money", "/gp/structured-ratings/actions/get-experience.html", "/gp/twitter/", "/gp/vote", "/gp/voting/", "/gp/yourstore", "/ap/signin", "/gp/offer-listing", "/dp/twister-update/", "/dp/e-mail-friend/", "/gp/registry/wishlist/", "/wishlist/", "/gp/wishlist/", "/registry/wishlist/", "/local/ajax/", "/gp/rate-it", "/o/di", "/o/dt", "/forum/kindle", "/gp/profile", "/reviews/iframe", "/gp/aw/ol/", "/gp/promotion/", "/-/", "/aaut/*"]
+  sitemaps: []
+product_pages:
+  strategy: schema.org-first
+  schemas: [Product, Book]
+  live_reading: false
+shipping_rules:
+  - kind: free_threshold
+    amount: 49.00
+    currency: EUR
+    source_url: https://www.amazon.de/gp/help/customer/display.html?nodeId=GZXW7X6AKTHNUP6H
+    read_date: 2026-10-28
+  - kind: books_delivery_fee_per_order
+    amount: 4.99
+    currency: EUR
+    plus_per_kg: 1.99
+    source_url: https://www.amazon.de/gp/help/customer/display.html?nodeId=GA6MMBQJBJ5QYUDW
+    read_date: 2026-10-28
+  - kind: other_goods_delivery_fee_per_order
+    amount: 5.99
+    currency: EUR
+    plus_per_kg: 2.99
+    source_url: https://www.amazon.de/gp/help/customer/display.html?nodeId=GA6MMBQJBJ5QYUDW
+    read_date: 2026-10-28

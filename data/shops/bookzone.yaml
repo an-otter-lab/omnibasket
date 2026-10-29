@@ -1,0 +1,31 @@
+id: bookzone
+name: Bookzone
+domain: bookzone.ro
+status: checked
+currency: RON
+robots:
+  source_url: https://bookzone.ro/robots.txt
+  read_date: 2026-10-30
+  allowed_paths: ["/"]
+  disallowed_paths: ["/cos/", "/login", "/*cautare?term", "/tag/", "*numar-pagini=", "*anul-publicarii=", "*an-aparitie=", "*tip-oferte=", "*q=", "*pret-maxim=", "*pret-minim=", "*2pau=", "*2ptt=", "*2ptu=", "*2prp=", "*2pdlst=", "*?term=", "*addtocartenc", "/*editura=", "/*autor=", "/*tip-produs=", "/*&pret", "/*ordonare", "/*?utm*", "*quicklink*"]
+  sitemaps: ["https://bookzone.ro/blog/sitemap_index.xml", "https://bookzone.ro/sitemaps-g/SitemapProduseNoiImagini.aspx", "https://bookzone.ro/sitemaps-g/SitemapProduseNoi.aspx", "https://bookzone.ro/sitemaps-g/SitemapProduseImagini.aspx", "https://bookzone.ro/sitemaps-g/SitemapProduse.aspx", "https://bookzone.ro/sitemaps-g/SitemapEdituri.aspx", "https://bookzone.ro/sitemaps-g/SitemapAutori.aspx", "https://bookzone.ro/sitemaps-g/SitemapCategorii.aspx"]
+product_pages:
+  strategy: schema.org-first
+  schemas: [Product, Book]
+shipping_rules:
+  - kind: free_threshold
+    amount: 200.00
+    currency: RON
+    source_url: https://bookzone.ro/cos/produse
+    read_date: 2026-10-28
+  - kind: below_threshold_fee_floor
+    amount: 10.90
+    currency: RON
+    floor: true
+    source_url: https://bookzone.ro/cos/produse
+    read_date: 2026-10-28
+  - kind: per_order_fee
+    amount: 1.99
+    currency: RON
+    source_url: https://bookzone.ro/cos/produse
+    read_date: 2026-10-28

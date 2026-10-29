@@ -1,0 +1,23 @@
+id: emag
+name: eMAG
+domain: www.emag.ro
+status: checked
+currency: RON
+robots:
+  source_url: https://www.emag.ro/robots.txt
+  read_date: 2026-10-29
+  evidence: previously captured project check; 2026-10-30 request returned captcha, not retried
+  allowed_paths: ["/", "/search/*", "/p/*"]
+  disallowed_paths: []
+  sitemaps: []
+product_pages:
+  strategy: schema.org-first
+  schemas: [Product, Book]
+shipping_rules:
+  - kind: operational_fee_percent
+    percent: 1
+    minimum: 1.49
+    maximum: 3.99
+    currency: RON
+    source_url: https://www.emag.ro/help/livrarea-comenzilor-emag-2/
+    read_date: 2026-10-28
