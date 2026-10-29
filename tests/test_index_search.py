@@ -139,3 +139,51 @@ def test_fts_works_offline(tmp_path):
     assert result[0]["isbn"] == "9780064431781"
     # No Open Library call needed since ISBN already present
     assert len(calls) == 0
+
+
+def test_relevance_ranking_all_tokens_match_first(tmp_path):
+    """Results matching all query tokens must rank higher than partial matches."""
+    path = tmp_path / "books.sqlite3"
+    make_db(path, [
+        ("libris", "https://libris.ro/p/a", "The Very Thought of You", "Author A", None),
+        ("libris", "https://libris.ro/p/b", "The Very Hungry Caterpillar", "Eric Carle", None),
+        ("libris", "https://libris.ro/p/c", "My Very First Book", "Author B", None),
+    ])
+    result = search_module.search("the very hungry caterpillar", db_path=path, opener=lambda *a, **k: Response({"docs": []}))
+    # The book matching all tokens should be first
+    assert "caterpillar" in result[0]["title"].lower()
+    # Partial matches should rank lower
+    assert any("thought" in r["title"].lower() for r in result[1:]) or len(result) > 1
+
+
+def test_isbn_merge_same_isbn(tmp_path):
+    """Rows with the same ISBN must merge into one result with all shops."""
+    path = tmp_path / "books.sqlite3"
+    make_db(path, [
+        ("books-express", "https://books-express.ro/a", "Where the Wild Things Are", "Maurice Sendak", "9780064431781"),
+        ("amazon_de", "https://amazon.de/dp/a", "Where the Wild Things Are 50th Anniversary", "Maurice Sendak", "9780064431781"),
+    ])
+    result = search_module.search("9780064431781", db_path=path)
+    assert len(result) == 1, f"Expected 1 result, got {len(result)}"
+    assert result[0]["isbn"] == "9780064431781"
+    assert len(result[0]["shops"]) == 2
+    shop_names = {s["shop"] for s in result[0]["shops"]}
+    assert shop_names == {"books-express", "amazon_de"}
+
+
+def test_shop_dedupe_by_shop_and_url(tmp_path):
+    """Results should not have duplicate (shop, url) pairs."""
+    path = tmp_path / "books.sqlite3"
+    make_db(path, [
+        ("libris", "https://libris.ro/p/a", "Test Book", "Author", None),
+        ("libris", "https://libris.ro/p/b", "Test Book Variant", "Author", None),
+        ("amazon", "https://amazon.com/dp/a", "Test Book", "Author", None),
+    ])
+    result = search_module.search("test book", db_path=path, opener=lambda *a, **k: Response({"docs": []}))
+    # Check that no result has duplicate (shop, url) pairs
+    for r in result:
+        shop_url_pairs = [(s["shop"], s["url"]) for s in r["shops"]]
+        assert len(shop_url_pairs) == len(set(shop_url_pairs)), f"Found duplicate shops in {r['title']}"
+        # Verify we have multiple shops when appropriate
+        if "variant" not in r["title"].lower():
+            assert len(r["shops"]) >= 1

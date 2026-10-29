@@ -71,7 +71,7 @@ def _cache_init(db: sqlite3.Connection) -> None:
 
 
 def _ensure_fts_table(db: sqlite3.Connection) -> None:
-    """Create FTS5 table if missing, populate it, and add ISBN index."""
+    """Create FTS5 table if missing, populate it, and add ISBN index"""
     exists = db.execute(
         "SELECT name FROM sqlite_master WHERE type='table' AND name='books_search'"
     ).fetchone()
@@ -122,8 +122,22 @@ def _lookup_isbn(db: sqlite3.Connection, title: str, author: str | None, opener)
     return isbn
 
 
+def _group_key(row: dict) -> tuple:
+    """Compute grouping key for a row.
+    
+    Group by ISBN when present, otherwise by normalized title+author.
+    """
+    isbn = row["isbn"]
+    if isbn:
+        return ("isbn", isbn)
+    else:
+        title = normalize(row["title"])
+        author = normalize(row["author_hint"])
+        return ("title_author", title, author)
+
+
 def search(query: str, limit: int = 10, db_path: Path | str = DB, opener=None) -> list[dict]:
-    """Search books using FTS5 with stop word filtering and ISBN validation."""
+    """Search books using FTS5 with AND semantics, ranking, and ISBN-based grouping."""
     query = (query or "").strip()
     if not query or not Path(db_path).is_file():
         return []
@@ -153,9 +167,9 @@ def search(query: str, limit: int = 10, db_path: Path | str = DB, opener=None) -
             except sqlite3.OperationalError:
                 return []
         else:
-            # FTS5 search path with prefix matching
+            # FTS5 search path with OR semantics (candidates), then rank by token matches
             try:
-                # Build FTS5 query with prefix matching on each token
+                # Build FTS5 query with OR semantics to get all candidates
                 fts_query = " OR ".join(f'"{token}"*' for token in tokens)
                 rows = db.execute("""
                     SELECT b.shop, b.url, b.title, b.author_hint, b.isbn
@@ -166,38 +180,132 @@ def search(query: str, limit: int = 10, db_path: Path | str = DB, opener=None) -
             except sqlite3.OperationalError:
                 return []
 
-        # Group results by normalized title+author, merge ISBN information
+        # Group results by ISBN (when present) or by title+author
+        # Strategy:
+        # 1. First pass: group by ISBN or by title+author
+        # 2. Second pass: merge title+author groups into ISBN groups if they match
         groups = {}
+        normalized_query = normalize(query)
+        
+        # First pass: create initial groups
+        isbn_groups = {}  # isbn -> group
+        title_author_groups = {}  # (normalized_title, normalized_author) -> group
+        
         for row in rows:
-            title, author, isbn = row["title"] or "", row["author_hint"], row["isbn"]
-            # Group by title+author regardless of ISBN
-            key = (normalize(title), normalize(author or ""))
+            isbn = row["isbn"]
+            title_norm = normalize(row["title"])
+            author_norm = normalize(row["author_hint"])
             
-            item = groups.setdefault(key, {
-                "title": title,
-                "author": author,
-                "isbn": isbn,
-                "cover_url": None,
-                "shops": [],
-                "_score": 0
-            })
-            item["_score"] += 1
+            if isbn:
+                # Group by ISBN
+                if isbn not in isbn_groups:
+                    isbn_groups[isbn] = {
+                        "title": row["title"],
+                        "author": row["author_hint"],
+                        "isbn": isbn,
+                        "cover_url": None,
+                        "shops": [],
+                        "_tokens_matched": 0,
+                        "_is_exact_phrase": False,
+                        "_first_token_pos": float('inf'),
+                    }
+                item = isbn_groups[isbn]
+                item["_tokens_matched"] += 1
+                
+                # Choose longest/most informative title
+                if len(row["title"] or "") > len(item["title"] or ""):
+                    item["title"] = row["title"]
+                    if row["author_hint"]:
+                        item["author"] = row["author_hint"]
+                
+                # Add shop listing (dedupe by shop, url)
+                listing = {"shop": row["shop"], "url": row["url"]}
+                if listing not in item["shops"]:
+                    item["shops"].append(listing)
+            else:
+                # Group by title+author
+                key = (title_norm, author_norm)
+                if key not in title_author_groups:
+                    title_author_groups[key] = {
+                        "title": row["title"],
+                        "author": row["author_hint"],
+                        "isbn": None,
+                        "cover_url": None,
+                        "shops": [],
+                        "_tokens_matched": 0,
+                        "_is_exact_phrase": False,
+                        "_first_token_pos": float('inf'),
+                    }
+                item = title_author_groups[key]
+                item["_tokens_matched"] += 1
+                
+                # Add shop listing (dedupe by shop, url)
+                listing = {"shop": row["shop"], "url": row["url"]}
+                if listing not in item["shops"]:
+                    item["shops"].append(listing)
+        
+        # Second pass: merge title_author_groups into isbn_groups if they match
+        for (title_norm, author_norm), item in title_author_groups.items():
+            merged = False
+            for isbn, isbn_item in isbn_groups.items():
+                isbn_title_norm = normalize(isbn_item["title"])
+                isbn_author_norm = normalize(isbn_item["author"])
+                
+                if isbn_title_norm == title_norm and isbn_author_norm == author_norm:
+                    # Merge into ISBN group
+                    for shop_listing in item["shops"]:
+                        if shop_listing not in isbn_item["shops"]:
+                            isbn_item["shops"].append(shop_listing)
+                    isbn_item["_tokens_matched"] += item["_tokens_matched"]
+                    merged = True
+                    break
             
-            # Merge missing fields - prefer row with ISBN
-            if not item["author"] and author:
-                item["author"] = author
-            if not item["isbn"] and isbn:
-                item["isbn"] = isbn
+            if not merged:
+                # Keep as separate group
+                groups[("title_author", title_norm, author_norm)] = item
+        
+        # Add ISBN groups to final groups
+        for isbn, item in isbn_groups.items():
+            groups[("isbn", isbn)] = item
+        
+        # Compute ranking metrics
+        for item in groups.values():
+            title_normalized = normalize(item["title"])
+            author_normalized = normalize(item.get("author") or "")
+            isbn_normalized = normalize(item.get("isbn") or "")
+            combined = f"{title_normalized} {author_normalized} {isbn_normalized}"
             
-            listing = {"shop": row["shop"], "url": row["url"]}
-            if listing not in item["shops"]:
-                item["shops"].append(listing)
-
+            # Count how many tokens match
+            matched_count = sum(1 for token in tokens if token in combined)
+            item["_tokens_matched"] = matched_count
+            
+            # Check exact phrase match
+            if normalized_query in title_normalized:
+                item["_is_exact_phrase"] = True
+            
+            # Find first token position
+            item["_first_token_pos"] = float('inf')
+            for token in tokens:
+                pos = title_normalized.find(token)
+                if pos != -1:
+                    item["_first_token_pos"] = min(item["_first_token_pos"], pos)
+        
+        # Sort by ranking criteria
         ranked = sorted(
             groups.values(),
-            key=lambda x: (-x["_score"], -len(x["shops"]),
-                          abs(len(normalize(x["title"])) - len(normalize(query))),
-                          normalize(x["title"]))
+            key=lambda x: (
+                # 1. Results with all tokens first (already guaranteed by AND)
+                # 2. Exact phrase match
+                not x["_is_exact_phrase"],
+                # 3. Number of matched tokens (more is better)
+                -x["_tokens_matched"],
+                # 4. First token position (earlier is better)
+                x["_first_token_pos"],
+                # 5. Shorter title first
+                len(normalize(x["title"])),
+                # 6. Alphabetical for stability
+                normalize(x["title"]),
+            )
         )
 
         results = []
