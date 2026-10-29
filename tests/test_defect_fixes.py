@@ -429,3 +429,26 @@ def test_stop_reason_recorded(tmp_path):
             assert row[0] and 'budget' in row[0].lower()
     finally:
         index.pull.AGGREGATE_BUDGET = old_budget
+
+
+def test_isbn13_extraction_from_real_urls():
+    """Regression guard: real ISBN-13s in shop URLs must be detected and extracted."""
+    be = 'https://www.books-express.ro/how-to-deal-with-adversity/p/wppm,9780230771666'
+    assert book_url(be) is True
+    title, author, isbn = hints(be, '')
+    assert isbn == '9780230771666'
+    assert title and 'adversity' in title
+
+    lib = 'https://www.libris.ro/carte/some-book-title/9780306406157'
+    assert hints(lib, '')[2] == '9780306406157'
+
+
+def test_isbn10_and_979_supported():
+    """ISBN-10 and 979-prefixed ISBN-13 are still recognised."""
+    assert hints('https://www.libris.ro/carte/some-book/0306406152', '')[2] == '0306406152'
+    assert hints('https://www.books-express.ro/x/p/ab,9791234567896', '')[2] == '9791234567896'
+
+
+def test_non_isbn_numbers_are_not_extracted():
+    """A product id in a URL must not be mistaken for an ISBN."""
+    assert hints('https://www.libris.ro/carte/some-book/38396330', '')[2] is None

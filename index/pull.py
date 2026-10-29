@@ -62,7 +62,7 @@ def validate_child_url(url, shop):
   return False, f'cannot resolve {host}'
  return True, None
 
-ISBN_RE=re.compile(r'(?<!\d)(?:9[89])?\d{9}[\dX](?!\d)',re.I)
+ISBN_RE=re.compile(r'(?<!\d)(?:97[89])?\d{9}[\dX](?!\d)',re.I)
 def book_url(url):
  p=urlparse(url); h=p.netloc.lower(); x=unquote(p.path).lower()
  if p.scheme not in ('http','https') or not h or any(k in x for k in ('/category','/categorie','/images/','/img/')): return False
