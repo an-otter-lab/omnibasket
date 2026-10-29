@@ -1233,6 +1233,11 @@
     "threshold_crossed": true,
     "over_under_threshold_cents": 8288,
     "short_of_threshold_cents": 0,
+    "delivery_gap": {
+     "status": "reached",
+     "short_cents": 0,
+     "threshold_cents": 26217
+    },
     "delivery_known": true,
     "delivery_cents": 0,
     "order_fee_cents": 0,
@@ -1283,6 +1288,11 @@
     "threshold_crossed": true,
     "over_under_threshold_cents": 3511,
     "short_of_threshold_cents": 0,
+    "delivery_gap": {
+     "status": "reached",
+     "short_cents": 0,
+     "threshold_cents": 13500
+    },
     "delivery_known": true,
     "delivery_cents": 0,
     "order_fee_cents": 0,
@@ -1330,6 +1340,11 @@
       "threshold_crossed": false,
       "over_under_threshold_cents": -10578,
       "short_of_threshold_cents": 10578,
+      "delivery_gap": {
+       "status": "short",
+       "short_cents": 10578,
+       "threshold_cents": 26217
+      },
       "delivery_known": false,
       "delivery_cents": null,
       "order_fee_cents": 0,
@@ -1358,6 +1373,11 @@
       "threshold_crossed": false,
       "over_under_threshold_cents": -15350,
       "short_of_threshold_cents": 15350,
+      "delivery_gap": {
+       "status": "short",
+       "short_cents": 15350,
+       "threshold_cents": 20000
+      },
       "delivery_known": true,
       "delivery_cents": 1090,
       "order_fee_cents": 199,
@@ -1419,6 +1439,11 @@
       "threshold_crossed": true,
       "over_under_threshold_cents": 14647,
       "short_of_threshold_cents": 0,
+      "delivery_gap": {
+       "status": "reached",
+       "short_cents": 0,
+       "threshold_cents": 13500
+      },
       "delivery_known": true,
       "delivery_cents": 0,
       "order_fee_cents": 0,
@@ -1536,6 +1561,11 @@
      "threshold_crossed": true,
      "over_under_threshold_cents": 42373,
      "short_of_threshold_cents": 0,
+     "delivery_gap": {
+      "status": "reached",
+      "short_cents": 0,
+      "threshold_cents": 13500
+     },
      "delivery_known": true,
      "delivery_cents": 0,
      "order_fee_cents": 0,
@@ -1753,6 +1783,11 @@
       "threshold_crossed": false,
       "over_under_threshold_cents": -10578,
       "short_of_threshold_cents": 10578,
+      "delivery_gap": {
+       "status": "short",
+       "short_cents": 10578,
+       "threshold_cents": 26217
+      },
       "delivery_known": false,
       "delivery_cents": null,
       "order_fee_cents": 0,
@@ -1781,6 +1816,11 @@
       "threshold_crossed": false,
       "over_under_threshold_cents": -15350,
       "short_of_threshold_cents": 15350,
+      "delivery_gap": {
+       "status": "short",
+       "short_cents": 15350,
+       "threshold_cents": 20000
+      },
       "delivery_known": true,
       "delivery_cents": 1090,
       "order_fee_cents": 199,
@@ -1842,6 +1882,11 @@
       "threshold_crossed": true,
       "over_under_threshold_cents": 14647,
       "short_of_threshold_cents": 0,
+      "delivery_gap": {
+       "status": "reached",
+       "short_cents": 0,
+       "threshold_cents": 13500
+      },
       "delivery_known": true,
       "delivery_cents": 0,
       "order_fee_cents": 0,
