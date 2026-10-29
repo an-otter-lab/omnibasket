@@ -6,10 +6,14 @@ currency: RON
 robots:
   source_url: https://www.emag.ro/robots.txt
   read_date: 2026-10-29
-  evidence: previously captured project check; 2026-10-30 request returned captcha, not retried
-  allowed_paths: ["/", "/search/*", "/p/*"]
+  evidence: previously captured project check dated 2026-10-29. The 2026-10-30 robots.txt request returned HTTP 511 (captcha) and was not retried.
+  allowed_paths: ["/", "/p/*"]
   disallowed_paths: []
   sitemaps: []
+  notes:
+    - Shop search pages are out of bounds regardless of what robots.txt says.
+    - Plan names offers-available-*.xml as the eMAG sitemap source; the exact index URL is unconfirmed because robots.txt could not be read on 2026-10-30.
+    - AWS/robots claims are limited to the captured project check dated 2026-10-29; no 2026-10-30 robots directives were observed.
 product_pages:
   strategy: schema.org-first
   schemas: [Product, Book]

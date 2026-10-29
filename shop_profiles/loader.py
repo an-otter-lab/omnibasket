@@ -45,6 +45,8 @@ class ShopProfile:
                 raise ValueError("robots evidence requires source_url and read_date")
             if not isinstance(robots.get("allowed_paths"), list) or not isinstance(robots.get("sitemaps"), list):
                 raise ValueError("robots evidence requires allowed_paths and sitemaps lists")
+            if raw["status"] == "checked" and any("search" in path.lower() for path in robots["allowed_paths"]):
+                raise ValueError("checked profiles may not allow shop search paths")
         if raw["status"] == "auto-read" and rules is not None:
             raise ValueError("paste-only rules must remain null until read")
         return cls(**{key: raw[key] for key in required})
