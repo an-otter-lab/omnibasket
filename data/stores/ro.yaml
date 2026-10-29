@@ -13,6 +13,7 @@ stores:
     source_url: https://www.libris.ro/informatiiUtile/beneficii
     read_date: 2026-10-28
     capture: spike/out/libris-shipping/text.txt
+    read_at: 2026-10-28
     notes: >-
       Courier in Romania is free above 135 lei, otherwise 12.90 lei.
       Easybox uses the same fee. No membership price on this page.
@@ -27,6 +28,7 @@ stores:
     source_url: https://bookzone.ro/cos/produse
     read_date: 2026-10-28
     capture: spike/out/fee-confirm-2026-10-28/bz3-cart/text.txt
+    read_at: 2026-10-28
     notes: >-
       Cart step: https://bookzone.ro/cos/produse after adding
       Ghici cat de mult te iubesc (46.50 lei), still under 200 lei.
@@ -50,6 +52,7 @@ stores:
     source_url: https://www.amazon.de/gp/cart/view.html
     read_date: 2026-10-28
     capture: spike/out/fee-confirm-2026-10-28/amz3-cart/text.txt
+    read_at: 2026-10-28
     notes: >-
       Cart step, logged out, deliver-to Romania: one book,
       Where the Wild Things Are (dp/0064431789), 38.42 RON,
@@ -78,6 +81,7 @@ stores:
     source_url: https://www.emag.ro/help/livrarea-comenzilor-emag-2/
     read_date: 2026-10-28
     capture: spike/out/headful/emag-delivery/text.txt
+    read_at: 2026-10-28
     notes: >-
       1% operational fee, minimum 1.49 lei, maximum 3.99 lei.
       The solver Store type has one flat per-order fee. The lock

@@ -3,6 +3,10 @@
 # null is not used for a price. The Amazon.de under-bar fee is not an
 # item price; it is recorded on the store, not here.
 # spike/out is gitignored. Paths are relative to this worktree.
+# listing_url is the product page read (capture meta.json final_url, or
+# spike/products-ro-v1.json for the amz-isbn and candidates captures).
+# edition is paperback|board_book|hardcover|other as the page printed it;
+# null when the page printed no format. read_at is the capture date.
 checked_at: 2026-10-28
 currency: RON
 direction: >-
@@ -23,6 +27,9 @@ books:
         seller_certainty: direct
         seller: Bookzone
         capture: spike/out/bookzone-ghici/text.txt
+        listing_url: https://bookzone.ro/carte/ghici-cat-de-mult-te-iubesc
+        edition: board_book
+        read_at: 2026-10-27
         evidence: "Visible price 46.5 Lei. Cart subtotal uses this price."
       - store_id: emag
         price_cents: 5600
@@ -31,12 +38,18 @@ books:
         genius_badge: false
         sold_by_emag: false
         capture: spike/out/headful/emag-ghici/text.txt
+        listing_url: https://www.emag.ro/ghici-cat-de-mult-carte-cartonata-integral-sam-mcbratney-cco978-606-8996-01-1/pd/DGJW95BBM/
+        edition: board_book
+        read_at: 2026-10-27
         evidence: "56,00 Lei. Vândut și livrat de: CARTEA COPIILOR. No product Genius badge."
       - store_id: libris
         price_cents: 5700
         seller_certainty: direct
         seller: Libris
         capture: spike/out/libris-ghici/text.txt
+        listing_url: https://www.libris.ro/carte/ghici-cat-de-mult-te-iubesc-sam-mcbratney/21197307
+        edition: board_book
+        read_at: 2026-10-28
         evidence: "57.00Lei. În stoc. Editura CARTEA COPIILOR."
 
   - id: vhc
@@ -54,12 +67,18 @@ books:
         genius_badge: false
         sold_by_emag: false
         capture: spike/out/headful/emag-vhc/text.txt
+        listing_url: https://www.emag.ro/the-very-hungry-caterpillar-eric-carle-author-brt9780241003008/pd/DF4KXHBBM/
+        edition: board_book
+        read_at: 2026-10-27
         evidence: "57,53 Lei. Vândut și livrat de: Libris English SRL."
       - store_id: libris
         price_cents: 6133
         seller_certainty: direct
         seller: Libris
         capture: spike/out/libris-vhc/text.txt
+        listing_url: https://www.libris.ro/carte-engleza/the-very-hungry-caterpillar-eric-carle/15743846
+        edition: board_book
+        read_at: 2026-10-28
         evidence: "61.33Lei, list 68.14 Lei. Livrare in 2-4 saptamani."
 
   - id: owl
@@ -75,6 +94,9 @@ books:
         seller_certainty: direct
         seller: Libris
         capture: spike/out/libris-owl/text.txt
+        listing_url: https://www.libris.ro/carte-engleza/owl-babies/10852618
+        edition: board_book
+        read_at: 2026-10-28
         evidence: "51.78Lei, list 57.53 Lei. Livrare in 2-4 saptamani."
       - store_id: emag
         price_cents: 15700
@@ -83,6 +105,9 @@ books:
         genius_badge: false
         sold_by_emag: false
         capture: spike/out/headful/emag-owl/text.txt
+        listing_url: https://www.emag.ro/owl-babies-martin-waddell-9780763695194/pd/DZ65L02BM/
+        edition: null
+        read_at: 2026-10-28
         evidence: "157,00 Lei. Vândut și livrat de: Karte."
 
   - id: mole
@@ -96,12 +121,18 @@ books:
         seller_certainty: direct
         seller: Amazon
         capture: spike/out/amz-isbn/9781529105100/text.txt
+        listing_url: https://www.amazon.de/dp/1529105102
+        edition: hardcover
+        read_at: 2026-10-28
         evidence: "116,53 RON. Gebundene Ausgabe. Versender / Verkäufer Amazon. Liefern nach Rumänien."
       - store_id: libris
         price_cents: 14256
         seller_certainty: direct
         seller: Libris
         capture: spike/out/candidates/libris-mole-a/text.txt
+        listing_url: https://www.libris.ro/carte-engleza/boy-the-mole-the-fox-and-the-horse-charlie-mackesy/11893594
+        edition: hardcover
+        read_at: 2026-10-28
         evidence: "142.56Lei, list 158.40 Lei. Editura Ebury Publishing, 2019."
 
   - id: wild
@@ -115,12 +146,18 @@ books:
         seller_certainty: direct
         seller: Amazon
         capture: spike/out/amz-isbn/9780064431781/text.txt
+        listing_url: https://www.amazon.de/dp/0064431789
+        edition: paperback
+        read_at: 2026-10-28
         evidence: "39,86 RON. Taschenbuch. Versender / Verkäufer Amazon. Liefern nach Rumänien."
       - store_id: libris
         price_cents: 7770
         seller_certainty: direct
         seller: Libris
         capture: spike/out/candidates/libris-wild-b/text.txt
+        listing_url: https://www.libris.ro/carte-engleza/where-the-wild-things-are-maurice-sendak/16027753
+        edition: paperback
+        read_at: 2026-10-28
         evidence: "77.70Lei, list 86.33 Lei. Editura Harpercollins, 2012."
 
   - id: matilda
@@ -134,12 +171,18 @@ books:
         seller_certainty: direct
         seller: Amazon
         capture: spike/out/amz-isbn/9780141369365/text.txt
+        listing_url: https://www.amazon.de/dp/0141369361
+        edition: paperback
+        read_at: 2026-10-28
         evidence: "94,33 RON. Taschenbuch. Versender / Verkäufer Amazon. Liefern nach Rumänien."
       - store_id: libris
         price_cents: 8418
         seller_certainty: direct
         seller: Libris
         capture: spike/out/candidates/libris-matilda-colour/text.txt
+        listing_url: https://www.libris.ro/carte-engleza/matilda-colour-edition-roald-dahl/11022035
+        edition: paperback
+        read_at: 2026-10-28
         evidence: "84.18Lei, list 93.53 Lei. Editura PUFFIN, 2016."
 
   - id: charlie
@@ -153,10 +196,16 @@ books:
         seller_certainty: direct
         seller: Amazon
         capture: spike/out/amz-isbn/9780141369372/text.txt
+        listing_url: https://www.amazon.de/dp/014136937X
+        edition: paperback
+        read_at: 2026-10-28
         evidence: "94,33 RON. Taschenbuch. Versender / Verkäufer Amazon. Liefern nach Rumänien."
       - store_id: libris
         price_cents: 8418
         seller_certainty: direct
         seller: Libris
         capture: spike/out/candidates/libris-charlie-colour/text.txt
+        listing_url: https://www.libris.ro/carte-engleza/charlie-and-the-chocolate-factory-colour-edition-roald-dahl/11030485
+        edition: paperback
+        read_at: 2026-10-28
         evidence: "84.18Lei, list 93.53 Lei. Editura PUFFIN, 2016."
