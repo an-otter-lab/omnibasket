@@ -1,0 +1,1704 @@
+{
+ "currency": "RON",
+ "total_cents": 51516,
+ "assignment": [
+  {
+   "item_id": "ghici",
+   "store_id": "libris",
+   "price_cents": 5700,
+   "seller_certainty": "direct"
+  },
+  {
+   "item_id": "vhc",
+   "store_id": "libris",
+   "price_cents": 6133,
+   "seller_certainty": "direct"
+  },
+  {
+   "item_id": "owl",
+   "store_id": "libris",
+   "price_cents": 5178,
+   "seller_certainty": "direct"
+  },
+  {
+   "item_id": "mole",
+   "store_id": "amazon_de",
+   "price_cents": 11653,
+   "seller_certainty": "direct"
+  },
+  {
+   "item_id": "wild",
+   "store_id": "amazon_de",
+   "price_cents": 3986,
+   "seller_certainty": "direct"
+  },
+  {
+   "item_id": "matilda",
+   "store_id": "amazon_de",
+   "price_cents": 9433,
+   "seller_certainty": "direct"
+  },
+  {
+   "item_id": "charlie",
+   "store_id": "amazon_de",
+   "price_cents": 9433,
+   "seller_certainty": "direct"
+  }
+ ],
+ "stores": [
+  {
+   "store_id": "amazon_de",
+   "currency": "RON",
+   "item_ids": [
+    "mole",
+    "wild",
+    "matilda",
+    "charlie"
+   ],
+   "items_cents": 34505,
+   "qualifying_cents": 34505,
+   "shipping_cents": 0,
+   "per_order_fee_cents": 0,
+   "store_total_cents": 34505,
+   "threshold_cents": 26219,
+   "threshold_crossed": true
+  },
+  {
+   "store_id": "libris",
+   "currency": "RON",
+   "item_ids": [
+    "ghici",
+    "vhc",
+    "owl"
+   ],
+   "items_cents": 17011,
+   "qualifying_cents": 17011,
+   "shipping_cents": 0,
+   "per_order_fee_cents": 0,
+   "store_total_cents": 17011,
+   "threshold_cents": 13500,
+   "threshold_crossed": true
+  }
+ ],
+ "cheapest_per_item": {
+  "currency": "RON",
+  "total_cents": null,
+  "lines": [
+   {
+    "item_id": "ghici",
+    "store_id": "bookzone",
+    "price_cents": 4650
+   },
+   {
+    "item_id": "vhc",
+    "store_id": "libris",
+    "price_cents": 6133
+   },
+   {
+    "item_id": "owl",
+    "store_id": "libris",
+    "price_cents": 5178
+   },
+   {
+    "item_id": "mole",
+    "store_id": "amazon_de",
+    "price_cents": 11653
+   },
+   {
+    "item_id": "wild",
+    "store_id": "amazon_de",
+    "price_cents": 3986
+   },
+   {
+    "item_id": "matilda",
+    "store_id": "libris",
+    "price_cents": 8418
+   },
+   {
+    "item_id": "charlie",
+    "store_id": "libris",
+    "price_cents": 8418
+   }
+  ],
+  "stores": [
+   {
+    "store_id": "amazon_de",
+    "items_cents": 15639,
+    "shipping_cents": null,
+    "per_order_fee_cents": 0,
+    "store_total_cents": null
+   },
+   {
+    "store_id": "bookzone",
+    "items_cents": 4650,
+    "shipping_cents": 1090,
+    "per_order_fee_cents": 199,
+    "store_total_cents": 5939
+   },
+   {
+    "store_id": "libris",
+    "items_cents": 28147,
+    "shipping_cents": 0,
+    "per_order_fee_cents": 0,
+    "store_total_cents": 28147
+   }
+  ]
+ },
+ "membership": [],
+ "needs_seller_verification": false,
+ "optimum": {
+  "currency": "RON",
+  "total_cents": 51516,
+  "assignment": [
+   {
+    "item_id": "ghici",
+    "store_id": "libris",
+    "price_cents": 5700,
+    "seller_certainty": "direct"
+   },
+   {
+    "item_id": "vhc",
+    "store_id": "libris",
+    "price_cents": 6133,
+    "seller_certainty": "direct"
+   },
+   {
+    "item_id": "owl",
+    "store_id": "libris",
+    "price_cents": 5178,
+    "seller_certainty": "direct"
+   },
+   {
+    "item_id": "mole",
+    "store_id": "amazon_de",
+    "price_cents": 11653,
+    "seller_certainty": "direct"
+   },
+   {
+    "item_id": "wild",
+    "store_id": "amazon_de",
+    "price_cents": 3986,
+    "seller_certainty": "direct"
+   },
+   {
+    "item_id": "matilda",
+    "store_id": "amazon_de",
+    "price_cents": 9433,
+    "seller_certainty": "direct"
+   },
+   {
+    "item_id": "charlie",
+    "store_id": "amazon_de",
+    "price_cents": 9433,
+    "seller_certainty": "direct"
+   }
+  ],
+  "stores": [
+   {
+    "store_id": "amazon_de",
+    "currency": "RON",
+    "item_ids": [
+     "mole",
+     "wild",
+     "matilda",
+     "charlie"
+    ],
+    "items_cents": 34505,
+    "qualifying_cents": 34505,
+    "shipping_cents": 0,
+    "per_order_fee_cents": 0,
+    "store_total_cents": 34505,
+    "threshold_cents": 26219,
+    "threshold_crossed": true
+   },
+   {
+    "store_id": "libris",
+    "currency": "RON",
+    "item_ids": [
+     "ghici",
+     "vhc",
+     "owl"
+    ],
+    "items_cents": 17011,
+    "qualifying_cents": 17011,
+    "shipping_cents": 0,
+    "per_order_fee_cents": 0,
+    "store_total_cents": 17011,
+    "threshold_cents": 13500,
+    "threshold_crossed": true
+   }
+  ]
+ },
+ "single_store_baseline": {
+  "best_store_id": "libris",
+  "total_cents": 55873
+ },
+ "romanian_inclusive": {
+  "currency": "RON",
+  "total_cents": 53045,
+  "assignment": [
+   {
+    "item_id": "ghici",
+    "store_id": "bookzone",
+    "price_cents": 4650,
+    "seller_certainty": "direct"
+   },
+   {
+    "item_id": "vhc",
+    "store_id": "libris",
+    "price_cents": 6133,
+    "seller_certainty": "direct"
+   },
+   {
+    "item_id": "owl",
+    "store_id": "libris",
+    "price_cents": 5178,
+    "seller_certainty": "direct"
+   },
+   {
+    "item_id": "mole",
+    "store_id": "amazon_de",
+    "price_cents": 11653,
+    "seller_certainty": "direct"
+   },
+   {
+    "item_id": "wild",
+    "store_id": "amazon_de",
+    "price_cents": 3986,
+    "seller_certainty": "direct"
+   },
+   {
+    "item_id": "matilda",
+    "store_id": "amazon_de",
+    "price_cents": 9433,
+    "seller_certainty": "direct"
+   },
+   {
+    "item_id": "charlie",
+    "store_id": "amazon_de",
+    "price_cents": 9433,
+    "seller_certainty": "direct"
+   }
+  ],
+  "stores": [
+   {
+    "store_id": "amazon_de",
+    "currency": "RON",
+    "item_ids": [
+     "mole",
+     "wild",
+     "matilda",
+     "charlie"
+    ],
+    "items_cents": 34505,
+    "qualifying_cents": 34505,
+    "shipping_cents": 0,
+    "per_order_fee_cents": 0,
+    "store_total_cents": 34505,
+    "threshold_cents": 26219,
+    "threshold_crossed": true
+   },
+   {
+    "store_id": "bookzone",
+    "currency": "RON",
+    "item_ids": [
+     "ghici"
+    ],
+    "items_cents": 4650,
+    "qualifying_cents": 4650,
+    "shipping_cents": 1090,
+    "per_order_fee_cents": 199,
+    "store_total_cents": 5939,
+    "threshold_cents": 20000,
+    "threshold_crossed": false
+   },
+   {
+    "store_id": "libris",
+    "currency": "RON",
+    "item_ids": [
+     "vhc",
+     "owl"
+    ],
+    "items_cents": 11311,
+    "qualifying_cents": 11311,
+    "shipping_cents": 1290,
+    "per_order_fee_cents": 0,
+    "store_total_cents": 12601,
+    "threshold_cents": 13500,
+    "threshold_crossed": false
+   }
+  ],
+  "romanian_stores": [
+   "bookzone"
+  ]
+ },
+ "excluded_stores": [
+  {
+   "id": "emag",
+   "reason": "unresolved fee",
+   "free_shipping_threshold_cents": null,
+   "shipping_fee_cents": null,
+   "per_order_fee_cents": null
+  }
+ ],
+ "cached": true,
+ "read_at_range": {
+  "oldest": "2026-10-27",
+  "newest": "2026-10-28"
+ },
+ "degraded": null,
+ "shops": [
+  {
+   "store_id": "libris",
+   "currency": "RON",
+   "priced": true,
+   "excluded": false,
+   "selectable": true,
+   "not_selectable_code": null,
+   "not_selectable_reason": null,
+   "read_at": "2026-10-28",
+   "books_listed": 7,
+   "failed_reads": [],
+   "free_delivery_threshold_cents": 13500,
+   "delivery_cents": 1290,
+   "delivery_known": true,
+   "order_fee_cents": 0
+  },
+  {
+   "store_id": "emag",
+   "currency": "RON",
+   "priced": false,
+   "excluded": true,
+   "selectable": false,
+   "not_selectable_code": "fees_not_printed",
+   "not_selectable_reason": "its delivery or per-order fee is not printed, so it cannot be priced",
+   "read_at": "2026-10-28",
+   "books_listed": 0,
+   "failed_reads": [],
+   "free_delivery_threshold_cents": null,
+   "delivery_cents": null,
+   "delivery_known": false,
+   "order_fee_cents": null
+  },
+  {
+   "store_id": "bookzone",
+   "currency": "RON",
+   "priced": true,
+   "excluded": false,
+   "selectable": true,
+   "not_selectable_code": null,
+   "not_selectable_reason": null,
+   "read_at": "2026-10-28",
+   "books_listed": 1,
+   "failed_reads": [],
+   "free_delivery_threshold_cents": 20000,
+   "delivery_cents": 1090,
+   "delivery_known": true,
+   "order_fee_cents": 199
+  },
+  {
+   "store_id": "amazon_de",
+   "currency": "RON",
+   "priced": true,
+   "excluded": false,
+   "selectable": true,
+   "not_selectable_code": null,
+   "not_selectable_reason": null,
+   "read_at": "2026-10-28",
+   "books_listed": 4,
+   "failed_reads": [],
+   "free_delivery_threshold_cents": 26219,
+   "delivery_cents": null,
+   "delivery_known": false,
+   "order_fee_cents": 0
+  },
+  {
+   "store_id": "carturesti",
+   "currency": "RON",
+   "priced": true,
+   "excluded": false,
+   "selectable": false,
+   "not_selectable_code": "couldnt_read",
+   "not_selectable_reason": "its pages could not be read",
+   "read_at": null,
+   "books_listed": 0,
+   "failed_reads": [
+    {
+     "item_id": "ghici",
+     "store_id": "carturesti",
+     "reason": "page_unreadable",
+     "attempts": 3,
+     "failed_at": "2026-10-28T09:41:00+02:00"
+    },
+    {
+     "item_id": "vhc",
+     "store_id": "carturesti",
+     "reason": "page_unreadable",
+     "attempts": 3,
+     "failed_at": "2026-10-28T09:41:00+02:00"
+    },
+    {
+     "item_id": "owl",
+     "store_id": "carturesti",
+     "reason": "page_unreadable",
+     "attempts": 3,
+     "failed_at": "2026-10-28T09:41:00+02:00"
+    },
+    {
+     "item_id": "mole",
+     "store_id": "carturesti",
+     "reason": "page_unreadable",
+     "attempts": 3,
+     "failed_at": "2026-10-28T09:41:00+02:00"
+    },
+    {
+     "item_id": "wild",
+     "store_id": "carturesti",
+     "reason": "page_unreadable",
+     "attempts": 3,
+     "failed_at": "2026-10-28T09:41:00+02:00"
+    },
+    {
+     "item_id": "matilda",
+     "store_id": "carturesti",
+     "reason": "page_unreadable",
+     "attempts": 3,
+     "failed_at": "2026-10-28T09:41:00+02:00"
+    },
+    {
+     "item_id": "charlie",
+     "store_id": "carturesti",
+     "reason": "page_unreadable",
+     "attempts": 3,
+     "failed_at": "2026-10-28T09:41:00+02:00"
+    }
+   ],
+   "free_delivery_threshold_cents": null,
+   "delivery_cents": null,
+   "delivery_known": false,
+   "order_fee_cents": null
+  }
+ ],
+ "books": [
+  {
+   "item_id": "ghici",
+   "title": "Ghici cât de mult te iubesc",
+   "isbn13": "9786068996011",
+   "edition_pin": null,
+   "editions": [
+    {
+     "edition": "board_book",
+     "cheapest_price_cents": 4650,
+     "store_ids": [
+      "libris",
+      "emag",
+      "bookzone"
+     ]
+    }
+   ],
+   "assigned_store_id": "libris",
+   "shops": [
+    {
+     "store_id": "libris",
+     "status": "in_plan",
+     "price_cents": 5700,
+     "currency": "RON",
+     "seller_certainty": "direct",
+     "edition": "board_book",
+     "listing_url": "https://www.libris.ro/carte/ghici-cat-de-mult-te-iubesc-sam-mcbratney/21197307",
+     "read_at": "2026-10-28"
+    },
+    {
+     "store_id": "emag",
+     "status": "fees_not_printed",
+     "price_cents": 5600,
+     "currency": "RON",
+     "seller_certainty": "marketplace",
+     "edition": "board_book",
+     "listing_url": "https://www.emag.ro/ghici-cat-de-mult-carte-cartonata-integral-sam-mcbratney-cco978-606-8996-01-1/pd/DGJW95BBM/",
+     "read_at": "2026-10-27"
+    },
+    {
+     "store_id": "bookzone",
+     "status": "compared",
+     "price_cents": 4650,
+     "currency": "RON",
+     "seller_certainty": "direct",
+     "edition": "board_book",
+     "listing_url": "https://bookzone.ro/carte/ghici-cat-de-mult-te-iubesc",
+     "read_at": "2026-10-27"
+    },
+    {
+     "store_id": "amazon_de",
+     "status": "not_listed",
+     "price_cents": null,
+     "currency": "RON",
+     "seller_certainty": null,
+     "edition": null,
+     "listing_url": null,
+     "read_at": null
+    },
+    {
+     "store_id": "carturesti",
+     "status": "couldnt_read",
+     "price_cents": null,
+     "currency": "RON",
+     "seller_certainty": null,
+     "edition": null,
+     "listing_url": null,
+     "read_at": null
+    }
+   ]
+  },
+  {
+   "item_id": "vhc",
+   "title": "The Very Hungry Caterpillar",
+   "isbn13": null,
+   "edition_pin": null,
+   "editions": [
+    {
+     "edition": "board_book",
+     "cheapest_price_cents": 5753,
+     "store_ids": [
+      "libris",
+      "emag"
+     ]
+    }
+   ],
+   "assigned_store_id": "libris",
+   "shops": [
+    {
+     "store_id": "libris",
+     "status": "in_plan",
+     "price_cents": 6133,
+     "currency": "RON",
+     "seller_certainty": "direct",
+     "edition": "board_book",
+     "listing_url": "https://www.libris.ro/carte-engleza/the-very-hungry-caterpillar-eric-carle/15743846",
+     "read_at": "2026-10-28"
+    },
+    {
+     "store_id": "emag",
+     "status": "fees_not_printed",
+     "price_cents": 5753,
+     "currency": "RON",
+     "seller_certainty": "marketplace",
+     "edition": "board_book",
+     "listing_url": "https://www.emag.ro/the-very-hungry-caterpillar-eric-carle-author-brt9780241003008/pd/DF4KXHBBM/",
+     "read_at": "2026-10-27"
+    },
+    {
+     "store_id": "bookzone",
+     "status": "not_listed",
+     "price_cents": null,
+     "currency": "RON",
+     "seller_certainty": null,
+     "edition": null,
+     "listing_url": null,
+     "read_at": null
+    },
+    {
+     "store_id": "amazon_de",
+     "status": "not_listed",
+     "price_cents": null,
+     "currency": "RON",
+     "seller_certainty": null,
+     "edition": null,
+     "listing_url": null,
+     "read_at": null
+    },
+    {
+     "store_id": "carturesti",
+     "status": "couldnt_read",
+     "price_cents": null,
+     "currency": "RON",
+     "seller_certainty": null,
+     "edition": null,
+     "listing_url": null,
+     "read_at": null
+    }
+   ]
+  },
+  {
+   "item_id": "owl",
+   "title": "Owl Babies",
+   "isbn13": null,
+   "edition_pin": null,
+   "editions": [
+    {
+     "edition": "board_book",
+     "cheapest_price_cents": 5178,
+     "store_ids": [
+      "libris"
+     ]
+    }
+   ],
+   "assigned_store_id": "libris",
+   "shops": [
+    {
+     "store_id": "libris",
+     "status": "in_plan",
+     "price_cents": 5178,
+     "currency": "RON",
+     "seller_certainty": "direct",
+     "edition": "board_book",
+     "listing_url": "https://www.libris.ro/carte-engleza/owl-babies/10852618",
+     "read_at": "2026-10-28"
+    },
+    {
+     "store_id": "emag",
+     "status": "fees_not_printed",
+     "price_cents": 15700,
+     "currency": "RON",
+     "seller_certainty": "marketplace",
+     "edition": null,
+     "listing_url": "https://www.emag.ro/owl-babies-martin-waddell-9780763695194/pd/DZ65L02BM/",
+     "read_at": "2026-10-28"
+    },
+    {
+     "store_id": "bookzone",
+     "status": "not_listed",
+     "price_cents": null,
+     "currency": "RON",
+     "seller_certainty": null,
+     "edition": null,
+     "listing_url": null,
+     "read_at": null
+    },
+    {
+     "store_id": "amazon_de",
+     "status": "not_listed",
+     "price_cents": null,
+     "currency": "RON",
+     "seller_certainty": null,
+     "edition": null,
+     "listing_url": null,
+     "read_at": null
+    },
+    {
+     "store_id": "carturesti",
+     "status": "couldnt_read",
+     "price_cents": null,
+     "currency": "RON",
+     "seller_certainty": null,
+     "edition": null,
+     "listing_url": null,
+     "read_at": null
+    }
+   ]
+  },
+  {
+   "item_id": "mole",
+   "title": "The Boy, the Mole, the Fox and the Horse",
+   "isbn13": "9781529105100",
+   "edition_pin": null,
+   "editions": [
+    {
+     "edition": "hardcover",
+     "cheapest_price_cents": 11653,
+     "store_ids": [
+      "amazon_de"
+     ]
+    }
+   ],
+   "assigned_store_id": "amazon_de",
+   "shops": [
+    {
+     "store_id": "libris",
+     "status": "compared",
+     "price_cents": 14256,
+     "currency": "RON",
+     "seller_certainty": "direct",
+     "edition": null,
+     "listing_url": "https://www.libris.ro/carte-engleza/boy-the-mole-the-fox-and-the-horse-charlie-mackesy/11893594",
+     "read_at": "2026-10-28"
+    },
+    {
+     "store_id": "emag",
+     "status": "not_listed",
+     "price_cents": null,
+     "currency": "RON",
+     "seller_certainty": null,
+     "edition": null,
+     "listing_url": null,
+     "read_at": null
+    },
+    {
+     "store_id": "bookzone",
+     "status": "not_listed",
+     "price_cents": null,
+     "currency": "RON",
+     "seller_certainty": null,
+     "edition": null,
+     "listing_url": null,
+     "read_at": null
+    },
+    {
+     "store_id": "amazon_de",
+     "status": "in_plan",
+     "price_cents": 11653,
+     "currency": "RON",
+     "seller_certainty": "direct",
+     "edition": "hardcover",
+     "listing_url": "https://www.amazon.de/dp/1529105102",
+     "read_at": "2026-10-28"
+    },
+    {
+     "store_id": "carturesti",
+     "status": "couldnt_read",
+     "price_cents": null,
+     "currency": "RON",
+     "seller_certainty": null,
+     "edition": null,
+     "listing_url": null,
+     "read_at": null
+    }
+   ]
+  },
+  {
+   "item_id": "wild",
+   "title": "Where the Wild Things Are",
+   "isbn13": "9780064431781",
+   "edition_pin": null,
+   "editions": [
+    {
+     "edition": "paperback",
+     "cheapest_price_cents": 3986,
+     "store_ids": [
+      "amazon_de"
+     ]
+    }
+   ],
+   "assigned_store_id": "amazon_de",
+   "shops": [
+    {
+     "store_id": "libris",
+     "status": "compared",
+     "price_cents": 7770,
+     "currency": "RON",
+     "seller_certainty": "direct",
+     "edition": null,
+     "listing_url": "https://www.libris.ro/carte-engleza/where-the-wild-things-are-maurice-sendak/16027753",
+     "read_at": "2026-10-28"
+    },
+    {
+     "store_id": "emag",
+     "status": "not_listed",
+     "price_cents": null,
+     "currency": "RON",
+     "seller_certainty": null,
+     "edition": null,
+     "listing_url": null,
+     "read_at": null
+    },
+    {
+     "store_id": "bookzone",
+     "status": "not_listed",
+     "price_cents": null,
+     "currency": "RON",
+     "seller_certainty": null,
+     "edition": null,
+     "listing_url": null,
+     "read_at": null
+    },
+    {
+     "store_id": "amazon_de",
+     "status": "in_plan",
+     "price_cents": 3986,
+     "currency": "RON",
+     "seller_certainty": "direct",
+     "edition": "paperback",
+     "listing_url": "https://www.amazon.de/dp/0064431789",
+     "read_at": "2026-10-28"
+    },
+    {
+     "store_id": "carturesti",
+     "status": "couldnt_read",
+     "price_cents": null,
+     "currency": "RON",
+     "seller_certainty": null,
+     "edition": null,
+     "listing_url": null,
+     "read_at": null
+    }
+   ]
+  },
+  {
+   "item_id": "matilda",
+   "title": "Matilda (Colour Edition)",
+   "isbn13": "9780141369365",
+   "edition_pin": null,
+   "editions": [
+    {
+     "edition": "paperback",
+     "cheapest_price_cents": 9433,
+     "store_ids": [
+      "amazon_de"
+     ]
+    }
+   ],
+   "assigned_store_id": "amazon_de",
+   "shops": [
+    {
+     "store_id": "libris",
+     "status": "compared",
+     "price_cents": 8418,
+     "currency": "RON",
+     "seller_certainty": "direct",
+     "edition": null,
+     "listing_url": "https://www.libris.ro/carte-engleza/matilda-colour-edition-roald-dahl/11022035",
+     "read_at": "2026-10-28"
+    },
+    {
+     "store_id": "emag",
+     "status": "not_listed",
+     "price_cents": null,
+     "currency": "RON",
+     "seller_certainty": null,
+     "edition": null,
+     "listing_url": null,
+     "read_at": null
+    },
+    {
+     "store_id": "bookzone",
+     "status": "not_listed",
+     "price_cents": null,
+     "currency": "RON",
+     "seller_certainty": null,
+     "edition": null,
+     "listing_url": null,
+     "read_at": null
+    },
+    {
+     "store_id": "amazon_de",
+     "status": "in_plan",
+     "price_cents": 9433,
+     "currency": "RON",
+     "seller_certainty": "direct",
+     "edition": "paperback",
+     "listing_url": "https://www.amazon.de/dp/0141369361",
+     "read_at": "2026-10-28"
+    },
+    {
+     "store_id": "carturesti",
+     "status": "couldnt_read",
+     "price_cents": null,
+     "currency": "RON",
+     "seller_certainty": null,
+     "edition": null,
+     "listing_url": null,
+     "read_at": null
+    }
+   ]
+  },
+  {
+   "item_id": "charlie",
+   "title": "Charlie and the Chocolate Factory (Colour Edition)",
+   "isbn13": "9780141369372",
+   "edition_pin": null,
+   "editions": [
+    {
+     "edition": "paperback",
+     "cheapest_price_cents": 9433,
+     "store_ids": [
+      "amazon_de"
+     ]
+    }
+   ],
+   "assigned_store_id": "amazon_de",
+   "shops": [
+    {
+     "store_id": "libris",
+     "status": "compared",
+     "price_cents": 8418,
+     "currency": "RON",
+     "seller_certainty": "direct",
+     "edition": null,
+     "listing_url": "https://www.libris.ro/carte-engleza/charlie-and-the-chocolate-factory-colour-edition-roald-dahl/11030485",
+     "read_at": "2026-10-28"
+    },
+    {
+     "store_id": "emag",
+     "status": "not_listed",
+     "price_cents": null,
+     "currency": "RON",
+     "seller_certainty": null,
+     "edition": null,
+     "listing_url": null,
+     "read_at": null
+    },
+    {
+     "store_id": "bookzone",
+     "status": "not_listed",
+     "price_cents": null,
+     "currency": "RON",
+     "seller_certainty": null,
+     "edition": null,
+     "listing_url": null,
+     "read_at": null
+    },
+    {
+     "store_id": "amazon_de",
+     "status": "in_plan",
+     "price_cents": 9433,
+     "currency": "RON",
+     "seller_certainty": "direct",
+     "edition": "paperback",
+     "listing_url": "https://www.amazon.de/dp/014136937X",
+     "read_at": "2026-10-28"
+    },
+    {
+     "store_id": "carturesti",
+     "status": "couldnt_read",
+     "price_cents": null,
+     "currency": "RON",
+     "seller_certainty": null,
+     "edition": null,
+     "listing_url": null,
+     "read_at": null
+    }
+   ]
+  }
+ ],
+ "cheapest": {
+  "status": "ranked",
+  "reason": null,
+  "currency": "RON",
+  "total_cents": 51516,
+  "books_subtotal_cents": 51516,
+  "order_count": 2,
+  "orders": [
+   {
+    "store_id": "amazon_de",
+    "currency": "RON",
+    "books": [
+     {
+      "item_id": "mole",
+      "title": "The Boy, the Mole, the Fox and the Horse",
+      "isbn13": "9781529105100",
+      "edition": "hardcover",
+      "price_cents": 11653,
+      "currency": "RON",
+      "seller_certainty": "direct",
+      "listing_url": "https://www.amazon.de/dp/1529105102",
+      "read_at": "2026-10-28"
+     },
+     {
+      "item_id": "wild",
+      "title": "Where the Wild Things Are",
+      "isbn13": "9780064431781",
+      "edition": "paperback",
+      "price_cents": 3986,
+      "currency": "RON",
+      "seller_certainty": "direct",
+      "listing_url": "https://www.amazon.de/dp/0064431789",
+      "read_at": "2026-10-28"
+     },
+     {
+      "item_id": "matilda",
+      "title": "Matilda (Colour Edition)",
+      "isbn13": "9780141369365",
+      "edition": "paperback",
+      "price_cents": 9433,
+      "currency": "RON",
+      "seller_certainty": "direct",
+      "listing_url": "https://www.amazon.de/dp/0141369361",
+      "read_at": "2026-10-28"
+     },
+     {
+      "item_id": "charlie",
+      "title": "Charlie and the Chocolate Factory (Colour Edition)",
+      "isbn13": "9780141369372",
+      "edition": "paperback",
+      "price_cents": 9433,
+      "currency": "RON",
+      "seller_certainty": "direct",
+      "listing_url": "https://www.amazon.de/dp/014136937X",
+      "read_at": "2026-10-28"
+     }
+    ],
+    "books_subtotal_cents": 34505,
+    "qualifying_cents": 34505,
+    "free_delivery_threshold_cents": 26219,
+    "threshold_crossed": true,
+    "over_under_threshold_cents": 8286,
+    "short_of_threshold_cents": 0,
+    "delivery_known": true,
+    "delivery_cents": 0,
+    "order_fee_cents": 0,
+    "order_total_cents": 34505,
+    "read_at": "2026-10-28"
+   },
+   {
+    "store_id": "libris",
+    "currency": "RON",
+    "books": [
+     {
+      "item_id": "ghici",
+      "title": "Ghici cât de mult te iubesc",
+      "isbn13": "9786068996011",
+      "edition": "board_book",
+      "price_cents": 5700,
+      "currency": "RON",
+      "seller_certainty": "direct",
+      "listing_url": "https://www.libris.ro/carte/ghici-cat-de-mult-te-iubesc-sam-mcbratney/21197307",
+      "read_at": "2026-10-28"
+     },
+     {
+      "item_id": "vhc",
+      "title": "The Very Hungry Caterpillar",
+      "isbn13": null,
+      "edition": "board_book",
+      "price_cents": 6133,
+      "currency": "RON",
+      "seller_certainty": "direct",
+      "listing_url": "https://www.libris.ro/carte-engleza/the-very-hungry-caterpillar-eric-carle/15743846",
+      "read_at": "2026-10-28"
+     },
+     {
+      "item_id": "owl",
+      "title": "Owl Babies",
+      "isbn13": null,
+      "edition": "board_book",
+      "price_cents": 5178,
+      "currency": "RON",
+      "seller_certainty": "direct",
+      "listing_url": "https://www.libris.ro/carte-engleza/owl-babies/10852618",
+      "read_at": "2026-10-28"
+     }
+    ],
+    "books_subtotal_cents": 17011,
+    "qualifying_cents": 17011,
+    "free_delivery_threshold_cents": 13500,
+    "threshold_crossed": true,
+    "over_under_threshold_cents": 3511,
+    "short_of_threshold_cents": 0,
+    "delivery_known": true,
+    "delivery_cents": 0,
+    "order_fee_cents": 0,
+    "order_total_cents": 17011,
+    "read_at": "2026-10-28"
+   }
+  ],
+  "missing_fees": [],
+  "delta_vs_cheapest_cents": 0,
+  "not_ranked": [
+   {
+    "books_subtotal_cents": 48436,
+    "total_cents": null,
+    "orders": [
+     {
+      "store_id": "amazon_de",
+      "currency": "RON",
+      "books": [
+       {
+        "item_id": "mole",
+        "title": "The Boy, the Mole, the Fox and the Horse",
+        "isbn13": "9781529105100",
+        "edition": "hardcover",
+        "price_cents": 11653,
+        "currency": "RON",
+        "seller_certainty": "direct",
+        "listing_url": "https://www.amazon.de/dp/1529105102",
+        "read_at": "2026-10-28"
+       },
+       {
+        "item_id": "wild",
+        "title": "Where the Wild Things Are",
+        "isbn13": "9780064431781",
+        "edition": "paperback",
+        "price_cents": 3986,
+        "currency": "RON",
+        "seller_certainty": "direct",
+        "listing_url": "https://www.amazon.de/dp/0064431789",
+        "read_at": "2026-10-28"
+       }
+      ],
+      "books_subtotal_cents": 15639,
+      "qualifying_cents": 15639,
+      "free_delivery_threshold_cents": 26219,
+      "threshold_crossed": false,
+      "over_under_threshold_cents": -10580,
+      "short_of_threshold_cents": 10580,
+      "delivery_known": false,
+      "delivery_cents": null,
+      "order_fee_cents": 0,
+      "order_total_cents": null,
+      "read_at": "2026-10-28"
+     },
+     {
+      "store_id": "bookzone",
+      "currency": "RON",
+      "books": [
+       {
+        "item_id": "ghici",
+        "title": "Ghici cât de mult te iubesc",
+        "isbn13": "9786068996011",
+        "edition": "board_book",
+        "price_cents": 4650,
+        "currency": "RON",
+        "seller_certainty": "direct",
+        "listing_url": "https://bookzone.ro/carte/ghici-cat-de-mult-te-iubesc",
+        "read_at": "2026-10-27"
+       }
+      ],
+      "books_subtotal_cents": 4650,
+      "qualifying_cents": 4650,
+      "free_delivery_threshold_cents": 20000,
+      "threshold_crossed": false,
+      "over_under_threshold_cents": -15350,
+      "short_of_threshold_cents": 15350,
+      "delivery_known": true,
+      "delivery_cents": 1090,
+      "order_fee_cents": 199,
+      "order_total_cents": 5939,
+      "read_at": "2026-10-28"
+     },
+     {
+      "store_id": "libris",
+      "currency": "RON",
+      "books": [
+       {
+        "item_id": "vhc",
+        "title": "The Very Hungry Caterpillar",
+        "isbn13": null,
+        "edition": "board_book",
+        "price_cents": 6133,
+        "currency": "RON",
+        "seller_certainty": "direct",
+        "listing_url": "https://www.libris.ro/carte-engleza/the-very-hungry-caterpillar-eric-carle/15743846",
+        "read_at": "2026-10-28"
+       },
+       {
+        "item_id": "owl",
+        "title": "Owl Babies",
+        "isbn13": null,
+        "edition": "board_book",
+        "price_cents": 5178,
+        "currency": "RON",
+        "seller_certainty": "direct",
+        "listing_url": "https://www.libris.ro/carte-engleza/owl-babies/10852618",
+        "read_at": "2026-10-28"
+       },
+       {
+        "item_id": "matilda",
+        "title": "Matilda (Colour Edition)",
+        "isbn13": "9780141369365",
+        "edition": null,
+        "price_cents": 8418,
+        "currency": "RON",
+        "seller_certainty": "direct",
+        "listing_url": "https://www.libris.ro/carte-engleza/matilda-colour-edition-roald-dahl/11022035",
+        "read_at": "2026-10-28"
+       },
+       {
+        "item_id": "charlie",
+        "title": "Charlie and the Chocolate Factory (Colour Edition)",
+        "isbn13": "9780141369372",
+        "edition": null,
+        "price_cents": 8418,
+        "currency": "RON",
+        "seller_certainty": "direct",
+        "listing_url": "https://www.libris.ro/carte-engleza/charlie-and-the-chocolate-factory-colour-edition-roald-dahl/11030485",
+        "read_at": "2026-10-28"
+       }
+      ],
+      "books_subtotal_cents": 28147,
+      "qualifying_cents": 28147,
+      "free_delivery_threshold_cents": 13500,
+      "threshold_crossed": true,
+      "over_under_threshold_cents": 14647,
+      "short_of_threshold_cents": 0,
+      "delivery_known": true,
+      "delivery_cents": 0,
+      "order_fee_cents": 0,
+      "order_total_cents": 28147,
+      "read_at": "2026-10-28"
+     }
+    ],
+    "missing_fees": [
+     {
+      "store_id": "amazon_de",
+      "field": "shipping_fee_cents",
+      "books_subtotal_cents": 15639
+     }
+    ]
+   }
+  ]
+ },
+ "one_parcel": {
+  "status": "ranked",
+  "reason": null,
+  "best_store_id": "libris",
+  "answer": {
+   "status": "ranked",
+   "reason": null,
+   "currency": "RON",
+   "total_cents": 55873,
+   "books_subtotal_cents": 55873,
+   "order_count": 1,
+   "orders": [
+    {
+     "store_id": "libris",
+     "currency": "RON",
+     "books": [
+      {
+       "item_id": "ghici",
+       "title": "Ghici cât de mult te iubesc",
+       "isbn13": "9786068996011",
+       "edition": "board_book",
+       "price_cents": 5700,
+       "currency": "RON",
+       "seller_certainty": "direct",
+       "listing_url": "https://www.libris.ro/carte/ghici-cat-de-mult-te-iubesc-sam-mcbratney/21197307",
+       "read_at": "2026-10-28"
+      },
+      {
+       "item_id": "vhc",
+       "title": "The Very Hungry Caterpillar",
+       "isbn13": null,
+       "edition": "board_book",
+       "price_cents": 6133,
+       "currency": "RON",
+       "seller_certainty": "direct",
+       "listing_url": "https://www.libris.ro/carte-engleza/the-very-hungry-caterpillar-eric-carle/15743846",
+       "read_at": "2026-10-28"
+      },
+      {
+       "item_id": "owl",
+       "title": "Owl Babies",
+       "isbn13": null,
+       "edition": "board_book",
+       "price_cents": 5178,
+       "currency": "RON",
+       "seller_certainty": "direct",
+       "listing_url": "https://www.libris.ro/carte-engleza/owl-babies/10852618",
+       "read_at": "2026-10-28"
+      },
+      {
+       "item_id": "mole",
+       "title": "The Boy, the Mole, the Fox and the Horse",
+       "isbn13": "9781529105100",
+       "edition": null,
+       "price_cents": 14256,
+       "currency": "RON",
+       "seller_certainty": "direct",
+       "listing_url": "https://www.libris.ro/carte-engleza/boy-the-mole-the-fox-and-the-horse-charlie-mackesy/11893594",
+       "read_at": "2026-10-28"
+      },
+      {
+       "item_id": "wild",
+       "title": "Where the Wild Things Are",
+       "isbn13": "9780064431781",
+       "edition": null,
+       "price_cents": 7770,
+       "currency": "RON",
+       "seller_certainty": "direct",
+       "listing_url": "https://www.libris.ro/carte-engleza/where-the-wild-things-are-maurice-sendak/16027753",
+       "read_at": "2026-10-28"
+      },
+      {
+       "item_id": "matilda",
+       "title": "Matilda (Colour Edition)",
+       "isbn13": "9780141369365",
+       "edition": null,
+       "price_cents": 8418,
+       "currency": "RON",
+       "seller_certainty": "direct",
+       "listing_url": "https://www.libris.ro/carte-engleza/matilda-colour-edition-roald-dahl/11022035",
+       "read_at": "2026-10-28"
+      },
+      {
+       "item_id": "charlie",
+       "title": "Charlie and the Chocolate Factory (Colour Edition)",
+       "isbn13": "9780141369372",
+       "edition": null,
+       "price_cents": 8418,
+       "currency": "RON",
+       "seller_certainty": "direct",
+       "listing_url": "https://www.libris.ro/carte-engleza/charlie-and-the-chocolate-factory-colour-edition-roald-dahl/11030485",
+       "read_at": "2026-10-28"
+      }
+     ],
+     "books_subtotal_cents": 55873,
+     "qualifying_cents": 55873,
+     "free_delivery_threshold_cents": 13500,
+     "threshold_crossed": true,
+     "over_under_threshold_cents": 42373,
+     "short_of_threshold_cents": 0,
+     "delivery_known": true,
+     "delivery_cents": 0,
+     "order_fee_cents": 0,
+     "order_total_cents": 55873,
+     "read_at": "2026-10-28"
+    }
+   ],
+   "missing_fees": [],
+   "delta_vs_cheapest_cents": 4357,
+   "not_ranked": []
+  },
+  "per_book_delta": [
+   {
+    "item_id": "ghici",
+    "title": "Ghici cât de mult te iubesc",
+    "price_cents": 5700,
+    "cheapest_price_cents": 5700,
+    "cheapest_store_id": "libris",
+    "delta_cents": 0
+   },
+   {
+    "item_id": "vhc",
+    "title": "The Very Hungry Caterpillar",
+    "price_cents": 6133,
+    "cheapest_price_cents": 6133,
+    "cheapest_store_id": "libris",
+    "delta_cents": 0
+   },
+   {
+    "item_id": "owl",
+    "title": "Owl Babies",
+    "price_cents": 5178,
+    "cheapest_price_cents": 5178,
+    "cheapest_store_id": "libris",
+    "delta_cents": 0
+   },
+   {
+    "item_id": "mole",
+    "title": "The Boy, the Mole, the Fox and the Horse",
+    "price_cents": 14256,
+    "cheapest_price_cents": 11653,
+    "cheapest_store_id": "amazon_de",
+    "delta_cents": 2603
+   },
+   {
+    "item_id": "wild",
+    "title": "Where the Wild Things Are",
+    "price_cents": 7770,
+    "cheapest_price_cents": 3986,
+    "cheapest_store_id": "amazon_de",
+    "delta_cents": 3784
+   },
+   {
+    "item_id": "matilda",
+    "title": "Matilda (Colour Edition)",
+    "price_cents": 8418,
+    "cheapest_price_cents": 9433,
+    "cheapest_store_id": "amazon_de",
+    "delta_cents": -1015
+   },
+   {
+    "item_id": "charlie",
+    "title": "Charlie and the Chocolate Factory (Colour Edition)",
+    "price_cents": 8418,
+    "cheapest_price_cents": 9433,
+    "cheapest_store_id": "amazon_de",
+    "delta_cents": -1015
+   }
+  ],
+  "shops": [
+   {
+    "store_id": "libris",
+    "status": "ranked",
+    "reasons": [],
+    "total_cents": 55873,
+    "books_subtotal_cents": 55873,
+    "delta_vs_cheapest_cents": 4357,
+    "missing_fees": []
+   },
+   {
+    "store_id": "amazon_de",
+    "status": "not_possible",
+    "reasons": [
+     {
+      "code": "not_listed",
+      "item_ids": [
+       "ghici",
+       "vhc",
+       "owl"
+      ],
+      "text": "not listed here"
+     }
+    ],
+    "total_cents": null,
+    "books_subtotal_cents": null,
+    "delta_vs_cheapest_cents": null,
+    "missing_fees": []
+   },
+   {
+    "store_id": "bookzone",
+    "status": "not_possible",
+    "reasons": [
+     {
+      "code": "not_listed",
+      "item_ids": [
+       "vhc",
+       "owl",
+       "mole",
+       "wild",
+       "matilda",
+       "charlie"
+      ],
+      "text": "not listed here"
+     }
+    ],
+    "total_cents": null,
+    "books_subtotal_cents": null,
+    "delta_vs_cheapest_cents": null,
+    "missing_fees": []
+   },
+   {
+    "store_id": "carturesti",
+    "status": "not_possible",
+    "reasons": [
+     {
+      "code": "couldnt_read",
+      "item_ids": [
+       "ghici",
+       "vhc",
+       "owl",
+       "mole",
+       "wild",
+       "matilda",
+       "charlie"
+      ],
+      "text": "the page could not be read"
+     }
+    ],
+    "total_cents": null,
+    "books_subtotal_cents": null,
+    "delta_vs_cheapest_cents": null,
+    "missing_fees": []
+   },
+   {
+    "store_id": "emag",
+    "status": "not_possible",
+    "reasons": [
+     {
+      "code": "fees_not_printed",
+      "item_ids": [],
+      "text": "its delivery or per-order fee is not printed"
+     },
+     {
+      "code": "not_listed",
+      "item_ids": [
+       "mole",
+       "wild",
+       "matilda",
+       "charlie"
+      ],
+      "text": "not listed here"
+     }
+    ],
+    "total_cents": null,
+    "books_subtotal_cents": null,
+    "delta_vs_cheapest_cents": null,
+    "missing_fees": []
+   }
+  ]
+ },
+ "custom": null,
+ "edition": {
+  "pins": {},
+  "unknown_pins": [],
+  "status": "ranked",
+  "reason": null,
+  "unpinned_total_cents": 51516,
+  "total_cents": 51516,
+  "delta_cents": 0,
+  "not_ranked": [
+   {
+    "books_subtotal_cents": 48436,
+    "total_cents": null,
+    "orders": [
+     {
+      "store_id": "amazon_de",
+      "currency": "RON",
+      "books": [
+       {
+        "item_id": "mole",
+        "title": "The Boy, the Mole, the Fox and the Horse",
+        "isbn13": "9781529105100",
+        "edition": "hardcover",
+        "price_cents": 11653,
+        "currency": "RON",
+        "seller_certainty": "direct",
+        "listing_url": "https://www.amazon.de/dp/1529105102",
+        "read_at": "2026-10-28"
+       },
+       {
+        "item_id": "wild",
+        "title": "Where the Wild Things Are",
+        "isbn13": "9780064431781",
+        "edition": "paperback",
+        "price_cents": 3986,
+        "currency": "RON",
+        "seller_certainty": "direct",
+        "listing_url": "https://www.amazon.de/dp/0064431789",
+        "read_at": "2026-10-28"
+       }
+      ],
+      "books_subtotal_cents": 15639,
+      "qualifying_cents": 15639,
+      "free_delivery_threshold_cents": 26219,
+      "threshold_crossed": false,
+      "over_under_threshold_cents": -10580,
+      "short_of_threshold_cents": 10580,
+      "delivery_known": false,
+      "delivery_cents": null,
+      "order_fee_cents": 0,
+      "order_total_cents": null,
+      "read_at": "2026-10-28"
+     },
+     {
+      "store_id": "bookzone",
+      "currency": "RON",
+      "books": [
+       {
+        "item_id": "ghici",
+        "title": "Ghici cât de mult te iubesc",
+        "isbn13": "9786068996011",
+        "edition": "board_book",
+        "price_cents": 4650,
+        "currency": "RON",
+        "seller_certainty": "direct",
+        "listing_url": "https://bookzone.ro/carte/ghici-cat-de-mult-te-iubesc",
+        "read_at": "2026-10-27"
+       }
+      ],
+      "books_subtotal_cents": 4650,
+      "qualifying_cents": 4650,
+      "free_delivery_threshold_cents": 20000,
+      "threshold_crossed": false,
+      "over_under_threshold_cents": -15350,
+      "short_of_threshold_cents": 15350,
+      "delivery_known": true,
+      "delivery_cents": 1090,
+      "order_fee_cents": 199,
+      "order_total_cents": 5939,
+      "read_at": "2026-10-28"
+     },
+     {
+      "store_id": "libris",
+      "currency": "RON",
+      "books": [
+       {
+        "item_id": "vhc",
+        "title": "The Very Hungry Caterpillar",
+        "isbn13": null,
+        "edition": "board_book",
+        "price_cents": 6133,
+        "currency": "RON",
+        "seller_certainty": "direct",
+        "listing_url": "https://www.libris.ro/carte-engleza/the-very-hungry-caterpillar-eric-carle/15743846",
+        "read_at": "2026-10-28"
+       },
+       {
+        "item_id": "owl",
+        "title": "Owl Babies",
+        "isbn13": null,
+        "edition": "board_book",
+        "price_cents": 5178,
+        "currency": "RON",
+        "seller_certainty": "direct",
+        "listing_url": "https://www.libris.ro/carte-engleza/owl-babies/10852618",
+        "read_at": "2026-10-28"
+       },
+       {
+        "item_id": "matilda",
+        "title": "Matilda (Colour Edition)",
+        "isbn13": "9780141369365",
+        "edition": null,
+        "price_cents": 8418,
+        "currency": "RON",
+        "seller_certainty": "direct",
+        "listing_url": "https://www.libris.ro/carte-engleza/matilda-colour-edition-roald-dahl/11022035",
+        "read_at": "2026-10-28"
+       },
+       {
+        "item_id": "charlie",
+        "title": "Charlie and the Chocolate Factory (Colour Edition)",
+        "isbn13": "9780141369372",
+        "edition": null,
+        "price_cents": 8418,
+        "currency": "RON",
+        "seller_certainty": "direct",
+        "listing_url": "https://www.libris.ro/carte-engleza/charlie-and-the-chocolate-factory-colour-edition-roald-dahl/11030485",
+        "read_at": "2026-10-28"
+       }
+      ],
+      "books_subtotal_cents": 28147,
+      "qualifying_cents": 28147,
+      "free_delivery_threshold_cents": 13500,
+      "threshold_crossed": true,
+      "over_under_threshold_cents": 14647,
+      "short_of_threshold_cents": 0,
+      "delivery_known": true,
+      "delivery_cents": 0,
+      "order_fee_cents": 0,
+      "order_total_cents": 28147,
+      "read_at": "2026-10-28"
+     }
+    ],
+    "missing_fees": [
+     {
+      "store_id": "amazon_de",
+      "field": "shipping_fee_cents",
+      "books_subtotal_cents": 15639
+     }
+    ]
+   }
+  ]
+ },
+ "failed_reads": [
+  {
+   "item_id": "ghici",
+   "store_id": "carturesti",
+   "reason": "page_unreadable",
+   "attempts": 3,
+   "failed_at": "2026-10-28T09:41:00+02:00"
+  },
+  {
+   "item_id": "vhc",
+   "store_id": "carturesti",
+   "reason": "page_unreadable",
+   "attempts": 3,
+   "failed_at": "2026-10-28T09:41:00+02:00"
+  },
+  {
+   "item_id": "owl",
+   "store_id": "carturesti",
+   "reason": "page_unreadable",
+   "attempts": 3,
+   "failed_at": "2026-10-28T09:41:00+02:00"
+  },
+  {
+   "item_id": "mole",
+   "store_id": "carturesti",
+   "reason": "page_unreadable",
+   "attempts": 3,
+   "failed_at": "2026-10-28T09:41:00+02:00"
+  },
+  {
+   "item_id": "wild",
+   "store_id": "carturesti",
+   "reason": "page_unreadable",
+   "attempts": 3,
+   "failed_at": "2026-10-28T09:41:00+02:00"
+  },
+  {
+   "item_id": "matilda",
+   "store_id": "carturesti",
+   "reason": "page_unreadable",
+   "attempts": 3,
+   "failed_at": "2026-10-28T09:41:00+02:00"
+  },
+  {
+   "item_id": "charlie",
+   "store_id": "carturesti",
+   "reason": "page_unreadable",
+   "attempts": 3,
+   "failed_at": "2026-10-28T09:41:00+02:00"
+  }
+ ],
+ "source": "fixture"
+}

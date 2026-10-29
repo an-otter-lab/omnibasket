@@ -1,72 +1,193 @@
 import { NgTemplateOutlet } from '@angular/common';
-import { Component } from '@angular/core';
-import { CATALOG_BOOKS, CATALOG_STORES, CatalogBook, STORE_NAME } from './catalog';
+import { Component, HostListener } from '@angular/core';
 
-type EditionMode = 'same' | 'exact';
-type Phase = 'entry' | 'reading' | 'result' | 'failed';
+type Tab = 'cheapest' | 'one' | 'custom';
 
-interface StoreRow {
-  store_id: string;
-  items_cents: number;
-  shipping_cents: number;
-  per_order_fee_cents: number;
-  store_total_cents: number;
-  threshold_cents?: number;
-  threshold_crossed?: boolean;
-  item_ids?: string[];
-}
-
-interface AssignmentRow {
+interface BookLine {
   item_id: string;
-  store_id: string;
+  title: string;
+  isbn13: string | null;
+  edition: string | null;
   price_cents: number;
   seller_certainty?: string;
+  listing_url: string | null;
+  read_at: string | null;
 }
 
-interface AnswerBody {
+interface Order {
+  store_id: string;
+  books: BookLine[];
+  books_subtotal_cents: number;
+  qualifying_cents: number;
+  free_delivery_threshold_cents: number | null;
+  threshold_crossed: boolean;
+  over_under_threshold_cents: number | null;
+  short_of_threshold_cents: number | null;
+  delivery_known: boolean;
+  delivery_cents: number | null;
+  order_fee_cents: number | null;
+  order_total_cents: number | null;
+  read_at: string | null;
+}
+
+interface MissingFee {
+  store_id: string;
+  field: string;
+  books_subtotal_cents: number;
+}
+
+interface NotRanked {
+  books_subtotal_cents: number;
+  total_cents: null;
+  orders: Order[];
+  missing_fees: MissingFee[];
+}
+
+interface Answer {
+  status: 'ranked' | 'not_ranked' | 'not_possible';
+  reason: string | null;
+  total_cents: number | null;
+  books_subtotal_cents: number | null;
+  order_count: number | null;
+  orders?: Order[];
+  missing_fees?: MissingFee[];
+  delta_vs_cheapest_cents: number | null;
+  not_ranked: NotRanked[];
+}
+
+interface Move {
+  item_id: string;
+  title: string;
+  from_store_id: string;
+  to_store_id: string;
+  from_price_cents: number;
+  to_price_cents: number;
+  price_delta_cents: number;
+}
+
+interface Custom extends Answer {
+  selected_store_ids: string[];
+  unselectable: { store_id: string; code: string; reason: string }[];
+  moves: Move[];
+}
+
+interface Reason {
+  code: string;
+  item_ids: string[];
+  text: string;
+}
+
+interface ShopOption {
+  store_id: string;
+  status: 'ranked' | 'not_ranked' | 'not_possible';
+  reasons: Reason[];
+  total_cents: number | null;
+  books_subtotal_cents: number | null;
+  delta_vs_cheapest_cents: number | null;
+  missing_fees: MissingFee[];
+}
+
+interface OfferRow {
+  store_id: string;
+  status: string;
+  price_cents: number | null;
+  currency?: string;
+  seller_certainty: string | null;
+  edition: string | null;
+  listing_url?: string | null;
+  read_at?: string | null;
+}
+
+interface BookRow {
+  item_id: string;
+  title: string;
+  isbn13: string | null;
+  edition_pin: string | null;
+  editions: { edition: string; cheapest_price_cents: number; store_ids: string[] }[];
+  assigned_store_id: string | null;
+  shops: OfferRow[];
+}
+
+interface FailedRead {
+  item_id: string;
+  store_id: string;
+  reason: string;
+  attempts: number;
+  failed_at: string | null;
+}
+
+interface Shop {
+  store_id: string;
+  priced: boolean;
+  excluded: boolean;
+  selectable: boolean;
+  not_selectable_code: string | null;
+  not_selectable_reason: string | null;
+  read_at: string | null;
+  books_listed: number;
+  failed_reads: FailedRead[];
+  free_delivery_threshold_cents: number | null;
+  delivery_cents: number | null;
+  delivery_known: boolean;
+  order_fee_cents: number | null;
+  currency?: string;
+}
+
+interface Payload {
   currency: string;
-  total_cents: number;
-  assignment: AssignmentRow[];
-  stores: StoreRow[];
-  romanian_stores?: string[];
-  reason?: string;
-}
-
-interface SolveBody extends AnswerBody {
-  cheapest_per_item: {
-    total_cents: number | null;
-    lines: { item_id: string; store_id: string; price_cents: number }[];
-    stores: StoreRow[];
-  };
-  single_store_baseline?: {
+  cached: boolean;
+  read_at_range: { oldest: string | null; newest: string | null };
+  degraded: { kind: 'one_book' | 'one_shop'; reason: string; store_id?: string } | null;
+  shops: Shop[];
+  books: BookRow[];
+  cheapest: Answer & { degraded?: boolean };
+  one_parcel: {
+    status: string;
+    reason: string | null;
     best_store_id: string | null;
-    total_cents: number | null;
+    answer: Answer | null;
+    per_book_delta: { item_id: string; title: string; price_cents: number; cheapest_price_cents: number | null; cheapest_store_id: string | null; delta_cents: number | null }[];
+    shops: ShopOption[];
   };
-  membership: {
-    store_id?: string;
-    membership_price_cents?: number | null;
-    without_membership_total_cents?: number;
-    with_membership_total_cents?: number;
-  }[];
-  optimum?: AnswerBody;
-  romanian_inclusive?: AnswerBody | null;
-  excluded_stores?: {
-    id: string;
-    reason?: string;
-    free_shipping_threshold_cents?: number | null;
-    shipping_fee_cents?: number | null;
-    per_order_fee_cents?: number | null;
-  }[];
-  source?: string;
-  pages?: { store_id: string; item_id: string; status: string; cache?: string }[];
+  custom: Custom | null;
+  edition: {
+    pins: Record<string, string>;
+    unknown_pins: string[];
+    status: string;
+    reason: string | null;
+    unpinned_total_cents: number | null;
+    total_cents: number | null;
+    delta_cents: number | null;
+    not_ranked: NotRanked[];
+  };
+  failed_reads: FailedRead[];
   error?: string;
 }
 
-interface PageLine {
-  title: string;
-  store: string;
-  status: string;
+interface Route {
+  name: 'entry' | 'add' | 'result' | 'parcel' | 'book' | 'editions' | 'shop';
+  arg: string;
 }
+
+const SHOP_NAME: Record<string, string> = {
+  libris: 'Libris',
+  emag: 'eMAG',
+  bookzone: 'Bookzone',
+  amazon_de: 'Amazon.de',
+  carturesti: 'Cărturești',
+};
+
+const STATUS_TEXT: Record<string, string> = {
+  in_plan: 'In your plan',
+  compared: 'Compared',
+  fees_not_printed: 'Fees not printed, not compared',
+  not_listed: 'Not listed',
+  out_of_stock: 'Out of stock',
+  couldnt_read: 'Couldn’t read',
+  other_edition: 'Another edition',
+};
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 @Component({
   selector: 'app-root',
@@ -75,584 +196,431 @@ interface PageLine {
   styleUrl: './app.component.css',
 })
 export class AppComponent {
-  phase: Phase = 'entry';
-  edition: EditionMode = 'same';
-  membershipOn = false;
-  books: CatalogBook[] = CATALOG_BOOKS.map((book) => ({ ...book, offers: book.offers.map((offer) => ({ ...offer })) }));
-  draft = '';
-  solution: SolveBody | null = null;
-  oneShop: { name: string; total: number } | null = null;
-  oneCheckout = '';
-  romanianMeta = '';
-  cacheNotice = false;
-  progressDone = 0;
-  progressTotal = 0;
-  progressTitle = '';
-  progressStore = '';
-  pagesRead = 0;
-  failTitle = 'No recommendation';
-  failBody = 'No store page could be read. There is no split and no total.';
-  leftOut: string[] = [];
-  tradeoff = '';
-  membershipVerdict = '';
-  differenceLine = '';
-  excludedNote = '';
-  romanian: AnswerBody | null = null;
-  private reviewStores: string[] | null = null;
-  private timer: ReturnType<typeof setInterval> | null = null;
-  private runToken = 0;
-
-  get membershipNamed(): boolean {
-    return (this.solution?.membership?.length ?? 0) > 0;
-  }
-
-  get membershipName(): string {
-    const row = this.solution?.membership?.[0];
-    return row?.store_id ? STORE_NAME[row.store_id] || row.store_id : '';
-  }
-
-  get membershipPrice(): number | null {
-    const price = this.solution?.membership?.[0]?.membership_price_cents;
-    return typeof price === 'number' ? price : null;
-  }
-
-  money(cents: number | null | undefined): string {
-    const value = cents ?? 0;
-    const sign = value < 0 ? '-' : '';
-    const abs = Math.abs(value);
-    const lei = Math.floor(abs / 100);
-    const frac = String(abs % 100).padStart(2, '0');
-    return `${sign}${lei.toLocaleString('ro-RO')},${frac} lei`;
-  }
-
-  storeName(id: string): string {
-    return STORE_NAME[id] || id;
-  }
+  route: Route = { name: 'entry', arg: '' };
+  snapshot: Payload | null = null;
+  data: Payload | null = null;
+  loadError = false;
+  busy = false;
+  note = '';
+  fixture = '';
+  basket = new Set<string>();
+  dirty = false;
+  q = '';
+  tab: Tab = 'cheapest';
+  pins: Record<string, string> = {};
+  draftPins: Record<string, string> = {};
+  preview: Payload | null = null;
+  selected: string[] | null = null;
+  lastParcelTab: Tab = 'cheapest';
 
   constructor() {
+    this.readRoute();
+    void this.load();
+  }
+
+  @HostListener('window:hashchange')
+  onHash(): void {
+    this.readRoute();
+    this.afterRoute();
+  }
+
+  private readRoute(): void {
+    const hash = window.location.hash.replace(/^#\/?/, '');
+    const [name, ...rest] = hash.split('/');
+    const arg = decodeURIComponent(rest.join('/'));
+    if (name === 'add') this.route = { name: 'add', arg: '' };
+    else if (name === 'result') {
+      this.route = { name: 'result', arg: '' };
+      this.tab = arg === 'one' || arg === 'custom' ? arg : 'cheapest';
+    } else if (name === 'parcel') this.route = { name: 'parcel', arg };
+    else if (name === 'book') this.route = { name: 'book', arg };
+    else if (name === 'editions') this.route = { name: 'editions', arg: '' };
+    else if (name === 'shop') this.route = { name: 'shop', arg };
+    else this.route = { name: 'entry', arg: '' };
+  }
+
+  go(path: string): void {
+    window.location.hash = '#/' + path;
+  }
+
+  back(): void {
+    if (window.history.length > 1) window.history.back();
+    else this.go('result/' + this.tab);
+  }
+
+  // ------------------------------------------------------------ data
+
+  async load(): Promise<void> {
+    this.loadError = false;
     const params = new URLSearchParams(window.location.search);
-    const state = params.get('state');
-    if (params.get('edition') === 'exact') this.edition = 'exact';
-    if (state === 'empty') this.books = [];
-    if (state === 'failure') {
-      const kind = params.get('kind') || 'stopped';
-      this.phase = 'failed';
-      this.solution = null;
-      this.cacheNotice = kind === 'all';
-      this.failTitle = 'No recommendation';
-      this.failBody = kind === 'contradiction'
-        ? 'The result contradicted itself. Nothing is recommended.'
-        : kind === 'all'
-          ? 'No store page could be read. There is no split and no total.'
-          : 'This run was stopped. Nothing was recommended.';
+    this.fixture = params.get('fixture') || '';
+    try {
+      const res = this.fixture
+        ? await fetch('/fixtures/' + this.fixture + '.json')
+        : await fetch('/solve', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
+      const body = (await res.json()) as Payload;
+      if (!res.ok || body.error) throw new Error(body.error || 'solve failed');
+      this.snapshot = body;
+      this.data = body;
+      this.basket = new Set(body.books.map((b) => b.item_id));
+      const wanted = params.get('books');
+      if (wanted && !this.fixture) {
+        const ids = wanted.split(',').filter((id) => this.basket.has(id));
+        if (ids.length) {
+          this.basket = new Set(ids);
+          await this.solve();
+        }
+      }
+      this.afterRoute();
+    } catch {
+      this.loadError = true;
     }
-    if (state === 'singleStore') {
-      this.reviewStores = ['libris'];
-      void this.solveGiven(true);
+  }
+
+  private fullBasket(): boolean {
+    return !!this.snapshot && this.basket.size === this.snapshot.books.length;
+  }
+
+  private givenBody(): Record<string, unknown> {
+    const snap = this.snapshot as Payload;
+    const priced = snap.shops.filter((s) => s.priced && s.free_delivery_threshold_cents != null);
+    const ids = new Set(priced.map((s) => s.store_id));
+    return {
+      source: 'given',
+      stores: priced.map((s) => ({
+        id: s.store_id,
+        currency: s.currency || snap.currency,
+        free_shipping_threshold_cents: s.free_delivery_threshold_cents,
+        shipping_fee_cents: s.delivery_cents,
+        per_order_fee_cents: s.order_fee_cents ?? 0,
+        read_at: s.read_at,
+      })),
+      items: snap.books
+        .filter((b) => this.basket.has(b.item_id))
+        .map((b) => ({
+          id: b.item_id,
+          title: b.title,
+          isbn13: b.isbn13,
+          offers: b.shops
+            .filter((o) => o.price_cents != null && ids.has(o.store_id))
+            .map((o) => ({
+              store_id: o.store_id,
+              price_cents: o.price_cents,
+              seller_certainty: o.seller_certainty,
+              edition: o.edition,
+              listing_url: o.listing_url ?? null,
+              read_at: o.read_at ?? null,
+              in_stock: o.status === 'out_of_stock' ? false : null,
+            })),
+        })),
+    };
+  }
+
+  private async post(pins: Record<string, string>, selected: string[] | null): Promise<Payload | null> {
+    if (this.fixture) {
+      this.note = 'This is a recorded example. Changes are not re-solved.';
+      return null;
     }
-    if (state === 'twoAnswers' || state === 'excludedStore') {
-      void this.solveGiven(true);
+    const body: Record<string, unknown> = this.fullBasket() ? {} : this.givenBody();
+    if (Object.keys(pins).length) body['edition_pins'] = pins;
+    if (selected) body['selected_store_ids'] = selected;
+    const res = await fetch('/solve', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+    const payload = (await res.json()) as Payload;
+    if (!res.ok || payload.error) {
+      this.note = payload.error || 'The solve failed.';
+      return null;
+    }
+    return payload;
+  }
+
+  async solve(): Promise<void> {
+    this.busy = true;
+    this.note = '';
+    const next = await this.post(this.pins, this.selected);
+    if (next) {
+      this.data = next;
+      this.dirty = false;
+      if (next.degraded?.kind === 'one_shop' && this.route.name === 'result') this.tab = 'one';
+    }
+    this.busy = false;
+  }
+
+  private afterRoute(): void {
+    if (!this.data) return;
+    if (this.route.name === 'result') {
+      if (this.data.degraded?.kind === 'one_shop') this.tab = 'one';
+      this.lastParcelTab = this.tab;
+      if (this.dirty) void this.solve().then(() => this.ensureCustom());
+      else this.ensureCustom();
+    }
+    if (this.route.name === 'editions') {
+      this.draftPins = { ...this.pins };
+      this.preview = this.data;
     }
   }
 
-  optimumAnswer(): AnswerBody | null {
-    if (!this.solution) return null;
-    return this.solution.optimum ?? this.solution;
+  private ensureCustom(): void {
+    if (this.tab !== 'custom' || !this.data || this.data.custom || this.fixture) return;
+    if (this.data.degraded?.kind === 'one_shop') return;
+    const start = (this.data.cheapest.orders || []).map((o) => o.store_id);
+    if (!start.length) return;
+    this.selected = start;
+    void this.solve();
   }
 
-  orderLine(answer: AnswerBody | null = this.optimumAnswer()): string {
-    if (!answer) return '';
-    const used = new Set(answer.assignment.map((row) => row.store_id));
-    const names = [...answer.stores]
-      .filter((store) => used.has(store.store_id))
-      .sort((a, b) => b.items_cents - a.items_cents || this.storeName(a.store_id).localeCompare(this.storeName(b.store_id)))
-      .map((store) => this.storeName(store.store_id));
-    const n = used.size;
-    const list = this.joinNames(names);
-    return n === 1 ? `1 order · ${list}` : `${n} orders · ${list}`;
+  async toggleShop(id: string): Promise<void> {
+    const cur = this.data?.custom?.selected_store_ids ?? this.selected ?? [];
+    const next = cur.includes(id) ? cur.filter((s) => s !== id) : [...cur, id];
+    if (!next.length) return;
+    this.selected = next;
+    await this.solve();
   }
 
-  cheapestNote(itemId: string, priceCents: number): string {
-    const line = this.solution?.cheapest_per_item?.lines?.find((row) => row.item_id === itemId);
-    if (!line || typeof line.price_cents !== 'number') return '';
-    if (priceCents === line.price_cents) return 'Cheapest listing';
-    if (priceCents > line.price_cents) {
-      return `${this.money(priceCents - line.price_cents)} more than the cheapest listing`;
-    }
-    return '';
+  async pick(itemId: string, edition: string): Promise<void> {
+    const next = { ...this.draftPins };
+    if (edition === 'any') delete next[itemId];
+    else next[itemId] = edition;
+    this.draftPins = next;
+    this.busy = true;
+    const p = await this.post(next, null);
+    if (p) this.preview = p;
+    this.busy = false;
   }
 
-  deliveryLabel(raw: string | null | undefined): string {
-    if (!raw) return '';
-    const trimmed = raw.trim();
-    if (trimmed.toLowerCase() === '2-4 saptamani') return '2–4 weeks';
-    if (/[^A-Za-z0-9 \u2013/-]/.test(trimmed)) return '';
-    return trimmed;
+  applyPins(): void {
+    if (!this.preview || this.preview.edition.status === 'not_possible') return;
+    this.pins = { ...this.draftPins };
+    this.selected = null;
+    this.data = this.preview;
+    this.go('result/' + this.tab);
   }
 
-  private joinNames(names: string[]): string {
-    if (names.length <= 1) return names[0] ?? '';
-    if (names.length === 2) return `${names[0]} and ${names[1]}`;
-    return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+  cancelPins(): void {
+    this.go('result/' + this.tab);
   }
 
-  proofStores(): StoreRow[] {
-    const answer = this.optimumAnswer();
-    if (!answer) return [];
-    return [...answer.stores].sort(
-      (a, b) => b.items_cents - a.items_cents || this.storeName(a.store_id).localeCompare(this.storeName(b.store_id)),
+  // ------------------------------------------------------------ basket
+
+  get books(): BookRow[] {
+    return (this.snapshot?.books || []).filter((b) => this.basket.has(b.item_id));
+  }
+
+  bookRow(id: string): BookRow | undefined {
+    return this.data?.books.find((b) => b.item_id === id) ?? this.snapshot?.books.find((b) => b.item_id === id);
+  }
+
+  inBasket(id: string): boolean {
+    return this.basket.has(id);
+  }
+
+  toggleBasket(id: string): void {
+    if (this.basket.has(id)) this.basket.delete(id);
+    else this.basket.add(id);
+    this.basket = new Set(this.basket);
+    this.dirty = true;
+    this.pins = {};
+    this.selected = null;
+  }
+
+  setQ(value: string): void {
+    this.q = value;
+  }
+
+  findBook(): void {
+    this.go('add');
+  }
+
+  get matches(): BookRow[] {
+    const needle = this.fold(this.q);
+    if (!needle) return [];
+    const digits = this.q.replace(/\D/g, '');
+    return (this.snapshot?.books || []).filter(
+      (b) => this.fold(b.title).includes(needle) || (digits.length >= 4 && (b.isbn13 || '').includes(digits)),
     );
   }
 
-  showBaseline(): boolean {
-    const answer = this.optimumAnswer();
-    if (!answer || this.solution?.cheapest_per_item?.total_cents == null) return false;
-    return answer.assignment.some((row) => this.offerCount(row.item_id) > 1);
+  private fold(text: string): string {
+    return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
   }
 
-  private offerCount(itemId: string): number {
-    const book = this.books.find((row) => row.id === itemId);
-    if (!book) return 0;
-    return book.offers.filter((offer) => this.offerInEdition(book, offer) && this.storeIsSolved(offer.storeId)).length;
+  firstOffer(b: BookRow): OfferRow | undefined {
+    return b.shops.find((o) => o.price_cents != null);
   }
 
-  deltaLine(other: number | null): string {
-    if (!this.solution || other == null) return '';
-    const gap = other - this.solution.total_cents;
-    if (gap === 0) return 'Same total';
-    if (gap < 0) return '';
-    return `${this.money(gap)} more than the recommendation`;
+  // ------------------------------------------------------------ formatting
+
+  shopName(id: string | null | undefined): string {
+    return id ? SHOP_NAME[id] || id : '';
   }
 
-  shippingLabel(cents: number): string {
-    return cents === 0 ? 'Shipping free' : `Shipping ${this.money(cents)}`;
+  money(cents: number | null | undefined): string {
+    if (cents == null) return '';
+    const sign = cents < 0 ? '-' : '';
+    const abs = Math.abs(cents);
+    const lei = Math.floor(abs / 100);
+    return sign + lei.toLocaleString('ro-RO') + ',' + String(abs % 100).padStart(2, '0');
   }
 
-  booksFor(storeId: string): AssignmentRow[] {
-    return (this.solution?.assignment || []).filter((row) => row.store_id === storeId && this.titleOf(row.item_id));
+  lei(cents: number | null | undefined): string {
+    return this.money(cents) + ' lei';
   }
 
-  titleOf(id: string): string {
-    return this.books.find((book) => book.id === id)?.title ?? '';
+  edLabel(e: string | null): string {
+    if (!e) return '';
+    const t = e.replace(/_/g, ' ');
+    return t.charAt(0).toUpperCase() + t.slice(1);
   }
 
-  offerOf(itemId: string, storeId: string) {
-    return this.books.find((book) => book.id === itemId)?.offers.find((offer) => offer.storeId === storeId);
+  statusText(code: string): string {
+    return STATUS_TEXT[code] || code;
   }
 
-  private offerInEdition(book: CatalogBook, offer: CatalogBook['offers'][number]): boolean {
-    return this.edition === 'same' || (!!book.isbn13 && offer.isbn13 === book.isbn13 && !offer.sameStory);
+  private day(iso: string): string {
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
+    return m ? Number(m[3]) + ' ' + MONTHS[Number(m[2]) - 1] : iso;
   }
 
-  private storeIsSolved(storeId: string): boolean {
-    if (this.reviewStores) return this.reviewStores.includes(storeId);
-    return CATALOG_STORES.some((store) => store.id === storeId);
+  dateTime(iso: string | null): string {
+    if (!iso) return '';
+    const t = /T(\d{2}:\d{2})/.exec(iso);
+    return this.day(iso) + (t ? ', ' + t[1] : '');
   }
 
-  isbnLine(itemId: string): string {
-    const book = this.books.find((row) => row.id === itemId);
-    if (!book || !book.offers.some((offer) => offer.sameStory)) return '';
-    const labels = book.offers.map((offer) => `${this.storeName(offer.storeId)} ${offer.isbn13 ?? 'no ISBN printed'}`);
-    return `ISBNs read: ${labels.join(' · ')}`;
+  stamp(): string {
+    const r = this.data?.read_at_range;
+    if (!r?.newest) return '';
+    if (!r.oldest || r.oldest === r.newest) return 'prices read ' + this.day(r.newest);
+    const a = this.day(r.oldest).split(' ');
+    const b = this.day(r.newest).split(' ');
+    return 'prices read ' + (a[1] === b[1] ? a[0] : a.join(' ')) + '–' + b.join(' ');
   }
 
-  chip(itemId: string, storeId: string): string {
-    if (this.edition !== 'same') return '';
-    const offer = this.offerOf(itemId, storeId);
-    if (!offer?.sameStory) return '';
-    return 'Same story · another printing';
+  // ------------------------------------------------------------ view helpers
+
+  get degraded(): 'one_book' | 'one_shop' | null {
+    return this.data?.degraded?.kind ?? null;
   }
 
-  addBook(): void {
-    const title = this.draft.trim();
-    if (!title) return;
-    this.books = [...this.books, { id: `added-${this.books.length + 1}`, title, isbn13: null, offers: [] }];
-    this.draft = '';
+  get orders(): Order[] {
+    const d = this.data;
+    if (!d) return [];
+    if (this.tab === 'one') return d.one_parcel.answer?.orders || [];
+    if (this.tab === 'custom') return d.custom?.orders || [];
+    return d.cheapest.orders || [];
   }
 
-  removeBook(id: string): void {
-    this.books = this.books.filter((book) => book.id !== id);
-    if (this.books.length === 0) {
-      this.phase = 'entry';
-      this.solution = null;
+  get answer(): Answer | null {
+    const d = this.data;
+    if (!d) return null;
+    if (this.tab === 'one') return d.one_parcel.answer;
+    if (this.tab === 'custom') return d.custom;
+    return d.cheapest;
+  }
+
+  get pinCount(): number {
+    return Object.keys(this.data?.edition.pins || {}).length;
+  }
+
+  get oneDelta(): number | null {
+    return this.data?.one_parcel.answer?.delta_vs_cheapest_cents ?? null;
+  }
+
+  get leftOut(): Shop[] {
+    return (this.data?.shops || []).filter((s) => !s.selectable);
+  }
+
+  get parcelOrder(): Order | undefined {
+    const d = this.data;
+    if (!d) return undefined;
+    const pools: Order[][] = [
+      this.lastParcelTab === 'one' ? d.one_parcel.answer?.orders || [] : this.lastParcelTab === 'custom' ? d.custom?.orders || [] : d.cheapest.orders || [],
+      d.cheapest.orders || [],
+      d.one_parcel.answer?.orders || [],
+      d.custom?.orders || [],
+    ];
+    for (const pool of pools) {
+      const hit = pool.find((o) => o.store_id === this.route.arg);
+      if (hit) return hit;
     }
+    return undefined;
   }
 
-  setEdition(mode: EditionMode): void {
-    if (this.edition === mode) return;
-    this.edition = mode;
-    if (this.phase === 'result' || this.phase === 'failed') {
-      void this.solveGiven(false);
+  get shop(): Shop | undefined {
+    return this.data?.shops.find((s) => s.store_id === this.route.arg);
+  }
+
+  shopBooks(storeId: string): { book: BookRow; offer: OfferRow }[] {
+    const rows: { book: BookRow; offer: OfferRow }[] = [];
+    for (const b of this.snapshot?.books || []) {
+      const offer = b.shops.find((o) => o.store_id === storeId && o.price_cents != null);
+      if (offer) rows.push({ book: b, offer });
     }
+    return rows;
   }
 
-  setMembership(on: boolean): void {
-    if (!this.membershipNamed || this.membershipOn === on) return;
-    this.membershipOn = on;
-    if (this.solution) {
-      void this.solveGiven(false);
-    }
+  failedFor(storeId: string): FailedRead[] {
+    return (this.data?.failed_reads || []).filter((f) => f.store_id === storeId);
   }
 
-  stop(): void {
-    this.runToken += 1;
-    if (this.timer) clearInterval(this.timer);
-    this.phase = 'failed';
-    this.failTitle = 'No recommendation';
-    this.failBody = 'This run was stopped. Nothing was recommended.';
-    this.solution = null;
+  maxAttempts(rows: FailedRead[]): number {
+    return rows.reduce((m, r) => Math.max(m, r.attempts), 0);
   }
 
-  async findSplit(): Promise<void> {
-    if (this.books.length === 0) return;
-    const token = ++this.runToken;
-    this.phase = 'reading';
-    this.solution = null;
-    this.oneShop = null;
-    this.oneCheckout = '';
-    this.romanianMeta = '';
-    this.cacheNotice = false;
-    this.leftOut = [];
-    this.progressDone = 0;
-    this.progressTotal = 0;
-    this.pagesRead = 0;
-    this.progressTitle = '';
-    try {
-      const response = await fetch('/events?source=cache');
-      const text = await response.text();
-      if (token !== this.runToken) return;
-      const events = parseSse(text);
-      const errorEvent = events.find((event) => event.event === 'error');
-      const pages = events.filter((event) => event.event === 'page').map((event) => event.data as PageLine & { item_id: string; store_id: string; status: string; cache?: string });
-      const visible = pages.filter((page) => this.books.some((book) => book.id === page.item_id));
-      this.cacheNotice = true;
-      if (errorEvent) {
-        const data = errorEvent.data as { misses?: { item_id: string; store_id: string; title?: string }[] };
-        this.showFailure(this.missCopy(data.misses || []));
-        return;
-      }
-      const failed = visible.filter((page) => page.status !== 'ok' || page.cache === 'miss');
-      if (pages.length === 0 || (visible.length > 0 && failed.length === visible.length)) {
-        this.showFailure(this.missCopy(failed));
-        return;
-      }
-      const toPlay = visible.length ? visible : pages;
-      this.progressTotal = toPlay.length;
-      await this.playPages(toPlay, token);
-      if (token !== this.runToken) return;
-      await this.solveGiven(true);
-    } catch {
-      if (token !== this.runToken) return;
-      this.showFailure('No store page could be read. There is no split and no total.');
-    }
+  movedIds(): Set<string> {
+    return new Set((this.data?.custom?.moves || []).map((m) => m.item_id));
   }
 
-  private playPages(pages: { item_id: string; store_id: string; status: string }[], token: number): Promise<void> {
-    return new Promise((resolve) => {
-      let index = 0;
-      this.timer = setInterval(() => {
-        if (token !== this.runToken) {
-          if (this.timer) clearInterval(this.timer);
-          resolve();
-          return;
-        }
-        const page = pages[index];
-        this.progressDone = index + 1;
-        this.progressTitle = this.titleOf(page.item_id);
-        this.progressStore = this.storeName(page.store_id);
-        if (page.status === 'ok') this.pagesRead += 1;
-        index += 1;
-        if (index >= pages.length) {
-          if (this.timer) clearInterval(this.timer);
-          resolve();
-        }
-      }, 120);
-    });
+  movedFrom(storeId: string): number {
+    return (this.data?.custom?.moves || []).filter((m) => m.from_store_id === storeId).length;
   }
 
-  private async solveGiven(fromCache: boolean): Promise<void> {
-    const stores = CATALOG_STORES.filter((store) => !this.reviewStores || this.reviewStores.includes(store.id));
-    const items = this.books
-      .map((book) => {
-        const offers = book.offers.filter((offer) => this.offerInEdition(book, offer) && stores.some((store) => store.id === offer.storeId));
-        return {
-          id: book.id,
-          offers: offers.map((offer) => ({
-            store_id: offer.storeId,
-            price_cents: offer.priceCents,
-            seller_certainty: offer.sellerCertainty,
-          })),
-        };
-      })
-      .filter((item) => item.offers.length > 0);
-    this.leftOut = this.books
-      .filter((book) => !items.some((item) => item.id === book.id))
-      .map((book) => (this.edition === 'exact' ? `${book.title}: No exact edition at the shops that were read.` : book.title));
-    if (items.length === 0) {
-      this.phase = 'failed';
-      this.cacheNotice = fromCache || this.cacheNotice;
-      this.failTitle = 'No recommendation';
-      this.failBody = 'No store page could be read. There is no split and no total.';
-      return;
-    }
-    const response = await fetch('/solve?source=cache', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        source: 'given',
-        stores: stores.map((store) => ({
-          id: store.id,
-          currency: store.currency,
-          free_shipping_threshold_cents: store.freeShippingThresholdCents,
-          shipping_fee_cents: store.shippingFeeCents,
-          per_order_fee_cents: store.perOrderFeeCents,
-        })),
-        items,
-      }),
-    });
-    const body = (await response.json()) as SolveBody;
-    if (!response.ok || body.error) {
-      this.showFailure(body.error || 'No store page could be read. There is no split and no total.');
-      return;
-    }
-    body.source = 'cache';
-    if (this.reviewStores?.length === 1 && items[0]) {
-      body.pages = [{ store_id: this.reviewStores[0], item_id: items[0].id, status: 'ok', cache: 'hit' }];
-    }
-    await this.applySolution(body, true);
+  orderOf(storeId: string): Order | undefined {
+    return this.data?.custom?.orders?.find((o) => o.store_id === storeId);
   }
 
-  private async applySolution(body: SolveBody, fromCache: boolean): Promise<void> {
-    const optimum = body.optimum ?? body;
-    const baseline = body.cheapest_per_item?.total_cents ?? optimum.total_cents;
-    const romanian = body.romanian_inclusive ?? null;
-    const excludedIds = new Set((body.excluded_stores || []).map((row) => row.id));
-    const used = new Set([
-      ...optimum.assignment.map((row) => row.store_id),
-      ...(romanian?.assignment || []).map((row) => row.store_id),
-    ]);
-    const contradicted = baseline < optimum.total_cents
-      || (romanian != null && romanian.total_cents < optimum.total_cents)
-      || [...excludedIds].some((id) => used.has(id));
-    if (contradicted) {
-      this.showFailure('The result contradicted itself. Nothing is recommended.');
-      return;
-    }
-    this.solution = { ...body, ...optimum, optimum, romanian_inclusive: romanian };
-    this.romanian = null;
-    this.cacheNotice = fromCache || body.source === 'cache';
-    this.tradeoff = this.buildTradeoff(this.solution);
-    this.membershipVerdict = this.buildMembership(this.solution);
-    this.excludedNote = this.excludedCopy(body.excluded_stores || []);
-    this.oneCheckout = this.oneCheckoutCopy(optimum, body.single_store_baseline);
-    this.romanianMeta = this.romanianMetaCopy(optimum, romanian);
-    const optimumStores = new Set(optimum.assignment.map((row) => row.store_id));
-    const singleBaseline = body.single_store_baseline;
-    this.oneShop = optimumStores.size > 1 && singleBaseline?.best_store_id && singleBaseline.total_cents != null
-      ? { name: this.storeName(singleBaseline.best_store_id), total: singleBaseline.total_cents }
-      : null;
-    this.phase = 'result';
+  isChosen(storeId: string): boolean {
+    return !!this.data?.custom?.selected_store_ids.includes(storeId);
   }
 
-  private oneCheckoutCopy(
-    optimum: AnswerBody,
-    baseline: { best_store_id?: string | null; total_cents?: number | null } | null | undefined,
-  ): string {
-    if (!baseline?.best_store_id || baseline.total_cents == null) return '';
-    const used = new Set(optimum.assignment.map((row) => row.store_id));
-    if (used.size === 1 && used.has(baseline.best_store_id)) return '';
-    const store = this.storeName(baseline.best_store_id);
-    const n = used.size;
-    if (baseline.total_cents === optimum.total_cents) {
-      return `One checkout at ${store} costs the same, in 1 order instead of ${n}.`;
-    }
-    if (baseline.total_cents < optimum.total_cents) return '';
-    const gap = baseline.total_cents - optimum.total_cents;
-    return `One checkout at ${store} is ${this.money(baseline.total_cents)} — ${this.money(gap)} more, for 1 order instead of ${n}.`;
+  meterFill(o: Order): number {
+    const t = o.free_delivery_threshold_cents || 0;
+    const scale = Math.max(o.qualifying_cents, t) || 1;
+    return Math.round((o.qualifying_cents / scale) * 100);
   }
 
-  private romanianMetaCopy(optimum: AnswerBody, romanian: AnswerBody | null): string {
-    if (!romanian?.romanian_stores?.length) return '';
-    if (this.sameAssignment(optimum, romanian)) return '';
-    if (romanian.total_cents < optimum.total_cents) return '';
-    const name = this.romanianNames(romanian);
-    if (romanian.total_cents === optimum.total_cents) {
-      return `Also compared: a split that includes ${name} costs the same. Not a recommendation.`;
-    }
-    const gap = romanian.total_cents - optimum.total_cents;
-    return `Also compared: a split that includes ${name} is ${this.money(romanian.total_cents)}, ${this.money(gap)} more. Not a recommendation.`;
+  meterMark(o: Order): number {
+    const t = o.free_delivery_threshold_cents || 0;
+    const scale = Math.max(o.qualifying_cents, t) || 1;
+    return Math.round((t / scale) * 100);
   }
 
-  private romanianNames(answer: AnswerBody): string {
-    return (answer.romanian_stores || []).map((id) => this.storeName(id)).join(' and ');
+  names(rows: NotRanked): string {
+    return rows.orders.map((o) => this.shopName(o.store_id) + ' ' + o.books.length).join(' + ');
   }
 
-  private sameAssignment(left: AnswerBody, right: AnswerBody): boolean {
-    const key = (rows: AssignmentRow[]) => rows.map((row) => `${row.item_id}:${row.store_id}`).sort().join('|');
-    return key(left.assignment) === key(right.assignment);
+  missingNames(rows: MissingFee[]): string {
+    return [...new Set(rows.map((m) => this.shopName(m.store_id)))].join(', ');
   }
 
-  private differenceCopy(optimum: AnswerBody, romanian: AnswerBody): string {
-    const gap = romanian.total_cents - optimum.total_cents;
-    const name = this.romanianNames(romanian);
-    const because = romanian.reason?.trim()
-      ? romanian.reason.trim()
-      : 'that is the cheapest way to include that shop';
-    if (gap === 0) {
-      return `${name} is in this split. The total is the same as the lowest total, because ${because}.`;
-    }
-    return `${name} is in this split. It costs ${this.money(gap)} more than the lowest total, because ${because}.`;
+  rankedShops(): ShopOption[] {
+    return (this.data?.one_parcel.shops || []).filter((s) => s.status === 'ranked');
   }
 
-  private excludedCopy(rows: { id: string }[]): string {
-    const names = rows.map((row) => this.storeName(row.id)).filter((name, index, all) => all.indexOf(name) === index);
-    if (names.length === 0) return '';
-    if (names.length === 1) {
-      return `${names[0]} was compared, but it is not in either split. Its shipping or per-order fee was not on the pages we read, so it was left out. No fee was guessed.`;
-    }
-    return `${names.join(' and ')} were compared, but they are not in either split. A shipping or per-order fee was not on the pages we read, so they were left out. No fee was guessed.`;
+  otherShops(): ShopOption[] {
+    return (this.data?.one_parcel.shops || []).filter((s) => s.status !== 'ranked');
   }
 
-  private missCopy(misses: { item_id: string; store_id: string; title?: string }[]): string {
-    const named = misses
-      .map((miss) => {
-        const fromList = this.books.find((book) => book.id === miss.item_id)?.title;
-        const title = fromList || (miss.title && miss.title !== miss.item_id ? miss.title : '');
-        if (!title) return '';
-        return `${title} at ${this.storeName(miss.store_id)}`;
-      })
-      .filter((line, index, all) => line && all.indexOf(line) === index);
-    if (!named.length) return 'No store page could be read. There is no split and no total.';
-    if (named.length === 1) return `${named[0]} could not be read. There is no split and no total.`;
-    return `${named.join('; ')} could not be read. There is no split and no total.`;
+  offerLink(url: string | null | undefined): string | null {
+    return url && /^https?:\/\//.test(url) ? url : null;
   }
 
-  private showFailure(text: string): void {
-    this.phase = 'failed';
-    this.solution = null;
-    this.romanian = null;
-    this.oneCheckout = '';
-    this.romanianMeta = '';
-    this.excludedNote = '';
-    this.failTitle = 'No recommendation';
-    this.failBody = text;
-    this.cacheNotice = true;
+  get shopList(): string {
+    const names = (this.data?.shops || []).map((s) => this.shopName(s.store_id));
+    if (names.length < 2) return names.join('');
+    return names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1];
   }
 
-  private async bestOneShop(body: SolveBody): Promise<{ name: string; total: number } | null> {
-    const itemIds = new Set(body.assignment.map((row) => row.item_id));
-    const candidates = CATALOG_STORES.filter((store) => {
-      return [...itemIds].every((id) => this.books.find((book) => book.id === id)?.offers.some((offer) => offer.storeId === store.id && (this.edition === 'same' || (!!this.books.find((book) => book.id === id)?.isbn13 && !offer.sameStory))));
-    });
-    let best: { name: string; total: number } | null = null;
-    for (const store of candidates) {
-      const items = [...itemIds].map((id) => {
-        const book = this.books.find((row) => row.id === id)!;
-        const offer = book.offers.find((row) => row.storeId === store.id)!;
-        return {
-          id,
-          offers: [{ store_id: store.id, price_cents: offer.priceCents, seller_certainty: offer.sellerCertainty }],
-        };
-      });
-      const response = await fetch('/solve', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          source: 'given',
-          stores: [{
-            id: store.id,
-            currency: store.currency,
-            free_shipping_threshold_cents: store.freeShippingThresholdCents,
-            shipping_fee_cents: store.shippingFeeCents,
-            per_order_fee_cents: store.perOrderFeeCents,
-          }],
-          items,
-        }),
-      });
-      if (!response.ok) continue;
-      const payload = (await response.json()) as SolveBody;
-      if (payload.total_cents == null) continue;
-      if (!best || payload.total_cents < best.total) best = { name: store.name, total: payload.total_cents };
-    }
-    return best;
+  trackId(_: number, x: { item_id?: string; store_id?: string }): string {
+    return (x.item_id || '') + (x.store_id || '');
   }
-
-  private buildMembership(body: SolveBody): string {
-    if (!body.membership?.length) return '';
-    if (!this.membershipOn) return 'Prices are for a shopper without the membership.';
-    const row = body.membership[0];
-    const withTotal = row.with_membership_total_cents ?? body.total_cents;
-    const withoutTotal = row.without_membership_total_cents ?? body.total_cents;
-    if (withTotal === withoutTotal) {
-      return 'Having it does not change this basket. The split and the total stay the same.';
-    }
-    return `Having it changes the answer. The total would be ${this.money(withTotal)} instead of ${this.money(withoutTotal)}.`;
-  }
-
-  private buildTradeoff(body: SolveBody): string {
-    if (body.cheapest_per_item?.total_cents == null) return '';
-    const storeIds = new Set(body.assignment.map((row) => row.store_id));
-    if (storeIds.size === 1) {
-      const only = this.storeName([...storeIds][0]);
-      const readable = new Set((body.pages || []).filter((page) => page.status === 'ok').map((page) => page.store_id));
-      if (body.pages && readable.size <= 1) {
-        return `Only ${only} could be priced for this basket. This is not a split. The total is what that shop charges, including its shipping.`;
-      }
-      const saved = (this.oneShop?.total ?? body.total_cents) - body.total_cents;
-      if (saved === 0 && body.cheapest_per_item.total_cents === body.total_cents) {
-        return `Buying everything at ${only} costs the same as splitting. One order is the simpler way to pay it.`;
-      }
-      return `Buying everything at ${only} is cheaper than splitting, because one shipping charge beats several smaller orders. The total is ${this.money(Math.max(saved, body.cheapest_per_item.total_cents - body.total_cents))} less than the cheapest split.`;
-    }
-    const moves = body.assignment
-      .map((row) => {
-        const base = body.cheapest_per_item.lines.find((line) => line.item_id === row.item_id);
-        if (!base || base.store_id === row.store_id) return null;
-        const dest = body.stores.find((store) => store.store_id === row.store_id);
-        const before = body.cheapest_per_item.stores.find((store) => store.store_id === row.store_id);
-        const shippingSaved = (before?.shipping_cents ?? 0) - (dest?.shipping_cents ?? 0);
-        if (shippingSaved <= 0) return null;
-        return { row, delta: row.price_cents - base.price_cents, shippingSaved };
-      })
-      .filter((row): row is { row: AssignmentRow; delta: number; shippingSaved: number } => !!row && row.delta > 0)
-      .sort((a, b) => b.delta - a.delta);
-    const net = body.cheapest_per_item.total_cents - body.total_cents;
-    if (moves.length && net > 0) {
-      const lead = moves[0];
-      const dest = body.stores.find((store) => store.store_id === lead.row.store_id);
-      const before = body.cheapest_per_item.stores.find((store) => store.store_id === lead.row.store_id);
-      const shippingBefore = (dest ? body.cheapest_per_item.stores.find((store) => store.store_id === dest.store_id)?.shipping_cents : 0) ?? 0;
-      const shippingAfter = dest?.shipping_cents ?? 0;
-      const shippingSaved = lead.shippingSaved;
-      const threshold = dest?.threshold_cents;
-      const thresholdLabel = threshold != null ? `the free-shipping threshold (${this.money(threshold)})` : 'the free-shipping threshold';
-      const others = moves.length - 1;
-      const extra = others === 1
-        ? ' 1 other book also moves to reach it.'
-        : others > 1
-          ? ` ${others} other books also move to reach it.`
-          : '';
-      return `Buying “${this.titleOf(lead.row.item_id)}” at ${this.storeName(lead.row.store_id)} costs ${this.money(lead.delta)} more than the cheapest listing.${extra} That brings the ${this.storeName(lead.row.store_id)} order to ${thresholdLabel}, so shipping goes from ${this.money(shippingBefore)} to ${this.money(shippingAfter)}. You pay ${this.money(lead.delta)} more for that book and save ${this.money(shippingSaved)} on shipping. This basket is ${this.money(net)} cheaper than buying each book at its cheapest shop.`;
-    }
-    if (net === 0 && moves.length === 0) {
-      return 'Buying each book at its cheapest shop is already the lowest total. Moving a book to reach free shipping would cost more than the shipping it removes.';
-    }
-    return 'Buying each book at its cheapest shop is already the lowest total. Moving a book to reach free shipping would cost more than the shipping it removes.';
-  }
-}
-
-function parseSse(text: string): { event: string; data: unknown }[] {
-  const blocks = text.split('\n\n').map((block) => block.trim()).filter(Boolean);
-  const events = [];
-  for (const block of blocks) {
-    let event = 'message';
-    const dataLines = [];
-    for (const line of block.split('\n')) {
-      if (line.startsWith('event:')) event = line.slice(6).trim();
-      if (line.startsWith('data:')) dataLines.push(line.slice(5).trim());
-    }
-    if (!dataLines.length) continue;
-    events.push({ event, data: JSON.parse(dataLines.join('\n')) });
-  }
-  return events;
 }

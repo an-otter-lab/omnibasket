@@ -1,192 +1,518 @@
-<main>
-  <header>
-    <h1>The cheapest way to buy these books</h1>
-    <p class="lead">One basket, split across shops. Shipping and per-order fees are counted. You get one total, and how many orders that takes.</p>
-    <p class="meta">Delivery: Romania.</p>
+<ng-template #cover let-big="big">
+  <div class="cover" [class.lg]="big" aria-hidden="true">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8a7a5c" stroke-width="1.5"><path d="M5 4h12a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2z"></path><path d="M5 18a2 2 0 0 1 2-2h12"></path></svg>
+  </div>
+</ng-template>
+
+<ng-template #open let-url="url" let-shop="shop" let-label="label">
+  @if (offerLink(url); as href) {
+    <a class="store" [href]="href" target="_blank" rel="noopener" [attr.aria-label]="label || 'Open on ' + shopName(shop)">{{ label ? '↗' : 'Open ↗' }}</a>
+  }
+</ng-template>
+
+<ng-template #parcel let-o="o" let-moved="moved" let-link="link">
+  <div class="parcel on">
+    <div class="phead">
+      @if (link) {
+        <a class="pt" [href]="'#/parcel/' + o.store_id">{{ shopName(o.store_id) }} · {{ o.books.length }} {{ o.books.length === 1 ? 'book' : 'books' }} ›</a>
+      } @else {
+        <p class="pt">{{ shopName(o.store_id) }} · {{ o.books.length }} {{ o.books.length === 1 ? 'book' : 'books' }}</p>
+      }
+      @if (o.order_total_cents != null) {
+        <strong class="n pamt">{{ money(o.order_total_cents) }}</strong>
+      } @else {
+        <span class="unk">no total</span>
+      }
+    </div>
+    <div class="chips">
+      @for (b of o.books; track b.item_id) {
+        <a class="chip" [href]="'#/book/' + b.item_id">{{ b.title }}@if (moved && moved.has(b.item_id)) { · moved }</a>
+      }
+    </div>
+    @if (o.free_delivery_threshold_cents != null) {
+      <div class="meter"><div class="fill" [style.width.%]="meterFill(o)"></div><div class="mark" [style.left.%]="meterMark(o)"></div></div>
+    }
+    <p class="s n">
+      @if (o.threshold_crossed) {
+        Free delivery from {{ money(o.free_delivery_threshold_cents) }} ✓ · {{ money(o.over_under_threshold_cents) }} over
+      } @else if (o.free_delivery_threshold_cents != null) {
+        {{ money(o.short_of_threshold_cents) }} short of free delivery at {{ money(o.free_delivery_threshold_cents) }}
+      }
+      @if (o.delivery_known && !o.threshold_crossed) { · delivery {{ money(o.delivery_cents) }}@if (o.order_fee_cents) { + fee {{ money(o.order_fee_cents) }} } }
+      @if (!o.delivery_known) { <span class="unk">delivery not printed</span> }
+    </p>
+  </div>
+</ng-template>
+
+<ng-template #notranked let-list="list">
+  @for (n of list; track $index) {
+    <div class="box">
+      <p class="k">Another split, not ranked</p>
+      <p class="pt">{{ names(n) }}</p>
+      <div class="between">
+        <span class="n">books {{ money(n.books_subtotal_cents) }} lei</span>
+        <span class="unk">delivery not printed</span>
+      </div>
+      <p class="s">{{ missingNames(n.missing_fees) }} does not print its delivery under the free-delivery line, so this split has no total.</p>
+    </div>
+  }
+</ng-template>
+
+<ng-template #topbar>
+  <header class="hdr">
+    <a class="brand" href="#/">omnibasket</a>
+    <div class="hright">
+      <a class="lnk" href="#/add">{{ basket.size }} {{ basket.size === 1 ? 'book' : 'books' }} · Edit</a>
+    </div>
   </header>
+</ng-template>
 
-  @if (phase === 'entry' || phase === 'failed') {
-    <section class="card">
-      @if (books.length === 0) {
-        <p class="empty">Add a book. You will see the lowest total that includes shipping, and whether one checkout costs more.</p>
-      }
-      <ul class="books">
-        @for (book of books; track book.id) {
-          <li>
-            <span>
-              <strong>{{ book.title }}</strong>
-              @if (book.isbn13) { <span class="meta">{{ book.isbn13 }}</span> }
-            </span>
-            <button type="button" class="text" (click)="removeBook(book.id)">Remove</button>
-          </li>
-        }
-      </ul>
-      <form class="add-book" (submit)="$event.preventDefault(); addBook()">
-        <label class="field">
-          <span>Book title or ISBN</span>
-          <span class="combo">
-            <input name="book" [value]="draft" (input)="draft = $any($event.target).value" />
-            <button type="submit">Add book</button>
-          </span>
-        </label>
-      </form>
-      <ng-container *ngTemplateOutlet="controls"></ng-container>
-      <button type="button" class="primary" [disabled]="books.length === 0" (click)="findSplit()">Find the split</button>
-    </section>
-  }
+<ng-template #backbar let-label="label" let-stamptext="stamp">
+  <header class="hdr">
+    <button class="lnk" type="button" (click)="back()">‹ {{ label }}</button>
+    @if (stamptext) { <span class="stamp">{{ stamptext }}</span> }
+  </header>
+</ng-template>
 
-  @if (phase === 'failed') {
-    <section class="card failed" role="status">
-      <h2>{{ failTitle }}</h2>
-      <p>{{ failBody }}</p>
-      @if (cacheNotice) { <p class="notice">This demo is reading saved store pages, not live shops.</p> }
-    </section>
-  }
+@if (loadError) {
+  <header class="hdr"><a class="brand" href="#/">omnibasket</a></header>
+  <main class="wrap">
+    <h1 class="h2">We couldn’t load the shops.</h1>
+    <p class="p">Nothing was guessed. Try again in a moment.</p>
+    <button class="btn" type="button" (click)="load()">Try again</button>
+  </main>
+} @else if (!data) {
+  <header class="hdr"><a class="brand" href="#/">omnibasket</a></header>
+  <main class="wrap"><p class="p" role="status">Reading the shops…</p></main>
+} @else {
+  @switch (route.name) {
 
-  @if (phase === 'reading') {
-    <section class="card" aria-live="polite">
-      <h2>Reading store pages</h2>
-      @if (cacheNotice) {
-        <p class="notice"><span aria-hidden="true">▣</span> This demo is reading saved store pages, not live shops.</p>
-      }
-      @if (progressDone > 0) {
-        <p>Page {{ progressDone }} of {{ progressTotal }}</p>
-        <div class="bar" role="progressbar" [attr.aria-valuenow]="progressDone" [attr.aria-valuemax]="progressTotal">
-          <span [style.width.%]="progressTotal ? (progressDone / progressTotal) * 100 : 0"></span>
+    @case ('entry') {
+      <header class="hdr"><a class="brand" href="#/">omnibasket</a></header>
+      <main class="wrap narrow">
+        <h1 class="h1">One parcel, or the cheapest?</h1>
+        <p class="p soft">List the books. We’ll show what each way of buying them costs, with postage in and nothing guessed.</p>
+        <form class="findrow" (submit)="$event.preventDefault(); findBook()">
+          <div class="field">
+            <label class="lbl" for="q1">Book title or ISBN</label>
+            <input class="inp" id="q1" name="q" autocomplete="off" placeholder="e.g. Where the Wild Things Are" [value]="q" (input)="setQ($any($event.target).value)">
+          </div>
+          <button class="btn" type="submit">Find book</button>
+        </form>
+        <div class="box steps">
+          <p class="k">How it works</p>
+          <div class="step"><span class="num">1</span><p class="p">Add the books you want, by title or ISBN.</p></div>
+          <div class="step"><span class="num">2</span><p class="p">We read {{ data.shops.length }} shops: prices, postage, free-delivery thresholds.</p></div>
+          <div class="step"><span class="num">3</span><p class="p">Pick one parcel, the cheapest split, or your own shops.</p></div>
         </div>
-        <p class="meta">{{ progressTitle }} at {{ progressStore }}</p>
-      }
-      <p class="meta">{{ pagesRead }} pages read</p>
-      <button type="button" class="text stop" (click)="stop()">Stop</button>
-    </section>
-  }
+        <p class="s">We read {{ shopList }}. A fee a shop doesn’t print stays blank. We never guess it.</p>
+      </main>
+    }
 
-  @if (phase === 'result' && solution) {
-    <section class="layout">
-      <div class="stage">
-      <div class="main-top">
-      <article class="card answer">
-        <p class="meta">Lowest total</p>
-        <p class="total">{{ money(optimumAnswer()!.total_cents) }}</p>
-        <p class="orders">{{ orderLine(optimumAnswer()) }}</p>
-        @if (cacheNotice) {
-          <p class="notice"><span aria-hidden="true">▣</span> This demo is reading saved store pages, not live shops.</p>
+    @case ('add') {
+      <header class="hdr"><a class="brand" href="#/">omnibasket</a><span class="s">{{ basket.size }} {{ basket.size === 1 ? 'book' : 'books' }}</span></header>
+      <main class="wrap narrow">
+        <div class="field">
+          <label class="lbl" for="q2">Book title or ISBN</label>
+          <input class="inp" [class.focus]="q" id="q2" name="q" autocomplete="off" placeholder="e.g. Where the Wild Things Are" [value]="q" (input)="setQ($any($event.target).value)">
+        </div>
+        @if (q.trim() && matches.length === 0) {
+          <p class="s" role="status">Not in the shops we read.</p>
         }
-      </article>
-
-      @if (oneCheckout) { <p class="one-checkout">{{ oneCheckout }}</p> }
-
-      <div class="controls-stack">
-        <ng-container *ngTemplateOutlet="controls"></ng-container>
-      </div>
-
-      @if (excludedNote) {
-        <p class="notice excluded"><span aria-hidden="true">▣</span> {{ excludedNote }}</p>
-      }
-      @if (tradeoff) { <p class="tradeoff">{{ tradeoff }}</p> }
-
-      <div class="comparisons-stack">
-        <ng-container *ngTemplateOutlet="comparisons"></ng-container>
-      </div>
-      </div>
-      <aside class="rail">
-        <ng-container *ngTemplateOutlet="controls"></ng-container>
-        <ng-container *ngTemplateOutlet="comparisons"></ng-container>
-      </aside>
-      </div>
-
-      <div class="proof">
-        @for (store of proofStores(); track store.store_id) {
-          <article class="card">
-            <h2>{{ storeName(store.store_id) }}</h2>
-            <div class="money-rows">
-              <div class="money-row">
-                <span>Items</span>
-                <span class="amt">{{ money(store.items_cents) }}</span>
-              </div>
-              <div class="money-row">
-                <span>Shipping</span>
-                <span class="amt">{{ store.shipping_cents === 0 ? 'Free' : money(store.shipping_cents) }}</span>
-              </div>
-              <div class="money-row total-row">
-                <span>Total</span>
-                <span class="amt">{{ money(store.store_total_cents) }}</span>
+        @for (b of matches; track b.item_id) {
+          <div class="card">
+            <div class="bookhead">
+              <ng-container *ngTemplateOutlet="cover"></ng-container>
+              <div class="bmeta">
+                <a class="pt" [href]="'#/book/' + b.item_id">{{ b.title }}</a>
+                <p class="s n">@if (b.isbn13) { ISBN {{ b.isbn13 }} } @else { <span class="unk">ISBN not printed</span> } · {{ b.editions.length }} {{ b.editions.length === 1 ? 'edition' : 'editions' }}</p>
               </div>
             </div>
-            @if (store.per_order_fee_cents) {
-              <p class="meta">Includes a {{ money(store.per_order_fee_cents) }} per-order fee.</p>
+            @if (firstOffer(b); as f) {
+              <div class="between top">
+                <p class="s ink">First found at <strong>{{ shopName(f.store_id) }}</strong> · <span class="n">{{ lei(f.price_cents) }}</span></p>
+                @if (offerLink(f.listing_url); as href) { <a class="store" [href]="href" target="_blank" rel="noopener">{{ shopName(f.store_id) }} ↗</a> }
+              </div>
             }
-            <ul class="lines">
-              @for (row of booksFor(store.store_id); track row.item_id) {
-                <li>
-                  <div class="money-row book-row">
-                    <strong>{{ titleOf(row.item_id) }}</strong>
-                    <span class="amt">{{ money(row.price_cents) }}</span>
+            <div class="chips">
+              <span class="chip sel">Any edition</span>
+              @for (e of b.editions; track e.edition) { <span class="chip">{{ edLabel(e.edition) }}</span> }
+            </div>
+            <button class="btn full" type="button" (click)="toggleBasket(b.item_id)">{{ inBasket(b.item_id) ? 'Remove from basket' : 'Add to basket' }}</button>
+          </div>
+        }
+        <div class="basketbar">
+          <p class="k">In your basket · {{ basket.size }}</p>
+          <div class="chips">
+            @for (b of books; track b.item_id) { <a class="chip" [href]="'#/book/' + b.item_id">{{ b.title }}</a> }
+          </div>
+          @if (basket.size) { <a class="btn2 full" href="#/result/cheapest">See parcels</a> } @else { <span class="btn2 full off" aria-disabled="true">See parcels</span> }
+        </div>
+      </main>
+    }
+
+    @case ('book') {
+      @if (bookRow(route.arg); as b) {
+        <ng-container *ngTemplateOutlet="backbar; context: { label: 'Back', stamp: stamp() }"></ng-container>
+        <main class="wrap">
+          <div class="split">
+            <div class="main">
+              <div class="bookhead big">
+                <ng-container *ngTemplateOutlet="cover; context: { big: true }"></ng-container>
+                <div class="bmeta">
+                  <h1 class="h2">{{ b.title }}</h1>
+                  <p class="s n">@if (b.isbn13) { ISBN {{ b.isbn13 }} } @else { <span class="unk">ISBN not printed</span> }</p>
+                </div>
+              </div>
+              @for (o of b.shops; track o.store_id) {
+                @if (o.store_id === b.assigned_store_id && o.price_cents != null) {
+                  <div class="parcel on">
+                    <p class="k green">In your cheapest plan · {{ shopName(o.store_id) }}</p>
+                    <p class="price n">{{ lei(o.price_cents) }}</p>
+                    <p class="s">@if (o.edition) { {{ edLabel(o.edition) }} · } delivery counted on the parcel</p>
                   </div>
-                  @if (cheapestNote(row.item_id, row.price_cents); as note) {
-                    <p class="meta">{{ note }}</p>
+                  @if (offerLink(o.listing_url); as href) {
+                    <a class="btn" [href]="href" target="_blank" rel="noopener">Open on {{ shopName(o.store_id) }} ↗</a>
                   }
-                  @if (chip(row.item_id, row.store_id)) {
-                    <p class="chip">{{ chip(row.item_id, row.store_id) }}</p>
-                    <p class="meta">Not the ISBN you entered.</p>
-                  }
-                  @if (isbnLine(row.item_id)) { <p class="meta">{{ isbnLine(row.item_id) }}</p> }
-                  @if (offerOf(row.item_id, row.store_id)?.seller) {
-                    <p class="meta">Sold by {{ offerOf(row.item_id, row.store_id)?.seller }}</p>
-                  }
-                  @if (deliveryLabel(offerOf(row.item_id, row.store_id)?.deliveryWindow)) {
-                    <p class="meta">Delivery {{ deliveryLabel(offerOf(row.item_id, row.store_id)?.deliveryWindow) }}</p>
-                  }
-                </li>
+                }
               }
-            </ul>
-          </article>
-        }
-      </div>
-
-      @if (romanianMeta) { <p class="meta romanian-line">{{ romanianMeta }}</p> }
-
-      @if (leftOut.length) {
-        <article class="card failed left-out">
-          <h2>Left out</h2>
-          @for (line of leftOut; track line) { <p>{{ line }}</p> }
-        </article>
-      }
-
-    </section>
-  }
-</main>
-
-<ng-template #comparisons>
-  @if (solution && showBaseline()) {
-    <article class="card quiet">
-      <h2>Cheapest listing per book</h2>
-      <p class="quiet-total">{{ money(solution.cheapest_per_item.total_cents) }}</p>
-      <p class="meta">{{ deltaLine(solution.cheapest_per_item.total_cents) }}</p>
-    </article>
-  }
-</ng-template>
-
-<ng-template #controls>
-  <section class="card quiet controls">
-    <h2>Edition</h2>
-    <div class="segment" role="group" aria-label="Edition matching">
-      <button type="button" [attr.aria-pressed]="edition === 'exact'" (click)="setEdition('exact')">Exact edition</button>
-      <button type="button" [attr.aria-pressed]="edition === 'same'" (click)="setEdition('same')">Same story</button>
-    </div>
-    <p class="meta">{{ edition === 'exact' ? 'Only the same ISBN. A different printing, language, or format stays out.' : 'The same story may be another printing, language, or format. Each difference is named on the book.' }}</p>
-    @if (phase === 'result') {
-      <h2>Membership</h2>
-      @if (membershipNamed) {
-        <button type="button" class="switch" role="switch" [attr.aria-checked]="membershipOn" (click)="setMembership(!membershipOn)">What if I had it?</button>
-        <p class="meta">A membership you do not have. Prices without it stay the default. For this basket that means {{ membershipName }}.</p>
-        @if (membershipVerdict) { <p>{{ membershipVerdict }}</p> }
-        @if (membershipPrice != null) {
-          <p class="meta">The membership itself costs {{ money(membershipPrice) }}. It is not included in the total.</p>
-        }
+            </div>
+            <div class="rail">
+              <p class="k">Other shops for this book</p>
+              <div>
+                @for (o of b.shops; track o.store_id; let last = $last) {
+                  <div class="row" [class.last]="last">
+                    <span class="col"><span [class.mute]="o.price_cents == null">{{ shopName(o.store_id) }}</span><span class="s">{{ statusText(o.status) }}@if (o.edition) { · {{ edLabel(o.edition) }} } @else if (o.price_cents != null) { · <span class="unk">edition not printed</span> }</span></span>
+                    <span class="rowr">
+                      @if (o.price_cents != null) { <span class="v n">{{ money(o.price_cents) }}</span> } @else { <span class="s">—</span> }
+                      @if (offerLink(o.listing_url); as href) { <a class="store" [href]="href" target="_blank" rel="noopener" [attr.aria-label]="'Open ' + b.title + ' on ' + shopName(o.store_id)">↗</a> }
+                    </span>
+                  </div>
+                }
+              </div>
+              <p class="s">Book prices only. What you pay for postage depends on the whole parcel.</p>
+            </div>
+          </div>
+        </main>
       } @else {
-        <p class="meta">No membership applies to this basket.</p>
+        <ng-container *ngTemplateOutlet="backbar; context: { label: 'Back' }"></ng-container>
+        <main class="wrap"><p class="p">This book is not in the shops we read.</p></main>
       }
     }
-  </section>
-</ng-template>
+
+    @case ('parcel') {
+      @if (parcelOrder; as o) {
+        <ng-container *ngTemplateOutlet="backbar; context: { label: 'Parcels', stamp: o.read_at ? 'read ' + dateTime(o.read_at) : '' }"></ng-container>
+        <main class="wrap">
+          <h1 class="h2">Inside the {{ shopName(o.store_id) }} parcel</h1>
+          <div class="split">
+            <div class="main">
+              <div>
+                @for (b of o.books; track b.item_id) {
+                  <div class="row">
+                    <a class="rowlink" [href]="'#/book/' + b.item_id"><span class="bt">{{ b.title }}</span><span class="s n">@if (b.edition) { {{ edLabel(b.edition) }} } @else { <span class="unk">edition not printed</span> } · {{ lei(b.price_cents) }}</span></a>
+                    @if (offerLink(b.listing_url); as href) { <a class="store" [href]="href" target="_blank" rel="noopener" [attr.aria-label]="'Open ' + b.title + ' on ' + shopName(o.store_id)">Open ↗</a> }
+                  </div>
+                }
+              </div>
+              <p class="s">Open each book to add it to your {{ shopName(o.store_id) }} cart. We can’t fill shop carts for you.</p>
+            </div>
+            <div class="rail">
+              @if (o.free_delivery_threshold_cents != null) {
+                <div class="parcel">
+                  <p class="s ink strong">Free delivery from {{ lei(o.free_delivery_threshold_cents) }}</p>
+                  <div class="meter tall"><div class="fill" [style.width.%]="meterFill(o)"></div><div class="mark" [style.left.%]="meterMark(o)"></div></div>
+                  <div class="between s n">
+                    <span>this parcel {{ money(o.qualifying_cents) }}</span>
+                    <span>@if (o.threshold_crossed) { {{ money(o.over_under_threshold_cents) }} over } @else { {{ money(o.short_of_threshold_cents) }} short }</span>
+                  </div>
+                </div>
+              }
+              <div>
+                <div class="row"><span>Books</span><span class="v n">{{ money(o.books_subtotal_cents) }}</span></div>
+                <div class="row"><span>Delivery</span>@if (o.delivery_cents != null) { <span class="v n">{{ money(o.delivery_cents) }}</span> } @else { <span class="unk">not printed</span> }</div>
+                <div class="row"><span>Order fee</span>@if (o.order_fee_cents != null) { <span class="v n">{{ money(o.order_fee_cents) }}</span> } @else { <span class="unk">not printed</span> }</div>
+                <div class="row tot"><span>Parcel total</span>@if (o.order_total_cents != null) { <span class="v n green">{{ lei(o.order_total_cents) }}</span> } @else { <span class="s">no total</span> }</div>
+              </div>
+            </div>
+          </div>
+        </main>
+      } @else {
+        <ng-container *ngTemplateOutlet="backbar; context: { label: 'Parcels' }"></ng-container>
+        <main class="wrap"><p class="p">That parcel is not in this answer.</p></main>
+      }
+    }
+
+    @case ('shop') {
+      @if (shop; as s) {
+        @if (s.not_selectable_code === 'couldnt_read') {
+          <ng-container *ngTemplateOutlet="backbar; context: { label: 'Parcels', stamp: failedFor(s.store_id)[0].failed_at ? 'tried ' + dateTime(failedFor(s.store_id)[0].failed_at) : '' }"></ng-container>
+          <main class="wrap narrow">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#525252" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M12 7v6M12 16.5v.5"></path></svg>
+            <h1 class="h2">We couldn’t read {{ shopName(s.store_id) }}</h1>
+            <p class="p soft">Its pages didn’t load @if (failedFor(s.store_id)[0].failed_at) { when we tried on {{ dateTime(failedFor(s.store_id)[0].failed_at) }} } ({{ maxAttempts(failedFor(s.store_id)) }} tries). It isn’t part of your parcels. @if (data.cheapest.total_cents != null) { The {{ lei(data.cheapest.total_cents) }} covers the shops we could read. }</p>
+            <div class="btnrow"><button class="btn" type="button" (click)="load()">Try again</button></div>
+            <div class="box">
+              <p class="k">About “prices read”</p>
+              <p class="p">Every parcel shows when its shop was read. Shops change prices now and then, so check again before you order.</p>
+              <div class="chips">
+                @for (x of data.shops; track x.store_id) { @if (x.read_at) { <span class="stamp">{{ shopName(x.store_id) }} {{ dateTime(x.read_at) }}</span> } }
+              </div>
+            </div>
+          </main>
+        } @else {
+          <ng-container *ngTemplateOutlet="backbar; context: { label: 'Parcels', stamp: s.read_at ? 'checked ' + dateTime(s.read_at) : '' }"></ng-container>
+          <main class="wrap narrow">
+            <h1 class="h2">{{ shopName(s.store_id) }}: checked, can’t be priced</h1>
+            <p class="p soft">Some books look cheaper here. Without the delivery and order fee we can’t tell whether the parcel is, so we leave {{ shopName(s.store_id) }} out rather than guess. Reason: {{ s.not_selectable_reason }}.</p>
+            <div class="box">
+              @for (r of shopBooks(s.store_id); track r.book.item_id) {
+                <div class="row">
+                  <a class="rowlink" [href]="'#/book/' + r.book.item_id"><span class="bt">{{ r.book.title }}</span></a>
+                  <span class="rowr"><span class="v n">{{ money(r.offer.price_cents) }}</span>
+                    @if (offerLink(r.offer.listing_url); as href) { <a class="store" [href]="href" target="_blank" rel="noopener" [attr.aria-label]="'Open ' + r.book.title + ' on ' + shopName(s.store_id)">↗</a> }
+                  </span>
+                </div>
+              }
+              <div class="row"><span>Delivery</span><span class="unk">not printed</span></div>
+              <div class="row"><span>Order fee</span><span class="unk">not printed</span></div>
+              <div class="row tot"><span>Parcel total</span><span class="s">no total</span></div>
+            </div>
+          </main>
+        }
+      } @else {
+        <ng-container *ngTemplateOutlet="backbar; context: { label: 'Parcels' }"></ng-container>
+        <main class="wrap"><p class="p">That shop is not in this answer.</p></main>
+      }
+    }
+
+    @default {
+      <!-- result (03, 04, 05, 11, 12) and the editions overlay (08) over it -->
+      <ng-container *ngTemplateOutlet="topbar"></ng-container>
+      <main class="wrap" [attr.aria-busy]="busy">
+        @if (degraded !== 'one_book') {
+          <div class="controls">
+            <nav class="tabs" aria-label="Ways to buy">
+              <a [class.on]="tab === 'one'" href="#/result/one">1 parcel<span>@if (oneDelta != null) { +{{ money(oneDelta) }} } @else if (degraded === 'one_shop') { only way } @else { not possible }</span></a>
+              @if (degraded === 'one_shop') {
+                <span class="off" aria-disabled="true">parcels<span>not possible</span></span>
+                <span class="off" aria-disabled="true">Custom<span>no other shop</span></span>
+              } @else {
+                <a [class.on]="tab === 'cheapest'" href="#/result/cheapest">@if (data.cheapest.order_count != null) { {{ data.cheapest.order_count }} {{ data.cheapest.order_count === 1 ? 'parcel' : 'parcels' }} } @else { Cheapest }<span>cheapest</span></a>
+                <a [class.on]="tab === 'custom'" href="#/result/custom">Custom<span>choose stores</span></a>
+              }
+            </nav>
+            <div class="pills">
+              <a class="pill" href="#/editions">Editions: {{ pinCount ? pinCount + ' pinned' : 'any' }}</a>
+              @if (stamp()) { <span class="stamp">{{ stamp() }}</span> }
+            </div>
+          </div>
+        }
+        @if (note) { <p class="s note" role="status">{{ note }}</p> }
+
+        @if (degraded === 'one_book') {
+          <!-- 11 one book -->
+          <h1 class="h2">One book, one parcel. Which shop?</h1>
+          <p class="s">@for (b of books; track b.item_id) { <a class="lnk" [href]="'#/book/' + b.item_id">{{ b.title }}</a> } · <a class="lnk" href="#/editions">Editions: {{ pinCount ? pinCount + ' pinned' : 'any' }}</a>@if (stamp()) { · {{ stamp() }} }</p>
+          <div class="split">
+            <div class="main">
+              @for (s of data.one_parcel.shops; track s.store_id; let first = $first) {
+                @if (s.status === 'ranked') {
+                  <div class="parcel" [class.on]="s.store_id === data.one_parcel.best_store_id">
+                    <div class="phead"><p class="pt">{{ shopName(s.store_id) }}</p><strong class="n pamt" [class.green]="s.store_id === data.one_parcel.best_store_id">{{ lei(s.total_cents) }}</strong></div>
+                    <p class="s n">book {{ money(s.books_subtotal_cents) }} · delivery and fees included in the total</p>
+                    @if (s.store_id === data.one_parcel.best_store_id && data.one_parcel.answer) {
+                      @for (b of data.one_parcel.answer.orders![0].books; track b.item_id) {
+                        @if (offerLink(b.listing_url); as href) { <a class="btn full" [href]="href" target="_blank" rel="noopener">Open on {{ shopName(s.store_id) }} ↗</a> }
+                      }
+                    }
+                  </div>
+                } @else if (s.status === 'not_ranked') {
+                  <div class="box">
+                    <div class="between"><p class="pt">{{ shopName(s.store_id) }}</p><span class="unk">{{ money(s.books_subtotal_cents) }} + delivery</span></div>
+                    <p class="s">Not ranked: delivery not printed. Book {{ lei(s.books_subtotal_cents) }}, no total.</p>
+                  </div>
+                } @else {
+                  <div class="box">
+                    <p class="pt mute">{{ shopName(s.store_id) }}</p>
+                    @for (r of s.reasons; track r.code) { <p class="s">{{ r.text }}</p> }
+                  </div>
+                }
+              }
+            </div>
+          </div>
+        } @else {
+          @if (tab === 'one') {
+            <!-- 04 / 12 one parcel -->
+            @if (data.one_parcel.answer; as a) {
+              <div class="split">
+                <div class="main">
+                  <div class="head">
+                    <p class="big alt n">{{ lei(a.total_cents) }}</p>
+                    @if (degraded === 'one_shop') {
+                      <p class="s ink">Only {{ shopName(data.degraded?.store_id) }} lists all of them · delivery included</p>
+                    } @else {
+                      <p class="s ink">All {{ a.orders![0].books.length }} from {{ shopName(data.one_parcel.best_store_id) }} in one parcel · <strong class="n">{{ lei(a.delta_vs_cheapest_cents) }} more</strong> than the cheapest</p>
+                    }
+                  </div>
+                  <ng-container *ngTemplateOutlet="parcel; context: { o: a.orders![0], link: true }"></ng-container>
+                  <p class="k">Open each book at {{ shopName(a.orders![0].store_id) }}</p>
+                  @for (b of a.orders![0].books; track b.item_id) {
+                    @if (offerLink(b.listing_url); as href) {
+                      <div class="row"><a class="rowlink" [href]="'#/book/' + b.item_id"><span class="bt">{{ b.title }}</span><span class="s n">{{ lei(b.price_cents) }}</span></a><a class="store" [href]="href" target="_blank" rel="noopener" [attr.aria-label]="'Open ' + b.title + ' on ' + shopName(a.orders![0].store_id)">Open ↗</a></div>
+                    }
+                  }
+                </div>
+                <div class="rail">
+                  @if (degraded === 'one_shop') {
+                    <div class="box">
+                      <p class="pt">Why not a split into parcels?</p>
+                      <p class="s">{{ data.cheapest.reason }}</p>
+                      @for (s of otherShops(); track s.store_id) { <p class="s"><strong>{{ shopName(s.store_id) }}</strong>: @for (r of s.reasons; track r.code; let last = $last) { {{ r.text }}{{ last ? '' : '; ' }} }</p> }
+                    </div>
+                  } @else {
+                    @if (data.one_parcel.per_book_delta.length) {
+                      <p class="k">Where the {{ money(a.delta_vs_cheapest_cents) }} comes from</p>
+                      <div>
+                        @for (d of data.one_parcel.per_book_delta; track d.item_id) {
+                          @if (d.delta_cents) {
+                            <a class="row" [href]="'#/book/' + d.item_id"><span>{{ d.title }}</span><span class="v"><span class="s n">{{ money(d.cheapest_price_cents) }} → {{ money(d.price_cents) }}</span> <strong class="n">{{ d.delta_cents! > 0 ? '+' : '−' }}{{ money(d.delta_cents! > 0 ? d.delta_cents : -d.delta_cents!) }}</strong></span></a>
+                          }
+                        }
+                      </div>
+                    }
+                    @for (s of otherShops(); track s.store_id) {
+                      <div class="box">
+                        <p class="pt">{{ shopName(s.store_id) }}</p>
+                        @if (s.status === 'not_ranked') { <p class="s n">Books {{ lei(s.books_subtotal_cents) }} · <span class="unk">delivery not printed</span></p> }
+                        @for (r of s.reasons; track r.code) { <p class="s">{{ r.text }}</p> }
+                      </div>
+                    }
+                  }
+                </div>
+              </div>
+            } @else {
+              <div class="box"><p class="pt">No single shop</p><p class="s">{{ data.one_parcel.reason }}</p></div>
+            }
+          } @else if (tab === 'custom') {
+            <!-- 05 custom -->
+            <div class="split">
+              <div class="rail">
+                <p class="p">Switch off shops you’d rather not use. Their books move to the shops you keep, the cheapest way.</p>
+                <div>
+                  @for (s of data.shops; track s.store_id; let last = $last) {
+                    <label class="tog" [class.last]="last">
+                      @let co = orderOf(s.store_id);
+                      <span class="col"><span class="strong" [class.mute]="!s.selectable">{{ shopName(s.store_id) }}</span>
+                        @if (!s.selectable) { <span class="s">{{ s.not_selectable_reason }}</span> }
+                        @else if (isChosen(s.store_id) && co) { <span class="s n">{{ co.books.length }} {{ co.books.length === 1 ? 'book' : 'books' }} · @if (co.order_total_cents != null) { {{ money(co.order_total_cents) }} } @else { <span class="unk">no total</span> }</span> }
+                        @else if (data.custom) { <span class="s">Off@if (movedFrom(s.store_id)) { · {{ movedFrom(s.store_id) }} {{ movedFrom(s.store_id) === 1 ? 'book' : 'books' }} moved } </span> }
+                      </span>
+                      <input type="checkbox" [checked]="isChosen(s.store_id)" [disabled]="!s.selectable || busy || (isChosen(s.store_id) && (data.custom?.selected_store_ids?.length ?? 0) < 2)" (change)="toggleShop(s.store_id)" [attr.aria-label]="'Use ' + shopName(s.store_id)">
+                    </label>
+                  }
+                </div>
+              </div>
+              <div class="main">
+                @if (data.custom; as c) {
+                  @if (c.status === 'ranked') {
+                    <div class="head">
+                      <p class="big alt n">{{ lei(c.total_cents) }}</p>
+                      <p class="s ink">{{ c.order_count }} {{ c.order_count === 1 ? 'parcel' : 'parcels' }} · @if (c.delta_vs_cheapest_cents) { <strong class="n">{{ lei(c.delta_vs_cheapest_cents) }} more</strong> than the cheapest } @else { same as the cheapest }</p>
+                    </div>
+                    <div class="g2">
+                      @for (o of c.orders!; track o.store_id) { <ng-container *ngTemplateOutlet="parcel; context: { o: o, moved: movedIds(), link: true }"></ng-container> }
+                    </div>
+                    @if (c.moves.length) {
+                      <div>
+                        <p class="k">Moved</p>
+                        @for (m of c.moves; track m.item_id) {
+                          <a class="row" [href]="'#/book/' + m.item_id"><span>{{ m.title }}: {{ shopName(m.from_store_id) }} → {{ shopName(m.to_store_id) }}</span><span class="v n">{{ money(m.to_price_cents) }}</span></a>
+                        }
+                      </div>
+                    }
+                    <ng-container *ngTemplateOutlet="notranked; context: { list: c.not_ranked }"></ng-container>
+                  } @else {
+                    <div class="box">
+                      <p class="pt">No total for these shops</p>
+                      <p class="s">{{ c.reason }}</p>
+                      @for (u of c.unselectable; track u.store_id) { <p class="s"><strong>{{ shopName(u.store_id) }}</strong>: {{ u.reason }}</p> }
+                    </div>
+                  }
+                } @else {
+                  <p class="s" role="status">Working out the split…</p>
+                }
+              </div>
+            </div>
+          } @else {
+            <!-- 03 cheapest -->
+            @if (data.cheapest.status === 'ranked') {
+              <div class="split flip">
+                <div class="rail">
+                  <div class="head">
+                    <p class="big n">{{ lei(data.cheapest.total_cents) }}</p>
+                    <p class="s ink">Delivery included@if (oneDelta != null) { · one parcel costs <strong class="n">{{ lei(oneDelta) }} more</strong> }</p>
+                  </div>
+                </div>
+                <div class="main">
+                  <div class="g2">
+                    @for (o of data.cheapest.orders!; track o.store_id) { <ng-container *ngTemplateOutlet="parcel; context: { o: o, link: true }"></ng-container> }
+                  </div>
+                  <ng-container *ngTemplateOutlet="notranked; context: { list: data.cheapest.not_ranked }"></ng-container>
+                  @if (leftOut.length) {
+                    <div class="panel">
+                      <p class="k">Shops left out</p>
+                      @for (s of leftOut; track s.store_id; let last = $last) {
+                        <a class="row" [class.last]="last" [href]="'#/shop/' + s.store_id"><span class="col"><span class="strong">{{ shopName(s.store_id) }}</span><span class="s">{{ s.not_selectable_code === 'couldnt_read' ? 'Couldn’t read its pages · try again' : 'Checked, can’t be priced: ' + s.not_selectable_reason }}</span></span><span aria-hidden="true">›</span></a>
+                      }
+                    </div>
+                  }
+                </div>
+              </div>
+            } @else {
+              <div class="box"><p class="pt">No ranked answer</p><p class="s">{{ data.cheapest.reason }}</p></div>
+            }
+          }
+        }
+      </main>
+
+      @if (route.name === 'editions') {
+        <div class="scrim" (click)="cancelPins()"></div>
+        <div class="dlg" role="dialog" aria-modal="true" aria-label="Editions">
+          <div class="grab"></div>
+          <div class="between"><h2 class="h2">Editions</h2><button class="lnk" type="button" (click)="cancelPins()">Cancel</button></div>
+          <div class="list scroll">
+            @for (b of books; track b.item_id) {
+              <div class="row stack">
+                <span class="strong">{{ b.title }}</span>
+                <div class="chips">
+                  <button class="chip" type="button" [class.sel]="!draftPins[b.item_id]" (click)="pick(b.item_id, 'any')">Any</button>
+                  @for (e of b.editions; track e.edition) { <button class="chip" type="button" [class.sel]="draftPins[b.item_id] === e.edition" (click)="pick(b.item_id, e.edition)">{{ edLabel(e.edition) }}</button> }
+                </div>
+              </div>
+            }
+          </div>
+          <div class="foot">
+          @if (preview; as p) {
+            @if (p.edition.status === 'not_possible') {
+              <div class="box"><p class="k">Not possible</p><p class="s">{{ p.edition.reason }}</p></div>
+            } @else if (p.edition.total_cents != null) {
+              <div class="previewbox">
+                <p class="k green">With these editions</p>
+                <p class="pbig n">{{ p.cheapest.order_count }} {{ p.cheapest.order_count === 1 ? 'parcel' : 'parcels' }} · {{ lei(p.edition.total_cents) }}</p>
+                <p class="s ink">@if (p.edition.delta_cents) { {{ lei(p.edition.delta_cents) }} {{ p.edition.delta_cents! > 0 ? 'more' : 'less' }} than any edition ({{ lei(p.edition.unpinned_total_cents) }}). } @else { Same total as any edition. }</p>
+              </div>
+            } @else {
+              <div class="box"><p class="s">{{ p.edition.reason }}</p></div>
+            }
+            @for (n of p.edition.not_ranked; track $index) {
+              <p class="s">Another split, {{ names(n) }}, <span class="unk">can’t be priced</span>: books {{ lei(n.books_subtotal_cents) }}, {{ missingNames(n.missing_fees) }} doesn’t print delivery under its free-delivery line. No total.</p>
+            }
+          }
+          <button class="btn full" type="button" [disabled]="!preview || preview.edition.status === 'not_possible' || busy" (click)="applyPins()">Apply</button>
+          </div>
+        </div>
+      }
+    }
+  }
+}
