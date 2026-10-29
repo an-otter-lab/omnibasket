@@ -128,7 +128,10 @@ def _order_rows(ctx: PlanContext, rows: list[dict]) -> list[dict]:
             r["price_cents"] for r in lines if r["seller_certainty"] in THRESHOLD_CERTAINTIES
         )
         crossed = qualifying >= store.free_shipping_threshold_cents
-        if crossed:
+        # Bookzone's unprinted delivery charge applies at the 200 lei bar
+        # too; its advertised threshold does not make that fee known.
+        unprinted_at_bar = store.id == "bookzone" and crossed and not store.shipping_fee_known
+        if crossed and not unprinted_at_bar:
             shipping: int | None = 0
         elif store.shipping_fee_known:
             shipping = store.shipping_fee_cents

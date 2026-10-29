@@ -106,6 +106,24 @@ def test_custom_amazon_libris_bookzone_is_53045_with_ghici_at_bookzone(client: T
     assert bookzone["delivery_cents"] == 1090 and bookzone["order_fee_cents"] == 199
 
 
+def test_custom_ranked_responses_use_each_selected_shop_and_no_others(client: TestClient) -> None:
+    selections = [["amazon_de", "libris", "bookzone"], ["libris", "bookzone"], ["amazon_de", "libris"]]
+    for selected in selections:
+        custom = client.post("/solve", json={"selected_store_ids": selected}).json()["custom"]
+        assert custom["status"] == "ranked"
+        books_by_store = {o["store_id"]: o["books"] for o in custom["orders"]}
+        assert set(books_by_store) == set(selected)
+        assert all(books_by_store[sid] for sid in selected)
+        assert all(o["store_id"] in selected and o["books"] for o in custom["orders"])
+
+def test_custom_bookzone_at_200_lei_is_not_ranked_without_printed_fee(client: TestClient) -> None:
+    stores = [_store("bookzone", threshold=20000, shipping=None, fee=199)]
+    items = [_item("x", [("bookzone", 20000)])]
+    custom = _post(client, stores, items, selected_store_ids=["bookzone"])["custom"]
+    assert custom["status"] == "not_ranked"
+    assert custom["total_cents"] is None
+    assert custom["missing_fees"] == [{"store_id": "bookzone", "field": "shipping_fee_cents", "books_subtotal_cents": 20000}]
+
 def test_custom_is_absent_without_a_selection(client: TestClient) -> None:
     assert client.post("/solve").json()["custom"] is None
 
