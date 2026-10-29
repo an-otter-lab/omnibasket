@@ -1,0 +1,25 @@
+id: libris
+name: Libris
+domain: www.libris.ro
+status: checked
+currency: RON
+robots:
+  source_url: https://www.libris.ro/robots.txt
+  read_date: 2026-10-30
+  allowed_paths: ["/"]
+  disallowed_paths: ["/cart/", "/auth/", "/account/", "/dashboard/", "/search?*", "/ComandaPas2.jsp", "/comandaTa.jsp", "/AfiseazaProdus.jsp", "/s.jsp", "/ax.jsp", "/adm2/", "/*?ord=", "/*&ord=", "/*?nav=", "/*&nav=", "/*?afid=", "/*&afid=", "/*?rstar=", "/*&rstar=", "/*?fts_fts=", "/*&fts_fts=", "/*?iv.fn=", "/*&iv.fn=", "/*?iv.categ=", "/*&iv.categ=", "/*?iv.op=", "/*&iv.op=", "/*?iv.sort=", "/*&iv.sort=", "/*?iv.df=", "/*&iv.df=", "/*?fsv_", "/*&fsv_", "/*?f_", "/*&f_", "/*?fp=", "/*&fp=", "/*?rating=", "/*&rating=", "/*?pnu=", "/*&pnu=", "/*?iv.q=", "/*&iv.q=", "/*?psq=", "/*&psq=", "/*?rt=", "/*&rt=", "/*?isrc=", "/*&isrc=", "/*?fbclid=", "/*&fbclid=", "/*?click_code=", "/*&click_code=", "/*?rtbhc=", "/*&rtbhc=", "/*?srsltid=", "/*&srsltid=", "/*?gclid=", "/*&gclid=", "/userdocspdf/", "/*?utm_", "/*&utm_"]
+  sitemaps: ["https://www.libris.ro/sitemap-new-url-index.xml?nofilename=on", "https://www.libris.ro/sitemap-autori.xml?nofilename=on&page=1", "https://www.libris.ro/sitemap-categorii.xml?nofilename=on"]
+product_pages:
+  strategy: schema.org-first
+  schemas: [Product, Book]
+shipping_rules:
+  - kind: free_threshold
+    amount: 135.00
+    currency: RON
+    source_url: https://www.libris.ro/informatiiUtile/beneficii
+    read_date: 2026-10-28
+  - kind: below_threshold_fee
+    amount: 12.90
+    currency: RON
+    source_url: https://www.libris.ro/informatiiUtile/beneficii
+    read_date: 2026-10-28

@@ -1,0 +1,10 @@
+id: paste_only
+name: Paste-only shop
+domain: null
+status: auto-read
+currency: null
+robots: null
+product_pages:
+  strategy: schema.org-first
+  schemas: [Product, Book]
+shipping_rules: null

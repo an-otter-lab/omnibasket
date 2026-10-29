@@ -1,0 +1,1 @@
+"""Validated shop profile loading."""
