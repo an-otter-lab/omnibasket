@@ -3,6 +3,10 @@ name: Amazon.de
 domain: www.amazon.de
 status: checked
 currency: RON
+live_reading: false
+read_by: manual
+prices_currency: RON
+rules_currency: EUR
 robots:
   source_url: https://www.amazon.de/robots.txt
   read_date: 2026-10-30
@@ -12,22 +16,24 @@ robots:
 product_pages:
   strategy: schema.org-first
   schemas: [Product, Book]
-  live_reading: false
 shipping_rules:
   - kind: free_threshold
     amount: 49.00
     currency: EUR
     source_url: https://www.amazon.de/gp/help/customer/display.html?nodeId=GZXW7X6AKTHNUP6H
+    source_kind: manual_capture
     read_date: 2026-10-28
   - kind: books_delivery_fee_per_order
     amount: 4.99
     currency: EUR
     plus_per_kg: 1.99
     source_url: https://www.amazon.de/gp/help/customer/display.html?nodeId=GA6MMBQJBJ5QYUDW
+    source_kind: manual_capture
     read_date: 2026-10-28
   - kind: other_goods_delivery_fee_per_order
     amount: 5.99
     currency: EUR
     plus_per_kg: 2.99
     source_url: https://www.amazon.de/gp/help/customer/display.html?nodeId=GA6MMBQJBJ5QYUDW
+    source_kind: manual_capture
     read_date: 2026-10-28

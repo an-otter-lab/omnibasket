@@ -156,6 +156,13 @@ class RoV1BasketLock(unittest.TestCase):
         self.assertLess(_offer(items, "matilda", "libris"), _offer(items, "matilda", "amazon_de"))
 
         self.assertEqual(result.total_cents, 51516)
+        # All-at-Libris total: sum of all Libris offers
+        all_libris_cents = sum(
+            _offer(items, book["id"], "libris")
+            for book in basket["books"]
+            if any(o["store_id"] == "libris" for o in book["offers"])
+        )
+        self.assertEqual(all_libris_cents, 55873)  # 558.73 lei
         self.assertEqual(
             [(row.item_id, row.store_id, row.price_cents) for row in result.split],
             [
