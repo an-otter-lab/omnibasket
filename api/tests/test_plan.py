@@ -58,8 +58,8 @@ def test_cheapest_is_51516_in_two_parcels(client: TestClient) -> None:
     assert len(by_store["libris"]["books"]) == 3
     amazon = by_store["amazon_de"]
     assert amazon["threshold_crossed"] is True
-    assert amazon["free_delivery_threshold_cents"] == 26219
-    assert amazon["over_under_threshold_cents"] == amazon["qualifying_cents"] - 26219
+    assert amazon["free_delivery_threshold_cents"] == 26217
+    assert amazon["over_under_threshold_cents"] == amazon["qualifying_cents"] - 26217
     assert amazon["delivery_known"] is True and amazon["delivery_cents"] == 0
     assert amazon["order_total_cents"] == amazon["books_subtotal_cents"] + 0 + amazon["order_fee_cents"]
     book = amazon["books"][0]

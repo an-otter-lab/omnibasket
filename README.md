@@ -80,7 +80,7 @@ The v1 tree is a working cache-first demo.
 - A locked seven-book Romanian basket (`ro-v1`): Ghici, The Very Hungry Caterpillar, Owl Babies, and four Amazon.de titles that share an ISBN with Libris.
 - An exhaustive integer-cents solver in `solver/`. The UI compares one-parcel (**558.73 lei** via Libris), cheapest (**515.16 lei**), and custom stores (**530.45 lei** for Amazon.de + Libris + Bookzone, with Ghici assigned to Bookzone).
 - Bookzone under 200 lei is delivery from **10.90 lei** plus **1.99 lei** processing (cart at bookzone.ro/cos/produse), not the earlier lower delivery line.
-- Amazon.de free delivery to Romania starts at **262.19 lei**. The under-threshold per-delivery and per-kg amounts are unknown and are not priced. eMAG is excluded because its three solver fee fields are null.
+- Amazon.de free delivery to Romania starts at **262.17 lei** (printed on the Amazon.de product pages, read 28 Oct 2026; the lei value moves with the exchange rate). The under-threshold per-delivery and per-kg amounts are unknown and are not priced. eMAG is excluded because its three solver fee fields are null.
 - A read layer in `matching/` with the three spike fixes: ISBN check digits, sold-by tri-state, and edition matching that does not average different books.
 - Every one of the 15 saved pages carries a Muse Spark 1.3 read, stored with the page and checked
   against the captured price: 15 match, 0 mismatch, USD 0.19 for the job. Book detail says which

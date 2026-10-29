@@ -111,7 +111,7 @@ class RoV1BasketLock(unittest.TestCase):
         amazon = next(row for row in rules["stores"] if row["id"] == "amazon_de")
         bookzone = next(row for row in rules["stores"] if row["id"] == "bookzone")
         emag = next(row for row in rules["stores"] if row["id"] == "emag")
-        self.assertEqual(amazon["free_shipping_threshold_cents"], 26219)
+        self.assertEqual(amazon["free_shipping_threshold_cents"], 26217)
         self.assertIsNone(amazon["shipping_fee_cents"])
         self.assertIsNone(amazon["per_kg_fee_cents"])
         self.assertEqual(bookzone["shipping_fee_cents"], 1090)
