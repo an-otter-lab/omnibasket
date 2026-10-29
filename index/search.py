@@ -88,7 +88,7 @@ def search(query: str, limit: int = 10, db_path: Path | str = DB, opener=None) -
             listing = {"shop": row["shop"], "url": row["url"]}
             if listing not in item["shops"]:
                 item["shops"].append(listing)
-        ranked = sorted(groups.values(), key=lambda x: (-x["_score"], -len(x["shops"]), normalize(x["title"])))
+        ranked = sorted(groups.values(), key=lambda x: (-x["_score"], -len(x["shops"]), abs(len(normalize(x["title"])) - len(normalize(query))), normalize(x["title"])))
         results = []
         for item in ranked:
             if not item["isbn"]:
