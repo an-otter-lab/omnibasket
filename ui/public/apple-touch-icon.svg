@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Full-bleed square for iOS: the home screen applies its own rounded mask. Source for apple-touch-icon.png. -->
+  <rect width="64" height="64" fill="#14532d"/>
+  <rect x="16" y="26" width="32" height="22" rx="3.5" fill="#f4efe6"/>
+  <rect x="13.5" y="18" width="37" height="10" rx="3.5" fill="#f4efe6"/>
+  <rect x="29.5" y="18" width="5" height="30" fill="#c9b591"/>
+  <rect x="16" y="28" width="32" height="1.8" fill="#14532d" opacity=".18"/>
+</svg>
