@@ -1,0 +1,20 @@
+[Unit]
+Description=Omnibasket API and demo UI
+After=network.target
+
+[Service]
+Type=simple
+User=omnibasket
+Group=omnibasket
+WorkingDirectory=/opt/omnibasket
+Environment=PYTHONPATH=/opt/omnibasket
+ExecStart=/opt/omnibasket/.venv/bin/python -m uvicorn api.app:app --app-dir /opt/omnibasket --host 127.0.0.1 --port 8000
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/opt/omnibasket/data/cache
+
+[Install]
+WantedBy=multi-user.target

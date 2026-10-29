@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 
 from api.basket import excluded_for_unresolved_fees, load_locked, locked_shop_rows
 from api.cache import PageCache, open_seeded
+from api.rate_limit import PerIPRateLimitMiddleware
 from api.solve_service import (
     context_from_body,
     context_from_locked,
@@ -66,6 +67,7 @@ class SolveIn(BaseModel):
 
 def create_app(db_path: Path | None = None) -> FastAPI:
     app = FastAPI(title="Omnibasket", version="v1")
+    app.add_middleware(PerIPRateLimitMiddleware)
     path = db_path or DEFAULT_DB
     app.state.db_path = path
 
