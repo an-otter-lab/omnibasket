@@ -120,6 +120,33 @@ def _missing_reason(missing: list[dict], scope: str) -> str:
     return f"no shop {scope}lists {first['title']}"
 
 
+def delivery_gap(
+    threshold_cents: int | None,
+    qualifying_cents: int,
+    delivery_cents: int | None,
+) -> dict | None:
+    """How far this order is from its shop's free-delivery bar.
+
+    The bar is the solver's own ``free_shipping_threshold_cents`` and the
+    amount counted is the solver's qualifying subtotal, so the gap matches
+    what the solver charged. Plain integer cents, no model.
+
+    Returns None (the line is hidden) when the threshold is unknown, or when
+    the order is over the bar but its delivery is still not proven to be 0
+    (Bookzone's unprinted charge at the bar): "reached" is never claimed
+    unless the solver priced delivery at 0.
+    """
+
+    if threshold_cents is None:
+        return None
+    short = threshold_cents - qualifying_cents
+    if short > 0:
+        return {"status": "short", "short_cents": short, "threshold_cents": threshold_cents}
+    if delivery_cents != 0:
+        return None
+    return {"status": "reached", "short_cents": 0, "threshold_cents": threshold_cents}
+
+
 def _order_rows(ctx: PlanContext, rows: list[dict]) -> list[dict]:
     """One order per distinct shop, with every per-book and per-fee line."""
 
@@ -173,6 +200,8 @@ def _order_rows(ctx: PlanContext, rows: list[dict]) -> list[dict]:
                 # Positive: over the bar. Negative: short of it.
                 "over_under_threshold_cents": qualifying - store.free_shipping_threshold_cents,
                 "short_of_threshold_cents": max(0, store.free_shipping_threshold_cents - qualifying),
+                # Feature 4: the free-delivery gap line. None hides it.
+                "delivery_gap": delivery_gap(store.free_shipping_threshold_cents, qualifying, shipping),
                 "delivery_known": shipping is not None,
                 "delivery_cents": shipping,
                 "order_fee_cents": fee,
