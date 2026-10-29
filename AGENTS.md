@@ -9,7 +9,8 @@ The plan being built is `docs/ops/omnibasket-hackathon-push-2026-10-29.md`. Wher
 - Commit only your own task's files. Never commit `tmp/`, `ui-ux-design/` or `docs/ops/omnibasket-v1-plan.md`.
 
 ## Push and deploy
-- Only `main` is pushed to `origin`, and only after a merge whose checks are green (`pytest`, `ng test`, `ng build`).
+- `main` is pushed to `origin` only after a merge whose checks are green (`pytest`, `ng test`, `ng build`).
+- A feature branch may be pushed to `origin` only to open a PR for review (Grok Bot works this way). Nobody merges a PR on GitHub: merges happen locally into `main` after review.
 - The public demo VM deploys `main` from git with `scripts/deploy-vm.sh`.
 - The repo stays private. Never change its visibility.
 
