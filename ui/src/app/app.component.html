@@ -182,7 +182,13 @@
               <div>
                 @for (o of b.shops; track o.store_id; let last = $last) {
                   <div class="row" [class.last]="last">
-                    <span class="col"><span [class.mute]="o.price_cents == null">{{ shopName(o.store_id) }}</span><span class="s">{{ statusText(o.status) }}@if (o.edition) { · {{ edLabel(o.edition) }} } @else if (o.price_cents != null) { · <span class="unk">edition not printed</span> }</span></span>
+                    <span class="col"><span [class.mute]="o.price_cents == null">{{ shopName(o.store_id) }}</span><span class="s">{{ statusText(o.status) }}@if (o.edition) { · {{ edLabel(o.edition) }} } @else if (o.price_cents != null) { · <span class="unk">edition not printed</span> }</span>
+                      @if (readStatus(o) === 'match') {
+                        <span class="read">Read by Muse Spark · matches the page</span>
+                      } @else if (readStatus(o) === 'mismatch') {
+                        <span class="tagbad">doesn’t match the page · {{ readFields(o) }}</span>
+                      }
+                    </span>
                     <span class="rowr">
                       @if (o.price_cents != null) { <span class="v n">{{ money(o.price_cents) }}</span> } @else { <span class="s">—</span> }
                       @if (offerLink(o.listing_url); as href) { <a class="store" [href]="href" target="_blank" rel="noopener" [attr.aria-label]="'Open ' + b.title + ' on ' + shopName(o.store_id)">↗</a> }

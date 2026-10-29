@@ -96,6 +96,14 @@ interface OfferRow {
   edition: string | null;
   listing_url?: string | null;
   read_at?: string | null;
+  model_read?: ModelRead;
+}
+
+interface ModelRead {
+  status: 'match' | 'mismatch' | 'not_read' | string;
+  model: string | null;
+  read_at: string | null;
+  mismatch_fields: string[];
 }
 
 interface BookRow {
@@ -473,6 +481,18 @@ export class AppComponent {
 
   statusText(code: string): string {
     return STATUS_TEXT[code] || code;
+  }
+
+  // A read line only where the API says there is one. Nothing is derived here.
+  readStatus(o: OfferRow): 'match' | 'mismatch' | '' {
+    const status = o.model_read?.status;
+    return status === 'match' || status === 'mismatch' ? status : '';
+  }
+
+  readFields(o: OfferRow): string {
+    return (o.model_read?.mismatch_fields || [])
+      .map((f) => (f === 'isbn13' ? 'ISBN' : f))
+      .join(', ');
   }
 
   private day(iso: string): string {

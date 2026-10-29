@@ -66,6 +66,16 @@ def _meta(ctx: PlanContext, item_id: str, store_id: str) -> dict:
     return ctx.offer_meta.get((item_id, store_id), {})
 
 
+NO_MODEL_READ = {"status": "not_read", "model": None, "read_at": None, "mismatch_fields": []}
+
+
+def _model_read(ctx: PlanContext, item_id: str, store_id: str) -> dict:
+    """Every offer carries its read status. The UI renders it as it is."""
+
+    row = _meta(ctx, item_id, store_id).get("model_read")
+    return dict(row) if isinstance(row, dict) else dict(NO_MODEL_READ)
+
+
 def _unavailable(ctx: PlanContext, item_id: str, store_id: str) -> bool:
     return _meta(ctx, item_id, store_id).get("in_stock") is False
 
@@ -382,6 +392,7 @@ def _book_rows(ctx: PlanContext, pins: dict[str, str], cheapest: dict) -> list[d
                     "edition": meta.get("edition"),
                     "listing_url": meta.get("listing_url"),
                     "read_at": meta.get("read_at"),
+                    "model_read": _model_read(ctx, item.id, sid),
                 }
             )
         editions: dict[str, dict] = {}

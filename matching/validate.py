@@ -87,3 +87,92 @@ def validate_extraction(obj: dict) -> tuple[dict, dict]:
     reread = bool(reasons)
     verdict = {"accepted": not reread, "reread": reread, "reasons": reasons}
     return out, verdict
+
+
+# ---------------------------------------------------------------- read vs capture
+
+# A model read is checked against the saved page, never written into it.
+MATCH = "match"
+MISMATCH = "mismatch"
+NOT_READ = "not_read"
+
+_LEI = {"lei", "ron", "lei românești", "lei romanești"}
+
+
+def _price_cents(value):
+    """The model's price is a number; the capture is integer cents."""
+
+    if value is None or isinstance(value, bool):
+        return None
+    if isinstance(value, str):
+        text = re.sub(r"[^\d.,-]", "", value)
+        if "," in text and "." in text:
+            text = text.replace(".", "").replace(",", ".")
+        else:
+            text = text.replace(",", ".")
+        try:
+            value = float(text)
+        except ValueError:
+            return None
+    try:
+        return int(round(float(value) * 100))
+    except (TypeError, ValueError):
+        return None
+
+
+def read_fields(record):
+    """The fields a stored read returned, across the two shapes we keep."""
+
+    if not isinstance(record, dict):
+        return None
+    fields = record.get("fields")
+    if isinstance(fields, dict):
+        return fields
+    result = record.get("result")
+    return result if isinstance(result, dict) else None
+
+
+def compare_read_to_capture(
+    record,
+    *,
+    price_cents: int | None,
+    isbn13: str | None = None,
+    currency: str = "RON",
+) -> dict:
+    """Check one stored Muse Spark read against the captured page.
+
+    ``match`` and ``mismatch`` come only from comparing what the model returned
+    with what the capture holds. A read that has nothing to compare is
+    ``not_read`` with a reason. Nothing here changes a price.
+    """
+
+    if not isinstance(record, dict):
+        return {"status": NOT_READ, "mismatch_fields": [], "reason": "no_read"}
+    status = str(record.get("status") or "")
+    fields = read_fields(record)
+    if status and status != "OK":
+        return {"status": NOT_READ, "mismatch_fields": [], "reason": "read_failed"}
+    if not fields:
+        return {"status": NOT_READ, "mismatch_fields": [], "reason": "no_fields"}
+
+    model_cents = _price_cents(fields.get("price"))
+    if model_cents is None:
+        return {"status": NOT_READ, "mismatch_fields": [], "reason": "price_not_printed"}
+    if price_cents is None:
+        return {"status": NOT_READ, "mismatch_fields": [], "reason": "capture_has_no_price"}
+
+    differing = []
+    if model_cents != int(price_cents):
+        differing.append("price")
+
+    printed_currency = str(fields.get("currency") or "").strip()
+    if printed_currency and printed_currency.lower() not in _LEI | {currency.lower()}:
+        differing.append("currency")
+
+    printed_isbn = normalize_isbn13(fields.get("isbn13"))
+    if printed_isbn and isbn13 and printed_isbn != isbn13:
+        differing.append("isbn13")
+
+    if differing:
+        return {"status": MISMATCH, "mismatch_fields": differing, "reason": None}
+    return {"status": MATCH, "mismatch_fields": [], "reason": None}

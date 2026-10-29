@@ -24,11 +24,16 @@ per-store thresholds.
 
 ## How it works
 
-1. **Read** — the cache-first demo serves saved product-page data for the locked Romanian basket; it does not fetch live store pages.
-2. **Match** — offers are matched by ISBN, with edition rules applied per book. The edition pin lets you keep the same-story default or require the exact edition.
+1. **Read** — Muse Spark turns each saved product page into a structured offer: title, ISBN, price,
+   currency, edition, stock, and the delivery or fee lines the page prints. The demo replays the saved
+   reads; nothing is fetched live.
+2. **Match** — offers are matched by ISBN, with edition rules applied per book, and the app checks each
+   Muse Spark read against the page it was read from. A read that disagrees is shown on the offer as a
+   mismatch and never replaces the captured price. The edition pin lets you keep the same-story default
+   or require the exact edition.
 3. **Solve** — `POST /solve` computes assignments and delivery costs in integer cents. Unknown fees are not printed and are never treated as zero.
 4. **Compare** — the UI presents three result tabs: **1 parcel**, **cheapest**, and **custom stores**. Cheapest assigns each book for the lowest valid basket total. In custom stores, every switched-on shop must take at least one book; books move among enabled shops in the cheapest way. If an enabled shop cannot be served, no custom total is shown.
-5. **Inspect** — book details include links to the real shop offers, so you can open the underlying listing.
+5. **Inspect** — book details include links to the real shop offers, so you can open the underlying listing, and each offer says whether Muse Spark read it and whether the read matches the page.
 
 ## Front end
 
@@ -39,7 +44,7 @@ The responsive Angular UI shows the three solve results as tabs: **1 parcel** (o
 | Layer | What is built |
 |---|---|
 | Backend | Python, FastAPI. `POST /solve` and `GET /events` (server-sent events). The built UI is served from the same app. |
-| Page reading | Cache-first. Saved pages live in a SQLite page cache. The reading spike (Playwright plus a fixed schema) is separate from the demo path. |
+| Page reading | Cache-first. Saved pages live in a SQLite page cache, each with its Muse Spark read. The capture spike (Playwright) and the reader (`tools/muse_reads.py`) are separate from the demo path. |
 | Read layer | `matching/` normalises ISBNs, keeps seller certainty tri-state, and matches editions instead of averaging them. |
 | Solver | `solver/`: exhaustive assignment in integer cents. Tests in `solver/tests/`, including the Romanian basket. |
 | Storage | SQLite page cache, seeded from the locked Romanian basket. |
@@ -52,8 +57,15 @@ One command from a fresh clone. It creates a Python 3.12 virtualenv, installs th
 dependencies in `requirements.txt`, builds the Angular UI, seeds the SQLite page cache from
 `data/cache/ro-v1-seed.json`, and serves the API and the built UI together.
 
-You need [uv](https://docs.astral.sh/uv/) and Node.js (npm). No API key is required: the demo
-reads the seeded cache and does not call a store or a model.
+You need [uv](https://docs.astral.sh/uv/) and Node.js (npm). No API key is required: the demo replays
+the saved reads and calls neither a store nor a model. The reads are re-run with a key, one Muse Spark
+call per saved page, in replay mode:
+
+```bash
+META_API_KEY=<key> python3 tools/muse_reads.py
+```
+
+Every call is written to the spend ledger by `tools/meta_budget.py`, with a job stop short of USD 1.
 
 ```bash
 ./scripts/start-demo.sh
@@ -70,6 +82,9 @@ The v1 tree is a working cache-first demo.
 - Bookzone under 200 lei is delivery from **10.90 lei** plus **1.99 lei** processing (cart at bookzone.ro/cos/produse), not the earlier lower delivery line.
 - Amazon.de free delivery to Romania starts at **262.19 lei**. The under-threshold per-delivery and per-kg amounts are unknown and are not priced. eMAG is excluded because its three solver fee fields are null.
 - A read layer in `matching/` with the three spike fixes: ISBN check digits, sold-by tri-state, and edition matching that does not average different books.
+- Every one of the 15 saved pages carries a Muse Spark 1.3 read, stored with the page and checked
+  against the captured price: 15 match, 0 mismatch, USD 0.19 for the job. Book detail says which
+  offers were read, and shows a solid orange tag when a read disagrees with the page.
 - A cache-first service (`api/`) and the Angular UI (`ui/`), which the API serves after `ng build`. The demo runs on cached pages, shows the three result tabs, and says the pages are cached.
 
 Membership is not implemented. The service returns an empty membership list and the UI control is disabled. No Genius-badged eMAG-sold title was found for this basket.

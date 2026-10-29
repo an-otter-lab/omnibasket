@@ -8,6 +8,29 @@ from solver.types import Assignment, Item, Offer, Solution, Store, StoreBreakdow
 
 from api.cache import PageCache
 from api.plan import PlanContext, _usable, build_plan, context_from_items
+from matching.validate import compare_read_to_capture
+
+
+def model_read_row(hit: dict | None, page: dict) -> dict:
+    """What Muse Spark read on this saved page, and whether it agrees with it.
+
+    The check compares the read with the captured price and ISBN. It never
+    changes a price: a mismatch is reported on the offer and left alone.
+    """
+
+    record = (hit or {}).get("model_json")
+    check = compare_read_to_capture(
+        record,
+        price_cents=page.get("price_cents"),
+        isbn13=page.get("isbn13") or None,
+        currency=page.get("currency") or "RON",
+    )
+    return {
+        "status": check["status"],
+        "model": (record or {}).get("model"),
+        "read_at": (record or {}).get("read_at"),
+        "mismatch_fields": list(check["mismatch_fields"]),
+    }
 
 
 def cheapest_per_item(stores: list[Store], items: list[Item]) -> dict:
@@ -88,6 +111,7 @@ def offers_from_cache(
             "cache": "hit" if hit else "miss",
             "status": "ok" if hit else "failed",
             "reason": None if hit else "cache_miss",
+            "model_read": model_read_row(hit, page),
         }
         events.append(event)
         if hit is None:
@@ -198,6 +222,9 @@ def context_from_locked(
     """Plan context for the cache path. Every field is what the lock and cache hold."""
 
     hit = {(e["item_id"], e["store_id"]) for e in events if e["cache"] == "hit"}
+    read_by_key = {
+        (e["item_id"], e["store_id"]): e.get("model_read") for e in events if e["cache"] == "hit"
+    }
     priced = {store.id for store in stores}
     books: dict[str, dict] = {}
     meta: dict[tuple[str, str], dict] = {}
@@ -226,6 +253,7 @@ def context_from_locked(
             "listing_url": page.get("listing_url"),
             "read_at": page.get("read_at"),
             "in_stock": page.get("in_stock"),
+            "model_read": read_by_key.get(key),
         }
         if page["store_id"] not in priced:
             other.append(

@@ -6,7 +6,7 @@ import unittest
 
 from matching.editions import cross_edition_average, match_offers
 from matching.isbn import normalize_isbn13
-from matching.validate import validate_extraction
+from matching.validate import compare_read_to_capture, validate_extraction
 
 
 def _base(**kw):
@@ -90,6 +90,57 @@ class ValidatorTests(unittest.TestCase):
         out, verdict = validate_extraction(_base(isbn13="978-1509804757"))
         self.assertEqual(out["isbn13"], "9781509804757")
         self.assertTrue(verdict["accepted"])
+
+
+class ReadCheckTests(unittest.TestCase):
+    """A model read is compared with the capture. It never rewrites it."""
+
+    @staticmethod
+    def _read(**fields):
+        base = {
+            "title": "Owl Babies",
+            "isbn13": None,
+            "price": 51.78,
+            "currency": "Lei",
+            "in_stock": True,
+        }
+        base.update(fields)
+        return {"status": "OK", "fields": base}
+
+    def test_matching_read(self):
+        check = compare_read_to_capture(self._read(), price_cents=5178)
+        self.assertEqual(check["status"], "match")
+        self.assertEqual(check["mismatch_fields"], [])
+
+    def test_lei_and_ron_are_the_same_currency(self):
+        for currency in ("Lei", "RON", "lei"):
+            check = compare_read_to_capture(self._read(currency=currency), price_cents=5178)
+            self.assertEqual(check["status"], "match", currency)
+
+    def test_different_price_names_the_price_field(self):
+        check = compare_read_to_capture(self._read(price=57.0), price_cents=5178)
+        self.assertEqual(check["status"], "mismatch")
+        self.assertEqual(check["mismatch_fields"], ["price"])
+
+    def test_different_isbn_names_the_isbn_field(self):
+        check = compare_read_to_capture(
+            self._read(isbn13="978-6068996011"), price_cents=5178, isbn13="9781529105100"
+        )
+        self.assertEqual(check["status"], "mismatch")
+        self.assertEqual(check["mismatch_fields"], ["isbn13"])
+
+    def test_unprinted_isbn_is_not_a_mismatch(self):
+        check = compare_read_to_capture(self._read(isbn13=None), price_cents=5178, isbn13="9781529105100")
+        self.assertEqual(check["status"], "match")
+
+    def test_missing_read_says_why(self):
+        self.assertEqual(compare_read_to_capture(None, price_cents=5178)["status"], "not_read")
+        failed = compare_read_to_capture({"status": "MODEL_ERROR"}, price_cents=5178)
+        self.assertEqual(failed["status"], "not_read")
+        self.assertEqual(failed["reason"], "read_failed")
+        no_price = compare_read_to_capture(self._read(price=None), price_cents=5178)
+        self.assertEqual(no_price["status"], "not_read")
+        self.assertEqual(no_price["reason"], "price_not_printed")
 
 
 class EditionTests(unittest.TestCase):
