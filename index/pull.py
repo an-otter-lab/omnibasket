@@ -34,6 +34,11 @@ def hints(url,entry=''):
  return title,author,m.group(0) if m else None
 def init(db):
  db.executescript('CREATE TABLE IF NOT EXISTS books(shop TEXT NOT NULL,url TEXT NOT NULL,title TEXT,author_hint TEXT,isbn TEXT,last_seen TEXT NOT NULL,PRIMARY KEY(shop,url)); CREATE TABLE IF NOT EXISTS pulls(id INTEGER PRIMARY KEY,shop TEXT NOT NULL,started TEXT NOT NULL,finished TEXT,status TEXT,bytes INTEGER DEFAULT 0,entries_kept INTEGER DEFAULT 0,etag TEXT,error TEXT,last_modified TEXT);')
+ try:
+  from index.search import ensure_books_search
+ except ImportError:
+  from search import ensure_books_search
+ ensure_books_search(db)
 def ingest_amazon(db,basket=None):
  import yaml
  path=basket or ROOT/'data/baskets/ro-v1.yaml'
@@ -122,7 +127,14 @@ def pull(shop,dbpath=DB,opener=None):
   db.execute('UPDATE pulls SET finished=?,status=?,bytes=?,entries_kept=?,etag=?,error=?,last_modified=? WHERE id=?',(time.strftime('%Y-%m-%dT%H:%M:%S%z'),status,total,kept,etag,error,modified,pid)); db.commit()
   return {'shop':shop,'status':status,'entries_kept':kept,'seconds':round(time.monotonic()-start,2),'error':error}
 def main():
- p=argparse.ArgumentParser(); p.add_argument('--shop',choices=list(SOURCES)); a=p.parse_args()
+ p=argparse.ArgumentParser(); p.add_argument('--shop',choices=list(SOURCES)); p.add_argument('--rebuild-fts',action='store_true'); a=p.parse_args()
+ if a.rebuild_fts:
+  try:
+   from index.search import refresh_fts
+  except ImportError:
+   from search import refresh_fts
+  refresh_fts(DB); print({'rebuild_fts':True,'db':str(DB)})
+  if not a.shop: return
  for i,s in enumerate([a.shop] if a.shop else list(SOURCES)+list(LOCAL_SHOPS)):
   if i: time.sleep(DELAY)
   print(pull(s))

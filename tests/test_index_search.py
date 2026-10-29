@@ -27,7 +27,7 @@ def test_accent_insensitive_romanian_and_english(tmp_path):
     path = tmp_path / "books.sqlite3"
     make_db(path, [
         ("libris", "https://libris.ro/p/piatra", "Piatra filozofală", "J. K. Rowling", None),
-        ("books-express", "https://books-express.ro/p/caterpillar", "The Very Hungry Caterpillar", "Eric Carle", "9780064431781"),
+        ("books-express", "https://books-express.ro/p/caterpillar", "The Very Hungry Caterpillar", "Eric Carle", "9780141367941"),
     ])
     assert search_module.search("piatra filozofala", db_path=path, opener=lambda *a, **k: Response({"docs": []}))[0]["title"] == "Piatra filozofală"
     result = search_module.search("VERY hungry", db_path=path, opener=lambda *a, **k: Response({"docs": []}))
@@ -39,14 +39,14 @@ def test_accent_insensitive_romanian_and_english(tmp_path):
 def test_exact_isbn_and_duplicate_merge(tmp_path):
     path = tmp_path / "books.sqlite3"
     make_db(path, [
-        ("books-express", "https://books-express.ro/p/a", "The Very Hungry Caterpillar", "Eric Carle", "9780064431781"),
-        ("amazon_de", "https://amazon.de/dp/a", "The Very Hungry Caterpillar", "Eric Carle", "9780064431781"),
+        ("books-express", "https://books-express.ro/p/a", "The Very Hungry Caterpillar", "Eric Carle", "9780141367941"),
+        ("amazon_de", "https://amazon.de/dp/a", "The Very Hungry Caterpillar", "Eric Carle", "9780141367941"),
     ])
-    result = search_module.search("9780064431781", db_path=path)
+    result = search_module.search("9780141367941", db_path=path)
     assert len(result) == 1
-    assert result[0]["isbn"] == "9780064431781"
+    assert result[0]["isbn"] == "9780141367941"
     assert {shop["shop"] for shop in result[0]["shops"]} == {"books-express", "amazon_de"}
-    assert result[0]["cover_url"] == "https://covers.openlibrary.org/b/isbn/9780064431781-M.jpg"
+    assert result[0]["cover_url"] == "https://covers.openlibrary.org/b/isbn/9780141367941-M.jpg"
 
 
 def test_openlibrary_lookup_is_cached(tmp_path):
@@ -109,11 +109,11 @@ def test_merge_rows_with_missing_isbn(tmp_path):
     path = tmp_path / "books.sqlite3"
     make_db(path, [
         ("libris", "https://libris.ro/p/a", "The Very Hungry Caterpillar", "Eric Carle", None),
-        ("books-express", "https://books-express.ro/p/a", "The Very Hungry Caterpillar", "Eric Carle", "9780064431781"),
+        ("books-express", "https://books-express.ro/p/a", "The Very Hungry Caterpillar", "Eric Carle", "9780141367941"),
     ])
     result = search_module.search("very hungry caterpillar", db_path=path, opener=lambda *a, **k: Response({"docs": []}))
     assert len(result) == 1
-    assert result[0]["isbn"] == "9780064431781"
+    assert result[0]["isbn"] == "9780141367941"
     assert len(result[0]["shops"]) == 2
     assert {shop["shop"] for shop in result[0]["shops"]} == {"libris", "books-express"}
 
@@ -187,3 +187,71 @@ def test_shop_dedupe_by_shop_and_url(tmp_path):
         # Verify we have multiple shops when appropriate
         if "variant" not in r["title"].lower():
             assert len(r["shops"]) >= 1
+
+
+_PULL_UPSERT = (
+    "INSERT INTO books VALUES(?,?,?,?,?,?) ON CONFLICT(shop,url) DO UPDATE SET "
+    "title=excluded.title,author_hint=excluded.author_hint,"
+    "isbn=COALESCE(excluded.isbn,books.isbn),last_seen=excluded.last_seen"
+)
+
+
+def test_pull_write_is_searchable_without_rebuild(tmp_path):
+    """A pull insert/update after FTS exists must show up with no explicit rebuild."""
+    from index.pull import init
+
+    path = tmp_path / "books.sqlite3"
+    make_db(path, [
+        ("libris", "https://libris.ro/p/old", "Already Indexed", "Author", None),
+    ])
+    opener = lambda *a, **k: Response({"docs": []})
+    assert search_module.search("already indexed", db_path=path, opener=opener)[0]["title"] == "Already Indexed"
+    with sqlite3.connect(path) as db:
+        init(db)
+        db.execute(_PULL_UPSERT, (
+            "libris", "https://libris.ro/p/new-book", "Brand New Atlas", "Ann", None, "2026-10-30",
+        ))
+        db.commit()
+    found = search_module.search("brand new atlas", db_path=path, opener=opener)
+    assert found and found[0]["title"] == "Brand New Atlas"
+    with sqlite3.connect(path) as db:
+        db.execute(_PULL_UPSERT, (
+            "libris", "https://libris.ro/p/new-book", "Renamed Atlas Volume", "Ann", None, "2026-10-30",
+        ))
+        db.commit()
+    renamed = search_module.search("renamed atlas volume", db_path=path, opener=opener)
+    assert renamed and renamed[0]["title"] == "Renamed Atlas Volume"
+    stale = search_module.search("brand new atlas", db_path=path, opener=opener)
+    assert all(item["title"] != "Brand New Atlas" for item in stale)
+
+
+def test_exact_title_ranks_above_spinoffs(tmp_path):
+    path = tmp_path / "books.sqlite3"
+    make_db(path, [
+        ("books-express", "https://books-express.ro/p/spin", "My Very First With The Very Hungry Caterpillar", "Eric Carle", None),
+        ("books-express", "https://books-express.ro/p/where", "Where Is The Very Hungry Caterpillar", "Eric Carle", None),
+        ("books-express", "https://books-express.ro/p/real", "The Very Hungry Caterpillar", "Eric Carle", "9780141367941"),
+        ("libris", "https://libris.ro/p/hp", "Harry Potter si piatra filosofala j k rowling", None, None),
+        ("books-express", "https://books-express.ro/p/hp-en", "Harry Potter and the Philosopher s Stone", "J K Rowling", None),
+    ])
+    opener = lambda *a, **k: Response({"docs": []})
+    caterpillar = search_module.search("the very hungry caterpillar", db_path=path, opener=opener)
+    assert caterpillar[0]["title"] == "The Very Hungry Caterpillar"
+    potter = search_module.search("harry potter piatra filozofala", db_path=path, opener=opener)
+    assert potter[0]["title"] == "Harry Potter si piatra filosofala j k rowling"
+
+
+def test_match_error_is_recorded_and_endpoint_stays_up(tmp_path, monkeypatch):
+    path = tmp_path / "books.sqlite3"
+    make_db(path, [("libris", "https://libris.ro/p/a", "Hello World", "Author", None)])
+    search_module.MATCH_ERRORS.clear()
+    result = search_module.search('hello"', db_path=path, opener=lambda *a, **k: Response({"docs": []}))
+    assert result == []
+    assert search_module.MATCH_ERRORS and "hello" in search_module.MATCH_ERRORS[-1]["query"]
+    monkeypatch.setattr(search_module.urllib.request, "urlopen", lambda *a, **k: Response({"docs": []}))
+    app = create_app(db_path=tmp_path / "unrelated.sqlite3")
+    app.state.index_db_path = path
+    client = TestClient(app)
+    response = client.get("/search", params={"q": 'hello"'})
+    assert response.status_code == 200
+    assert response.json()["results"] == []

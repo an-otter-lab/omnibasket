@@ -1,13 +1,21 @@
-"""Plain-code search over the local book index with FTS5 and cached Open Library enrichment."""
+"""Plain-code search over the local book index with FTS5 and cached Open Library enrichment.
+
+FTS retrieval is OR (any query token may match). Ranking, not the MATCH clause, decides order.
+"""
 from __future__ import annotations
 
 import json
+import logging
 import re
 import sqlite3
 import unicodedata
 import urllib.parse
 import urllib.request
 from pathlib import Path
+
+log = logging.getLogger(__name__)
+# MATCH failures are recorded here so an empty result is not silent.
+MATCH_ERRORS: list[dict] = []
 
 ROOT = Path(__file__).resolve().parents[1]
 DB = ROOT / "data" / "index" / "books.sqlite3"
@@ -70,27 +78,99 @@ def _cache_init(db: sqlite3.Connection) -> None:
         cache_key TEXT PRIMARY KEY, isbn TEXT, checked INTEGER NOT NULL DEFAULT 1)""")
 
 
-def _ensure_fts_table(db: sqlite3.Connection) -> None:
-    """Create FTS5 table if missing, populate it, and add ISBN index"""
+_FTS_TRIGGERS = (
+    "books_fts_ai",
+    "books_fts_ad",
+    "books_fts_au",
+)
+
+
+def ensure_books_search(db: sqlite3.Connection) -> None:
+    """Create books_search when missing and keep it synced from books writes.
+
+    Shared by search and by index.pull.init. Triggers, not a later rebuild, are
+    what make a pull visible to the next search.
+    """
     exists = db.execute(
         "SELECT name FROM sqlite_master WHERE type='table' AND name='books_search'"
     ).fetchone()
     if not exists:
-        db.execute("""CREATE VIRTUAL TABLE IF NOT EXISTS books_search USING fts5(
+        db.execute("""CREATE VIRTUAL TABLE books_search USING fts5(
             title, author, isbn, tokenize="unicode61 remove_diacritics 2")""")
-        db.execute("""INSERT INTO books_search(title, author, isbn)
-            SELECT COALESCE(title, ''), COALESCE(author_hint, ''), COALESCE(isbn, '') FROM books""")
-        db.execute("CREATE INDEX IF NOT EXISTS idx_books_isbn ON books(isbn)")
+        db.execute("""INSERT INTO books_search(rowid, title, author, isbn)
+            SELECT rowid, COALESCE(title, ''), COALESCE(author_hint, ''), COALESCE(isbn, '')
+            FROM books""")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_books_isbn ON books(isbn)")
+    current = db.execute(
+        "SELECT sql FROM sqlite_master WHERE type='trigger' AND name IN ('books_fts_ai','books_fts_ad','books_fts_au')"
+    ).fetchall()
+    body = " ".join(row[0] or "" for row in current)
+    if len(current) == 3 and "UPDATE books_search" in body and "DELETE FROM books_search" in body:
+        return
+    for name in _FTS_TRIGGERS:
+        db.execute(f"DROP TRIGGER IF EXISTS {name}")
+    db.executescript("""
+        CREATE TRIGGER books_fts_ai AFTER INSERT ON books BEGIN
+          INSERT INTO books_search(rowid, title, author, isbn)
+          VALUES (new.rowid, COALESCE(new.title, ''), COALESCE(new.author_hint, ''), COALESCE(new.isbn, ''));
+        END;
+        CREATE TRIGGER books_fts_ad AFTER DELETE ON books BEGIN
+          DELETE FROM books_search WHERE rowid = old.rowid;
+        END;
+        CREATE TRIGGER books_fts_au AFTER UPDATE ON books BEGIN
+          UPDATE books_search
+          SET title = COALESCE(new.title, ''),
+              author = COALESCE(new.author_hint, ''),
+              isbn = COALESCE(new.isbn, '')
+          WHERE rowid = new.rowid;
+        END;
+    """)
+
+
+def _ensure_fts_table(db: sqlite3.Connection) -> None:
+    """Backward-compatible name for ensure_books_search."""
+    ensure_books_search(db)
 
 
 def refresh_fts(db_path: Path | str = DB) -> None:
-    """Rebuild FTS table from books. Call after a pull to keep search in sync."""
+    """Drop and rebuild books_search from books. Used by --rebuild-fts."""
     if not Path(db_path).is_file():
         return
     with sqlite3.connect(str(db_path)) as db:
         db.execute("DROP TABLE IF EXISTS books_search")
-        _ensure_fts_table(db)
+        ensure_books_search(db)
         db.commit()
+
+
+def _record_match_error(query: str, exc: sqlite3.OperationalError) -> None:
+    """Remember a MATCH failure. Callers still get a list; the endpoint stays up."""
+    MATCH_ERRORS.append({"query": query, "error": str(exc)})
+    log.warning("books_search MATCH failed for %r: %s", query, exc)
+
+
+def _rank_key(title: str | None, author: str | None, isbn: str | None, query: str, tokens: list[str]):
+    """Order hits: exact title, prefix, phrase, token coverage, extra tokens, position."""
+    title_n = normalize(title)
+    query_n = normalize(query)
+    combined = f"{title_n} {normalize(author)} {normalize(isbn)}"
+    matched = sum(1 for token in tokens if token in combined)
+    query_tokens = set(query_n.split())
+    extra = sum(1 for token in title_n.split() if token not in query_tokens)
+    first = float("inf")
+    for token in tokens:
+        pos = title_n.find(token)
+        if pos != -1:
+            first = min(first, pos)
+    return (
+        0 if query_n and title_n == query_n else 1,
+        0 if query_n and title_n.startswith(query_n) else 1,
+        0 if query_n and query_n in title_n else 1,
+        -matched,
+        extra,
+        len(title_n),
+        first,
+        title_n,
+    )
 
 
 def _lookup_isbn(db: sqlite3.Connection, title: str, author: str | None, opener) -> str | None:
@@ -137,7 +217,7 @@ def _group_key(row: dict) -> tuple:
 
 
 def search(query: str, limit: int = 10, db_path: Path | str = DB, opener=None) -> list[dict]:
-    """Search books using FTS5 with AND semantics, ranking, and ISBN-based grouping."""
+    """Search books. FTS uses OR so partial hits stay candidates; ranking orders them."""
     query = (query or "").strip()
     if not query or not Path(db_path).is_file():
         return []
@@ -153,7 +233,7 @@ def search(query: str, limit: int = 10, db_path: Path | str = DB, opener=None) -
     with sqlite3.connect(str(db_path)) as db:
         db.row_factory = sqlite3.Row
         _cache_init(db)
-        _ensure_fts_table(db)
+        ensure_books_search(db)
 
         # Check if query is an exact ISBN match
         isbn_query = query.replace("-", "").replace(" ", "").upper()
@@ -164,12 +244,12 @@ def search(query: str, limit: int = 10, db_path: Path | str = DB, opener=None) -
                     "SELECT shop, url, title, author_hint, isbn FROM books WHERE isbn = ?",
                     (isbn_query,)
                 ).fetchall()
-            except sqlite3.OperationalError:
+            except sqlite3.OperationalError as exc:
+                _record_match_error(query, exc)
                 return []
         else:
-            # FTS5 search path with OR semantics (candidates), then rank by token matches
+            # FTS5 OR candidates, then rank in Python. A bad MATCH is logged, not swallowed.
             try:
-                # Build FTS5 query with OR semantics to get all candidates
                 fts_query = " OR ".join(f'"{token}"*' for token in tokens)
                 rows = db.execute("""
                     SELECT b.shop, b.url, b.title, b.author_hint, b.isbn
@@ -177,16 +257,16 @@ def search(query: str, limit: int = 10, db_path: Path | str = DB, opener=None) -
                     JOIN books b ON b.rowid = s.rowid
                     WHERE books_search MATCH ?
                 """, (fts_query,)).fetchall()
-            except sqlite3.OperationalError:
-                return []
+            except sqlite3.OperationalError as exc:
+                _record_match_error(query, exc)
+                rows = []
 
         # Group results by ISBN (when present) or by title+author
         # Strategy:
         # 1. First pass: group by ISBN or by title+author
         # 2. Second pass: merge title+author groups into ISBN groups if they match
         groups = {}
-        normalized_query = normalize(query)
-        
+
         # First pass: create initial groups
         isbn_groups = {}  # isbn -> group
         title_author_groups = {}  # (normalized_title, normalized_author) -> group
@@ -268,44 +348,9 @@ def search(query: str, limit: int = 10, db_path: Path | str = DB, opener=None) -
         for isbn, item in isbn_groups.items():
             groups[("isbn", isbn)] = item
         
-        # Compute ranking metrics
-        for item in groups.values():
-            title_normalized = normalize(item["title"])
-            author_normalized = normalize(item.get("author") or "")
-            isbn_normalized = normalize(item.get("isbn") or "")
-            combined = f"{title_normalized} {author_normalized} {isbn_normalized}"
-            
-            # Count how many tokens match
-            matched_count = sum(1 for token in tokens if token in combined)
-            item["_tokens_matched"] = matched_count
-            
-            # Check exact phrase match
-            if normalized_query in title_normalized:
-                item["_is_exact_phrase"] = True
-            
-            # Find first token position
-            item["_first_token_pos"] = float('inf')
-            for token in tokens:
-                pos = title_normalized.find(token)
-                if pos != -1:
-                    item["_first_token_pos"] = min(item["_first_token_pos"], pos)
-        
-        # Sort by ranking criteria
         ranked = sorted(
             groups.values(),
-            key=lambda x: (
-                # 1. Results with all tokens first (already guaranteed by AND)
-                # 2. Exact phrase match
-                not x["_is_exact_phrase"],
-                # 3. Number of matched tokens (more is better)
-                -x["_tokens_matched"],
-                # 4. First token position (earlier is better)
-                x["_first_token_pos"],
-                # 5. Shorter title first
-                len(normalize(x["title"])),
-                # 6. Alphabetical for stability
-                normalize(x["title"]),
-            )
+            key=lambda x: _rank_key(x["title"], x.get("author"), x.get("isbn"), query, tokens),
         )
 
         results = []
