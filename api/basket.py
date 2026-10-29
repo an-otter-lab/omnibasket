@@ -66,6 +66,11 @@ def load_locked() -> tuple[str, str, list[Store], list[Item], list[dict]]:
                     "price_cents": int(offer["price_cents"]),
                     "seller_certainty": offer["seller_certainty"],
                     "currency": currency,
+                    # Optional, copied as printed. Null when the lock has none.
+                    "listing_url": offer.get("listing_url"),
+                    "edition": offer.get("edition"),
+                    "read_at": _text(offer.get("read_at")),
+                    "in_stock": offer.get("in_stock"),
                 }
             )
             if offer["store_id"] not in solvable:
@@ -79,6 +84,36 @@ def load_locked() -> tuple[str, str, list[Store], list[Item], list[dict]]:
             )
         items.append(Item(id=book["id"], offers=tuple(offers)))
     return day, currency, stores, items, pages
+
+
+def _text(value) -> str | None:
+    """YAML dates arrive as date objects; the API carries them as text."""
+
+    return None if value is None else str(value)
+
+
+def locked_shop_rows() -> list[dict]:
+    """Every shop the lock names, solvable or not, with its read stamp.
+
+    Fee fields are copied unchanged. Null stays null.
+    """
+
+    basket = yaml.safe_load(BASKET_PATH.read_text())
+    rules = yaml.safe_load(STORES_PATH.read_text())
+    by_id = {row["id"]: row for row in rules["stores"]}
+    rows = []
+    for store_id in basket["solved_store_ids"]:
+        row = by_id[store_id]
+        rows.append(
+            {
+                "id": store_id,
+                "solvable": store_if_fees_resolved(row) is not None,
+                "read_at": _text(row.get("read_at")),
+                "fees": unresolved_fee_fields(row),
+                "shipping_fee_cents": row.get("shipping_fee_cents"),
+            }
+        )
+    return rows
 
 
 def excluded_for_unresolved_fees() -> list[dict]:

@@ -7,6 +7,7 @@ from solver.optimize import ROMANIAN_STORE_IDS, SolverError
 from solver.types import Assignment, Item, Offer, Solution, Store, StoreBreakdown
 
 from api.cache import PageCache
+from api.plan import PlanContext, _usable, build_plan, context_from_items
 
 
 def cheapest_per_item(stores: list[Store], items: list[Item]) -> dict:
@@ -127,6 +128,9 @@ def solution_payload(
     *,
     require_romanian_store: bool = False,
     excluded_stores: list[dict] | None = None,
+    plan_ctx: PlanContext | None = None,
+    selected_store_ids: list[str] | None = None,
+    edition_pins: dict[str, str] | None = None,
 ) -> dict:
     """Honest optimum plus the cheapest split that uses eMAG or Bookzone.
 
@@ -135,6 +139,13 @@ def solution_payload(
     always present. An infeasible constraint raises ``SolverError``.
     """
 
+    ctx = plan_ctx or context_from_items(stores, items)
+    pins = {k: v for k, v in (edition_pins or {}).items() if v and v != "any"}
+    if pins:
+        # The headline follows the pins when every book still has an offer.
+        pinned, missing = _usable(ctx, pins)
+        if not missing:
+            items = pinned
     optimum = solve(stores, items)
     try:
         romanian = solve(stores, items, require_any_store=ROMANIAN_STORE_IDS)
@@ -171,7 +182,72 @@ def solution_payload(
     }
     payload["romanian_inclusive"] = _romanian_answer(romanian)
     payload["excluded_stores"] = list(excluded_stores or [])
+    payload.update(
+        build_plan(ctx, selected_store_ids=selected_store_ids, edition_pins=edition_pins)
+    )
     return payload
+
+
+def context_from_locked(
+    stores: list[Store],
+    items: list[Item],
+    pages: list[dict],
+    events: list[dict],
+    shop_rows: list[dict],
+) -> PlanContext:
+    """Plan context for the cache path. Every field is what the lock and cache hold."""
+
+    hit = {(e["item_id"], e["store_id"]) for e in events if e["cache"] == "hit"}
+    priced = {store.id for store in stores}
+    books: dict[str, dict] = {}
+    meta: dict[tuple[str, str], dict] = {}
+    other: list[dict] = []
+    failed: list[dict] = []
+    for page in pages:
+        books.setdefault(
+            page["item_id"],
+            {"title": page.get("title") or page["item_id"], "isbn13": page.get("isbn13") or None},
+        )
+        key = (page["item_id"], page["store_id"])
+        if key not in hit:
+            # A cache miss means no read was tried in this solve.
+            failed.append(
+                {
+                    "item_id": page["item_id"],
+                    "store_id": page["store_id"],
+                    "reason": "cache_miss",
+                    "attempts": 0,
+                    "failed_at": None,
+                }
+            )
+            continue
+        meta[key] = {
+            "edition": page.get("edition"),
+            "listing_url": page.get("listing_url"),
+            "read_at": page.get("read_at"),
+            "in_stock": page.get("in_stock"),
+        }
+        if page["store_id"] not in priced:
+            other.append(
+                {
+                    "item_id": page["item_id"],
+                    "store_id": page["store_id"],
+                    "price_cents": int(page["price_cents"]),
+                    "seller_certainty": page["seller_certainty"],
+                }
+            )
+    ordered = {item.id: item for item in items}
+    return PlanContext(
+        currency=stores[0].currency if stores else "",
+        stores=stores,
+        items=[ordered[i] for i in books if i in ordered],
+        shops=shop_rows,
+        books=books,
+        offer_meta=meta,
+        other_offers=other,
+        failed_reads=failed,
+        cached=True,
+    )
 
 
 def _assignment_rows(split: tuple[Assignment, ...]) -> list[dict]:
@@ -239,6 +315,43 @@ def stores_from_body(rows: list[dict]) -> list[Store]:
             )
         )
     return stores
+
+
+def context_from_body(
+    stores: list[Store],
+    items: list[Item],
+    rows: list[dict],
+    store_rows: list[dict],
+    excluded: list[dict],
+) -> PlanContext:
+    """Plan context for a posted basket: optional fields come from the post."""
+
+    books: dict[str, dict] = {}
+    meta: dict[tuple[str, str], dict] = {}
+    for row in rows:
+        books[row["id"]] = {"title": row.get("title") or row["id"], "isbn13": row.get("isbn13")}
+        for offer in row["offers"]:
+            meta[(row["id"], offer["store_id"])] = {
+                "edition": offer.get("edition"),
+                "listing_url": offer.get("listing_url"),
+                "read_at": offer.get("read_at"),
+                "in_stock": offer.get("in_stock"),
+            }
+    read = {row["id"]: row.get("read_at") for row in store_rows}
+    shops = [
+        {"id": s.id, "solvable": True, "read_at": read.get(s.id), "fees": {}} for s in stores
+    ] + [
+        {"id": e["id"], "solvable": False, "read_at": None, "fees": {k: v for k, v in e.items() if k.endswith("_cents")}}
+        for e in excluded
+    ]
+    return PlanContext(
+        currency=stores[0].currency if stores else "",
+        stores=stores,
+        items=items,
+        shops=shops,
+        books=books,
+        offer_meta=meta,
+    )
 
 
 def items_from_body(rows: list[dict]) -> list[Item]:

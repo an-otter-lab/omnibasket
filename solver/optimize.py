@@ -36,11 +36,16 @@ class SolverError(ValueError):
     """The basket or registry cannot be solved as given."""
 
 
+class NoFeasibleAssignment(SolverError):
+    """Every candidate assignment is excluded or needs a fee nobody printed."""
+
+
 def solve(
     stores: list[Store] | tuple[Store, ...],
     items: list[Item] | tuple[Item, ...],
     *,
     require_any_store: frozenset[str] | set[str] | None = None,
+    use_exactly: frozenset[str] | set[str] | None = None,
 ) -> Solution:
     """Return the cheapest split and the membership verdicts.
 
@@ -50,14 +55,56 @@ def solve(
 
     ``require_any_store`` keeps only assignments that use at least one of
     those store ids. No such assignment raises ``SolverError``.
+
+    ``use_exactly`` keeps only assignments whose set of shops is exactly
+    that set: every listed shop takes at least one book and no other shop
+    takes any. No such assignment raises ``NoFeasibleAssignment``.
     """
 
     store_by_id = _validate(stores, items)
     required = frozenset(require_any_store) if require_any_store else None
+    exact = frozenset(use_exactly) if use_exactly else None
     assignment = _optimal_assignment(
-        store_by_id, items, membership_store_id=None, require_any_store=required
+        store_by_id,
+        items,
+        membership_store_id=None,
+        require_any_store=required,
+        use_exactly=exact,
     )
     return _build_solution(store_by_id, items, assignment, membership_store_id=None)
+
+
+def cheapest_unranked(
+    stores: list[Store] | tuple[Store, ...],
+    items: list[Item] | tuple[Item, ...],
+    *,
+    use_exactly: frozenset[str] | set[str] | None = None,
+) -> tuple[tuple[Offer, ...], int] | None:
+    """Lowest-books-subtotal assignment that needs an unprinted delivery fee.
+
+    These assignments are never ranked. The caller may show the books
+    subtotal and name the missing fee, but never a total. Returns
+    ``(offers, books_subtotal_cents)`` or None.
+    """
+
+    store_by_id = _validate(stores, items)
+    exact = frozenset(use_exactly) if use_exactly else None
+    best_key: tuple | None = None
+    best: tuple[Offer, ...] | None = None
+    for combo in product(*[item.offers for item in items]):
+        store_ids = tuple(offer.store_id for offer in combo)
+        if exact is not None and set(store_ids) != exact:
+            continue
+        if _evaluate(store_by_id, items, combo, None) is not None:
+            continue
+        subtotal = sum(offer.price_cents for offer in combo)
+        key = (subtotal, len(set(store_ids)), store_ids)
+        if best_key is None or key < best_key:
+            best_key = key
+            best = combo
+    if best is None or best_key is None:
+        return None
+    return best, best_key[0]
 
 
 def store_if_fees_resolved(row: dict) -> Store | None:
@@ -164,6 +211,7 @@ def _optimal_assignment(
     items: list[Item] | tuple[Item, ...],
     membership_store_id: str | None,
     require_any_store: frozenset[str] | None = None,
+    use_exactly: frozenset[str] | None = None,
 ) -> tuple[Offer, ...]:
     """Pick the assignment with the lowest total, then a stable tie break."""
 
@@ -173,6 +221,8 @@ def _optimal_assignment(
     for combo in product(*offer_lists):
         store_ids = tuple(offer.store_id for offer in combo)
         if require_any_store and require_any_store.isdisjoint(store_ids):
+            continue
+        if use_exactly is not None and set(store_ids) != use_exactly:
             continue
         total = _evaluate(store_by_id, items, combo, membership_store_id)
         if total is None:
@@ -185,8 +235,14 @@ def _optimal_assignment(
             best_key = key
             best = combo
     if best is None:
-        needed = ", ".join(sorted(require_any_store or ())) or "(none)"
-        raise SolverError(f"no feasible assignment includes one of: {needed}")
+        if require_any_store:
+            needed = ", ".join(sorted(require_any_store))
+            raise NoFeasibleAssignment(f"no feasible assignment includes one of: {needed}")
+        if use_exactly:
+            raise NoFeasibleAssignment(
+                "no feasible assignment uses exactly: " + ", ".join(sorted(use_exactly))
+            )
+        raise NoFeasibleAssignment("no feasible assignment")
     return best
 
 
@@ -421,6 +477,17 @@ def _single_store_baseline(
             )
             continue
         total = _evaluate(store_by_id, items, tuple(offers), membership_store_id=None)
+        if total is None:
+            # Under-bar delivery is not printed: not a total, never a zero one.
+            options.append(
+                SingleStoreOption(
+                    store_id=store_id,
+                    total_cents=0,
+                    feasible=False,
+                    reason="delivery fee not printed for this basket size",
+                )
+            )
+            continue
         options.append(
             SingleStoreOption(
                 store_id=store_id,

@@ -10,9 +10,15 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from api.basket import excluded_for_unresolved_fees, load_locked
+from api.basket import excluded_for_unresolved_fees, load_locked, locked_shop_rows
 from api.cache import PageCache, open_seeded
-from api.solve_service import items_from_body, solution_payload, stores_from_body
+from api.solve_service import (
+    context_from_body,
+    context_from_locked,
+    items_from_body,
+    solution_payload,
+    stores_from_body,
+)
 from solver.optimize import SolverError
 from solver.types import Item
 
@@ -25,10 +31,16 @@ class OfferIn(BaseModel):
     store_id: str
     price_cents: int
     seller_certainty: str
+    edition: str | None = None
+    listing_url: str | None = None
+    read_at: str | None = None
+    in_stock: bool | None = None
 
 
 class ItemIn(BaseModel):
     id: str
+    title: str | None = None
+    isbn13: str | None = None
     offers: list[OfferIn]
 
 
@@ -38,6 +50,7 @@ class StoreIn(BaseModel):
     free_shipping_threshold_cents: int
     shipping_fee_cents: int | None = None
     per_order_fee_cents: int
+    read_at: str | None = None
 
 
 class SolveIn(BaseModel):
@@ -45,6 +58,10 @@ class SolveIn(BaseModel):
     items: list[ItemIn] | None = None
     source: str = Field(default="cache")
     require_romanian_store: bool = False
+    # Custom tab: the shops the shopper chose. Each must take a book.
+    selected_store_ids: list[str] | None = None
+    # Exact edition: {item_id: edition}. A missing book or "any" means any edition.
+    edition_pins: dict[str, str] | None = None
 
 
 def create_app(db_path: Path | None = None) -> FastAPI:
@@ -125,15 +142,27 @@ def _solve(
         if source not in {"given", "cache"}:
             raise SolverError(f"unsupported solve source {source!r}")
         # A caller-supplied basket is arithmetic only. It does not fetch pages.
-        stores = stores_from_body([row.model_dump() for row in body.stores])
-        items = items_from_body([row.model_dump() for row in body.items])
+        store_rows = [row.model_dump() for row in body.stores]
+        item_rows = [row.model_dump() for row in body.items]
+        stores = stores_from_body(store_rows)
+        items = items_from_body(item_rows)
+        excluded = _excluded_for_posted_stores(stores)
         return solution_payload(
             stores,
             items,
             require_romanian_store=require_romanian_store,
-            excluded_stores=_excluded_for_posted_stores(stores),
+            excluded_stores=excluded,
+            plan_ctx=context_from_body(stores, items, item_rows, store_rows, excluded),
+            selected_store_ids=body.selected_store_ids,
+            edition_pins=body.edition_pins,
         )
-    _, payload = _cached_solution(app, source, require_romanian_store=require_romanian_store)
+    _, payload = _cached_solution(
+        app,
+        source,
+        require_romanian_store=require_romanian_store,
+        selected_store_ids=body.selected_store_ids if body else None,
+        edition_pins=body.edition_pins if body else None,
+    )
     return payload
 
 
@@ -142,6 +171,8 @@ def _cached_solution(
     source: str,
     *,
     require_romanian_store: bool = False,
+    selected_store_ids: list[str] | None = None,
+    edition_pins: dict[str, str] | None = None,
 ) -> tuple[list[dict], dict]:
     from api.solve_service import offers_from_cache
 
@@ -155,6 +186,9 @@ def _cached_solution(
         items,
         require_romanian_store=require_romanian_store,
         excluded_stores=excluded_for_unresolved_fees(),
+        plan_ctx=context_from_locked(stores, items, pages, events, locked_shop_rows()),
+        selected_store_ids=selected_store_ids,
+        edition_pins=edition_pins,
     )
     payload["source"] = "cache"
     payload["pages"] = events
