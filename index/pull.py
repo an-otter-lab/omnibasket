@@ -5,9 +5,9 @@ from pathlib import Path
 from urllib.parse import unquote, urlparse
 ROOT=Path(__file__).resolve().parent.parent
 DB=ROOT/'data/index/books.sqlite3'
-SOURCES={'libris':'https://www.libris.ro/sitemap.xml','bookzone':'https://bookzone.ro/SitemapProduse.aspx','emag':'https://www.emag.ro/sitemaps/offers-available-books.xml','books-express':'https://www.books-express.ro/sitemap_index.xml.gz'}
+SOURCES={'libris':'https://www.libris.ro/sitemap.xml','bookzone':'https://bookzone.ro/SitemapProduse.aspx','emag':'https://www.emag.ro/robots.txt','books-express':'https://www.books-express.ro/sitemap_index.xml.gz'}
 UA='Omnibasket/1.0 (+https://omnibasket.anottersolution.com/contact)'
-MAX_BYTES=50_000_000; TIMEOUT=30; DELAY=.2
+MAX_BYTES=50_000_000; TIMEOUT=30; DELAY=.2; MAX_SITEMAPS=80
 ISBN_RE=re.compile(r'(?<!\d)(?:97[89])?\d{9}[\dX](?!\d)',re.I)
 def book_url(url):
  p=urlparse(url); h=p.netloc.lower(); x=unquote(p.path).lower()
@@ -39,6 +39,22 @@ def ingest_xml(stream,shop,db):
      db.execute('INSERT INTO books VALUES(?,?,?,?,?,?) ON CONFLICT(shop,url) DO UPDATE SET title=excluded.title,author_hint=excluded.author_hint,isbn=COALESCE(excluded.isbn,books.isbn),last_seen=excluded.last_seen',(shop,url,title,author,isbn,time.strftime('%Y-%m-%d'))); kept+=1
    el.clear()
  return kept
+
+def fetch_one(url,shop,db,opener,headers=None):
+ req=urllib.request.Request(url,headers={'User-Agent':UA,'Accept-Encoding':'gzip',**(headers or {})})
+ with opener(req,timeout=TIMEOUT) as resp:
+  raw=resp
+  if url.endswith('.gz') or resp.headers.get('Content-Encoding')=='gzip': raw=gzip.GzipFile(fileobj=resp)
+  class Bounded:
+   total=0
+   def read(self,n=-1):
+    b=raw.read(min(n if n>=0 else 65536,65536)); self.total+=len(b)
+    if self.total>MAX_BYTES: raise ValueError('resource exceeds byte cap')
+    return b
+  reader=Bounded(); kept=ingest_xml(reader,shop,db)
+  # A sitemap index contains child sitemap locations. Re-read streaming isn't possible;
+  # persist its child URLs in a temporary sqlite table while parsing instead.
+  return kept, reader.total, resp.headers.get('ETag'), resp.headers.get('Last-Modified')
 def pull(shop,dbpath=DB,opener=None):
  opener=opener or urllib.request.urlopen; dbpath.parent.mkdir(parents=True,exist_ok=True)
  with sqlite3.connect(dbpath) as db:
