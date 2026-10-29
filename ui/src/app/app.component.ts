@@ -1,5 +1,6 @@
 import { NgTemplateOutlet } from '@angular/common';
 import { Component, HostListener } from '@angular/core';
+import { Lang, MESSAGES, fill } from './messages';
 
 type Tab = 'cheapest' | 'one' | 'custom';
 
@@ -23,11 +24,19 @@ interface Order {
   threshold_crossed: boolean;
   over_under_threshold_cents: number | null;
   short_of_threshold_cents: number | null;
+  // Feature 4. Null or absent: the threshold is unknown and the line is hidden.
+  delivery_gap?: DeliveryGap | null;
   delivery_known: boolean;
   delivery_cents: number | null;
   order_fee_cents: number | null;
   order_total_cents: number | null;
   read_at: string | null;
+}
+
+interface DeliveryGap {
+  status: 'short' | 'reached';
+  short_cents: number;
+  threshold_cents: number;
 }
 
 interface MissingFee {
@@ -220,6 +229,7 @@ export class AppComponent {
   preview: Payload | null = null;
   selected: string[] | null = null;
   lastParcelTab: Tab = 'cheapest';
+  lang: Lang = 'en';
 
   constructor() {
     this.readRoute();
@@ -471,6 +481,16 @@ export class AppComponent {
 
   lei(cents: number | null | undefined): string {
     return this.money(cents) + ' lei';
+  }
+
+  // The free-delivery gap line, straight from the payload. '' hides it.
+  deliveryGap(o: Order): string {
+    const gap = o.delivery_gap;
+    if (!gap) return '';
+    const m = MESSAGES[this.lang];
+    if (gap.status === 'reached') return m.deliveryGapReached;
+    if (gap.status === 'short') return fill(m.deliveryGapShort, { amount: this.money(gap.short_cents), shop: this.shopName(o.store_id) });
+    return '';
   }
 
   edLabel(e: string | null): string {

@@ -32,15 +32,15 @@
     @if (o.free_delivery_threshold_cents != null) {
       <div class="meter"><div class="fill" [style.width.%]="meterFill(o)"></div><div class="mark" [style.left.%]="meterMark(o)"></div></div>
     }
-    <p class="s n">
-      @if (o.threshold_crossed) {
-        Free delivery from {{ money(o.free_delivery_threshold_cents) }} ✓ · {{ money(o.over_under_threshold_cents) }} over
-      } @else if (o.free_delivery_threshold_cents != null) {
-        {{ money(o.short_of_threshold_cents) }} short of free delivery at {{ money(o.free_delivery_threshold_cents) }}
-      }
-      @if (o.delivery_known && !o.threshold_crossed) { · delivery {{ money(o.delivery_cents) }}@if (o.order_fee_cents) { + fee {{ money(o.order_fee_cents) }} } }
-      @if (!o.delivery_known) { <span class="unk">delivery not printed</span> }
-    </p>
+    @if (deliveryGap(o); as gap) {
+      <p class="s n gap" [class.green]="o.delivery_gap?.status === 'reached'">{{ gap }}</p>
+    }
+    @if (!o.delivery_known || !o.threshold_crossed) {
+      <p class="s n">
+        @if (o.delivery_known) { Delivery {{ money(o.delivery_cents) }}@if (o.order_fee_cents) { + fee {{ money(o.order_fee_cents) }} } }
+        @else { <span class="unk">delivery not printed</span> }
+      </p>
+    }
   </div>
 </ng-template>
 
