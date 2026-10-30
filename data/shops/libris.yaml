@@ -3,6 +3,9 @@ name: Libris
 domain: www.libris.ro
 status: checked
 currency: RON
+# Libris sells its own stock only: no third-party marketplace sellers.
+# A live offer whose page does not name a seller is direct (policy A, 30 Oct).
+seller_model: direct_only
 robots:
   source_url: https://www.libris.ro/robots.txt
   read_date: 2026-10-30

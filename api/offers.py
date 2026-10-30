@@ -81,6 +81,29 @@ def _load_shop_profile(store_id: str) -> ShopProfile | None:
     return load_profile(profile_path)
 
 
+def shop_seller_certainty(profile: ShopProfile | None, certainty: str) -> str:
+    """The seller certainty a shop's data file allows for a live offer.
+
+    A ``direct_only`` shop sells only its own stock, so an offer whose page
+    did not name a seller is ``direct``: the shop file, not the page, is the
+    evidence. Every other shop keeps the page's own verdict unchanged.
+    """
+
+    if profile is not None and profile.seller_model == "direct_only" and certainty == "unknown":
+        return "direct"
+    return certainty
+
+
+def with_shop_seller_model(store):
+    """The solver Store with the shop file's seller model applied."""
+    from dataclasses import replace
+
+    profile = _load_shop_profile(store.id)
+    if profile is None or profile.seller_model != "direct_only" or store.direct_only:
+        return store
+    return replace(store, direct_only=True)
+
+
 SHOP_LABEL = {
     "libris": "Libris",
     "bookzone": "Bookzone",
@@ -332,7 +355,11 @@ async def _read_one_page(
     7. Return result
     """
     day = datetime.now(TZ).strftime("%Y-%m-%d")
-    
+
+    # The shop file decides whether an unnamed seller counts as direct, so it
+    # is needed on the cache path too.
+    profile = _load_shop_profile(store_id)
+
     # Check cache first
     if isbn13:
         cached = cache.get(store_id, isbn13, item_id, day)
@@ -388,6 +415,8 @@ async def _read_one_page(
                 else:
                     offer.status = "ok"
                     offer.reason = None
+
+            offer.seller_certainty = shop_seller_certainty(profile, offer.seller_certainty or "unknown")
             
             if progress_callback:
                 await _emit_progress(progress_callback, ReadProgress(
@@ -398,8 +427,6 @@ async def _read_one_page(
                 ))
             return offer
     
-    # Load shop profile
-    profile = _load_shop_profile(store_id)
     if not profile:
         offer = OfferRead(
             store_id=store_id,
@@ -616,6 +643,10 @@ async def _fetch_and_extract(
         seller_certainty = fields.get("seller_certainty") or "unknown"
     elif availability:
         in_stock = "instock" in availability.lower()
+    # The shop file decides the seller model: a direct-only shop makes an
+    # unnamed seller direct. eMAG and Amazon.de have no such line, so their
+    # pages must name the seller before an offer counts as direct.
+    seller_certainty = shop_seller_certainty(profile, seller_certainty or "unknown")
     if isbn:
         isbn = normalize_isbn13(isbn)
     
@@ -728,6 +759,7 @@ async def _read_other_printing(
         price_cents=data.price_cents,
         currency=data.currency or profile.currency,
         availability=data.availability,
+        seller_certainty=shop_seller_certainty(profile, "unknown"),
         listing_url=url,
         read_at=datetime.now(TZ).isoformat(timespec="seconds"),
         in_stock=("instock" in data.availability.lower()) if data.availability else None,
@@ -751,6 +783,7 @@ def _offer_from_confirmation(kept, store_id, isbn13, item_id, profile, day) -> O
     return OfferRead(
         store_id=store_id, isbn13=kept["isbn13"], item_id=item_id, price_cents=kept["price_cents"],
         currency=kept.get("currency") or profile.currency, availability=avail,
+        seller_certainty=shop_seller_certainty(profile, "unknown"),
         listing_url=kept["url"], read_at=datetime.now(TZ).isoformat(timespec="seconds"),
         in_stock=("instock" in avail.lower()) if avail else None, schema_org=data,
         status="ok", cache="hit", day=day, other_printing=kept["isbn13"] != isbn13,
@@ -795,6 +828,7 @@ def store_from_profile(store_id: str):
             "free_shipping_threshold_cents": cents("free_threshold"),
             "shipping_fee_cents": below,
             "per_order_fee_cents": 0 if per_order is None else per_order,
+            "seller_model": profile.seller_model,
         }
     )
 
@@ -860,7 +894,9 @@ def solve_with_live_offers(offers: list[OfferRead], item_id: str, title: str | N
 
     _day, _currency, stores, items, pages = load_locked()
     locked_ids = {store.id for store in stores}
-    stores = list(stores)
+    # The shop file also decides the seller model on the locked stores, so a
+    # cached offer with no named seller still counts toward its free-delivery bar.
+    stores = [with_shop_seller_model(store) for store in stores]
     extra_shops: list[dict] = []
     excluded: list[dict] = []
     for offer in offers:
@@ -883,11 +919,16 @@ def solve_with_live_offers(offers: list[OfferRead], item_id: str, title: str | N
             stores.append(extra)
             extra_shops.append({"id": extra.id, "solvable": True, "read_at": None, "fees": {}})
     priced = {store.id for store in stores}
+    # A live offer is direct when its shop file says the shop sells only its
+    # own stock; otherwise the page's own verdict stands.
     live = tuple(
         Offer(
             offer.store_id,
             int(offer.price_cents),
-            offer.seller_certainty if offer.seller_certainty in {"direct", "marketplace", "unknown"} else "unknown",
+            shop_seller_certainty(
+                _load_shop_profile(offer.store_id),
+                offer.seller_certainty if offer.seller_certainty in {"direct", "marketplace", "unknown"} else "unknown",
+            ),
         )
         for offer in offers
         if offer.status == "ok" and offer.price_cents is not None and offer.store_id in priced

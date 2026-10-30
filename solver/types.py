@@ -8,8 +8,9 @@ from typing import Literal
 SellerCertainty = Literal["direct", "marketplace", "unknown"]
 
 # Prices that count toward a free-shipping threshold.
-# Unknown is payable but excluded. Marketplace is payable and counts,
-# but it is never treated as direct.
+# Unknown is payable but excluded, except on a shop whose data file says it
+# sells only its own stock (``Store.direct_only``): there it counts as direct.
+# Marketplace is payable and counts, but it is never treated as direct.
 THRESHOLD_CERTAINTIES = frozenset({"direct", "marketplace"})
 
 
@@ -39,6 +40,27 @@ class Store:
     # False when the cart did not print the under-bar charge. Over-bar
     # orders still pay 0. The stand-in is not a measured fee.
     shipping_fee_known: bool = True
+    # The shop's data file says it sells only its own stock. An offer whose
+    # page did not name a seller is then direct, never marketplace.
+    direct_only: bool = False
+
+
+def effective_certainty(store: "Store", certainty: SellerCertainty) -> SellerCertainty:
+    """The certainty the solver uses for an offer at this store.
+
+    A direct-only shop makes an unnamed seller direct: the shop file, not the
+    page, is the evidence. Any other store keeps the page's own verdict.
+    """
+
+    if store.direct_only and certainty == "unknown":
+        return "direct"
+    return certainty
+
+
+def counts_toward_threshold(store: "Store", certainty: SellerCertainty) -> bool:
+    """Whether this offer's price counts toward the store's free-delivery bar."""
+
+    return effective_certainty(store, certainty) in THRESHOLD_CERTAINTIES
 
 
 @dataclass(frozen=True)

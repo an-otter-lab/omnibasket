@@ -57,6 +57,9 @@ class StoreIn(BaseModel):
     shipping_fee_cents: int | None = None
     per_order_fee_cents: int
     read_at: str | None = None
+    # "direct_only" when the shop sells only its own stock. The shop file wins
+    # when the server knows the shop.
+    seller_model: Literal["direct_only", "mixed"] | None = None
 
 
 class InputIn(BaseModel):
@@ -376,7 +379,7 @@ def _solve(
         # A caller-supplied basket is arithmetic only. It does not fetch pages.
         store_rows = [row.model_dump() for row in body.stores]
         item_rows = [row.model_dump() for row in body.items]
-        stores = apply_memberships(stores_from_body(store_rows), declared, profiles)
+        stores = apply_memberships(stores_from_body(store_rows, profiles), declared, profiles)
         items = items_from_body(item_rows)
         excluded = _excluded_for_posted_stores(stores)
         payload = solution_payload(
