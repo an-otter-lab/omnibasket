@@ -134,6 +134,29 @@ def _searchish(url: str) -> bool:
     return any(bit in low for bit in _SEARCH_BITS)
 
 
+def shop_is_indexed(store_id: str, db_path: Path | None = None) -> bool:
+    """Check if a shop has any entries in the index at all."""
+    if store_id == "amazon_de":
+        return False
+    path = db_path or (ROOT / "data" / "index" / "books.sqlite3")
+    if not path.is_file():
+        return False
+    import sqlite3
+
+    shop = _INDEX_SHOP.get(store_id, store_id)
+    con = sqlite3.connect(path)
+    try:
+        row = con.execute(
+            "SELECT COUNT(*) FROM books WHERE shop = ? LIMIT 1",
+            (shop,),
+        ).fetchone()
+    except sqlite3.Error:
+        return False
+    finally:
+        con.close()
+    return row is not None and row[0] > 0
+
+
 def lookup_product_url(store_id: str, isbn13: str | None, db_path: Path | None = None) -> str | None:
     """Product page from our sitemap index. Never a shop search URL.
 
@@ -507,6 +530,17 @@ async def _fetch_and_extract(
     if not url and title and author and store_id != "amazon_de":
         return await _read_other_printing(store_id, isbn13, item_id, profile, day, title, author, title_lookup, cache)
     if not url:
+        # Check if the shop is indexed at all
+        if not shop_is_indexed(store_id):
+            return OfferRead(
+                store_id=store_id,
+                isbn13=isbn13,
+                item_id=item_id,
+                status="not_checked",
+                reason="not_indexed",
+                cache="miss",
+                day=day,
+            )
         return OfferRead(
             store_id=store_id,
             isbn13=isbn13,
@@ -641,6 +675,13 @@ async def _read_other_printing(
     )
     url = (title_lookup or lookup_title_url)(store_id, title, author)
     if not url or _searchish(url):
+        # Check if the shop is indexed at all
+        if not shop_is_indexed(store_id):
+            return OfferRead(
+                store_id=store_id, isbn13=isbn13, item_id=item_id,
+                status="not_checked", reason="not_indexed",
+                cache="miss", day=day,
+            )
         return skipped
     try:
         result = await asyncio.to_thread(fetch, url)
