@@ -26,6 +26,19 @@ import { Lang, MESSAGES, fill } from './messages';
             </span>
           </li>
         }
+        @for (x of notChecked; track x.shop) {
+          <li class="rrow" [attr.data-shop]="x.shop" data-outcome="not_checked">
+            <span class="col">
+              <span class="strong">{{ label(x.shop) }}</span>
+              <span class="s">{{ m.readsNotChecked }}</span>
+            </span>
+            <span class="rowr">
+              @if (x.url) {
+                <a class="store" [href]="x.url" target="_blank" rel="noopener" [attr.aria-label]="openText(x.shop)">{{ openText(x.shop) }}</a>
+              }
+            </span>
+          </li>
+        }
       </ul>
     </section>
   `,
@@ -43,6 +56,20 @@ export class ShopReadsComponent {
 
   get rows(): LiveOffer[] {
     return sortOffers(this.offers);
+  }
+
+  /** Shops nobody read for this book: an honest line and a link, never "no offer". */
+  get notChecked(): { shop: string; url: string }[] {
+    const read = new Set(this.offers.map((o) => o.store_id.replace(/_/g, '-')));
+    return (this.pick?.other_shops || []).filter((x) => x.status === 'not_checked' && !read.has(x.shop.replace(/_/g, '-')));
+  }
+
+  label(id: string): string {
+    return shopLabel(id);
+  }
+
+  openText(id: string): string {
+    return fill(this.m.readsOpen, { shop: shopLabel(id) });
   }
 
   name(o: LiveOffer): string {
