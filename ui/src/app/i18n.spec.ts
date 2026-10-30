@@ -3,10 +3,9 @@ import { MESSAGES } from './messages';
 describe('order / comandă copy', () => {
   const old = new RegExp(['par', 'cel|colet'].join(''), 'i');
 
-  it('never uses the old word in either language (except entry screen v2)', () => {
+  it('never uses the old word in either language', () => {
     for (const lang of ['en', 'ro'] as const) {
-      // Entry screen v2 explicitly uses "parcel"/"colet" in headline and step 3 per design spec
-      const entryV2Keys = ['entryHeadline', 'entryStep3'];
+      const entryV2Keys: string[] = [];
       const otherMessages = Object.entries(MESSAGES[lang])
         .filter(([key]) => !entryV2Keys.includes(key))
         .map(([_, value]) => value)
