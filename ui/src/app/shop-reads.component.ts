@@ -68,7 +68,22 @@ export class ShopReadsComponent {
   get notChecked(): { shop: string; url: string }[] {
     // A shop that returned a price was read; one with only an empty row was not.
     const read = new Set(this.offers.filter((o) => o.price_cents != null || o.ranked).map((o) => this.key(o.store_id)));
-    return (this.pick?.other_shops || []).filter((x) => x.status === 'not_checked' && !read.has(this.key(x.shop)));
+    // Include shops from other_shops (from /search) and from offers (from /events?source=live)
+    const fromOtherShops = (this.pick?.other_shops || []).filter((x) => x.status === 'not_checked' && !read.has(this.key(x.shop)));
+    const fromOffers = this.offers
+      .filter((o) => o.status === 'not_checked' && !read.has(this.key(o.store_id)))
+      .map((o) => ({ shop: o.store_id, url: o.listing_url || '' }));
+    // Merge and deduplicate
+    const seen = new Set<string>();
+    const result: { shop: string; url: string }[] = [];
+    for (const x of [...fromOtherShops, ...fromOffers]) {
+      const key = this.key(x.shop);
+      if (!seen.has(key)) {
+        seen.add(key);
+        result.push(x);
+      }
+    }
+    return result;
   }
 
   private key(id: string): string {
