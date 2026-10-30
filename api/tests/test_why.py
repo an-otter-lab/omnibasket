@@ -35,7 +35,7 @@ def model(monkeypatch):
     fake = Fake()
     fake.calls = []
 
-    def post(body, estimate, note, provider="meta"):
+    def post(body, estimate, note, provider="meta", timeout=120):
         fake.calls.append(body)
         if fake.error:
             raise fake.error
@@ -119,3 +119,23 @@ def test_failures_are_cached_too(client, payload, model):
 def test_hash_is_stable_across_key_order(payload):
     shuffled = dict(reversed(list(payload.items())))
     assert why.payload_hash(payload, "en") == why.payload_hash(shuffled, "en")
+
+
+def test_unroutable_host_returns_template(client, payload, monkeypatch):
+    """Mock urllib to raise a timeout error; verify /why returns template with 200."""
+    import urllib.error
+    import urllib.request
+    
+    original_urlopen = urllib.request.urlopen
+    
+    def mock_urlopen(req, timeout=None):
+        raise urllib.error.URLError("Connection timed out")
+    
+    monkeypatch.setattr(urllib.request, "urlopen", mock_urlopen)
+    
+    r = _post(client, payload)
+    assert r.status_code == 200
+    out = r.json()
+    assert out["source"] == "template"
+    assert out["model"] is None
+    # Reason is logged but not returned in response
