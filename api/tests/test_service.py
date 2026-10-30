@@ -95,12 +95,12 @@ def test_failed_load_is_a_cache_miss_without_a_second_attempt() -> None:
     assert calls["n"] == 1
 
 
-def test_cache_only_solve_returns_locked_total_without_network(tmp_path: Path) -> None:
+def test_cache_only_solve_returns_locked_total_without_network(tmp_path: Path, monkeypatch) -> None:
     def _refuse(*_args, **_kwargs):
         raise AssertionError("network use is disabled for a cache-only solve")
 
-    socket.create_connection = _refuse  # type: ignore[method-assign]
-    socket.socket.connect = _refuse  # type: ignore[method-assign]
+    monkeypatch.setattr(socket, "create_connection", _refuse)
+    monkeypatch.setattr(socket.socket, "connect", _refuse)
 
     app = create_app(tmp_path / "pages.sqlite")
     client = TestClient(app)
