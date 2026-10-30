@@ -192,7 +192,7 @@ def lookup_title_url(store_id: str, title: str | None, author: str | None, db_pa
     """
     from difflib import SequenceMatcher
 
-    from api.title_match import core_title, surname
+    from api.title_match import core_title, surname, strong_match
     from api.title_match import fold
 
     want = core_title(title)
@@ -216,15 +216,31 @@ def lookup_title_url(store_id: str, title: str | None, author: str | None, db_pa
         return None
     finally:
         con.close()
+    
+    # Score candidates using full title comparison, not just prefix
+    # Prefer: containment > high similarity > author match
     best, best_score = None, 0.0
     for url, row_title in rows:
         key = fold(row_title)
         if not url or _searchish(url) or last not in key.split():
             continue
-        score = SequenceMatcher(None, want, key[: len(want) + 1]).ratio()
+        
+        # Use full title comparison, not just prefix
+        row_core = core_title(row_title)
+        
+        # Containment bonus: if shop title contains book title, strong preference
+        containment_bonus = 1.0 if want in key else 0.0
+        
+        # Full SequenceMatcher ratio on entire core title
+        full_ratio = SequenceMatcher(None, want, row_core).ratio()
+        
+        # Combined score: containment is most important, then full similarity
+        score = containment_bonus + full_ratio
+        
         if score > best_score:
             best, best_score = url, score
-    return best if best_score >= 0.85 else None
+    
+    return best if best_score > 0 else None
 
 
 def captured_amazon() -> dict[str, str]:
