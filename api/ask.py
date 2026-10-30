@@ -28,6 +28,7 @@ MAX_STRING = 40
 MAX_TEXT = 300
 
 UNSUPPORTED = "askUnsupported"
+NOT_IN_BASKET = "askNotInBasket"
 UNAVAILABLE = "askUnavailable"
 
 
@@ -261,6 +262,25 @@ _INC_PREFIX = r"(?:add back|put back|bring back|include|add|use|adauga|foloseste
 _MEMBER_TAIL = r"(?:\s+(?:membership|account|member|cont|abonament|card))?"
 
 
+def _absent_store(text: str, state: dict, names: dict) -> str | None:
+    """The one known shop that an exclude/include phrase names but the current data lacks, else None."""
+    have = [s for s in _as_list(state.get("store_ids")) if isinstance(s, str)]
+    known = [s for s in (names.get("stores") or {}) if s not in have]
+    if not known:
+        return None
+    al = _aliases(known, names.get("stores", {}), strip_first=False)
+    if not al:
+        return None
+    pat = re.compile(r"^(?:" + _EXC_PREFIX + r"|" + _INC_PREFIX + r")\s+(?:(?:from|at|de la|din|la)\s+)?(" + _alt(al) + r")$")
+    hits = set()
+    for part in re.split(r"[,;+&]|\band\b|\bsi\b|\bthen\b", text):
+        piece = _POLITE.sub("", norm(part))
+        m = pat.match(piece)
+        if m:
+            hits.add(al[m.group(1)])
+    return next(iter(hits)) if len(hits) == 1 else None
+
+
 def _alt(aliases: dict) -> str:
     return "|".join(re.escape(a) for a in sorted(aliases, key=len, reverse=True))
 
@@ -356,6 +376,12 @@ def _answer(text, state, muse, names) -> AskResult:
         return unsupported()
     names = names if names is not None else load_names()
     fast = fast_path(text, state, names)
+    if fast is None:
+        # a known shop the current data has no offers for: say so, don't hide behind 'unsupported'
+        absent = _absent_store(text, state, names)
+        if absent:
+            return AskResult("unsupported", [], NOT_IN_BASKET,
+                             {"shop": names.get("stores", {}).get(absent, absent)}, [], "fast")
     if fast is not None:
         res = validate({"actions": fast}, state, names)
         res.via = "fast"

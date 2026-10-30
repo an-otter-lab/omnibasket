@@ -82,7 +82,7 @@ export function applyActions(actions: unknown, ui: AskUiState): AskNext {
 /** Structural view of the /solve payload: only what Ask reads. */
 export interface AskData {
   shops: { store_id: string; selectable?: boolean }[];
-  books: { item_id: string; editions: { edition: string }[] }[];
+  books: { item_id: string; editions: { edition: string }[]; shops?: { store_id: string; price_cents?: number | null }[] }[];
   memberships?: { id: string }[];
   cheapest: { orders?: AskOrder[] };
   one_order: { answer: { orders?: AskOrder[] } | null };
@@ -96,7 +96,10 @@ export function uiState(data: AskData, cur: AskInputs): AskUiState {
   const orders = (cur.tab === 'one' ? data.one_order.answer?.orders : cur.tab === 'custom' ? data.custom?.orders : data.cheapest.orders) || [];
   const chosen: Record<string, string> = {};
   for (const o of orders) for (const b of o.books) if (b.edition) chosen[b.item_id] = b.edition;
-  return { ...cur, stores: data.shops.map((s) => s.store_id), base: data.shops.filter((s) => s.selectable !== false).map((s) => s.store_id), membershipIds: (data.memberships || []).map((m) => m.id), chosen };
+  // every shop with an offer in this basket, whether or not the plan lists it as a shop row
+  const offered = data.books.flatMap((b) => (b.shops || []).filter((o) => o.price_cents != null).map((o) => o.store_id));
+  const stores = [...new Set([...data.shops.map((s) => s.store_id), ...offered])];
+  return { ...cur, stores, base: data.shops.filter((s) => s.selectable !== false).map((s) => s.store_id), membershipIds: (data.memberships || []).map((m) => m.id), chosen };
 }
 
 /** The /ask request body's state (the server contract's AskState). */
