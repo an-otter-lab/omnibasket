@@ -468,6 +468,7 @@
                     @for (o of data.cheapest.orders!; track o.store_id) { <ng-container *ngTemplateOutlet="parcel; context: { o: o, link: true }"></ng-container> }
                   </div>
                   <ng-container *ngTemplateOutlet="notranked; context: { list: data.cheapest.not_ranked }"></ng-container>
+                  <section class="why" aria-live="polite"><p>{{ whyText }}</p>@if (whyMuse) { <span class="why-source">{{ museLabel }}</span> }</section>
                   @if (leftOut.length) {
                     <div class="panel">
                       <p class="k">Shops left out</p>
