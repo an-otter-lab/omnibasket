@@ -96,3 +96,34 @@ def test_confirmation_expires(server, tmp_path):
     cache.put_confirmation("k", {"matched": False}, now=1000.0)
     assert cache.get_confirmation("k", now=1000.0 + CONFIRMATION_TTL - 1) == {"matched": False}
     assert cache.get_confirmation("k", now=1000.0 + CONFIRMATION_TTL + 1) is None
+
+
+def test_negative_not_cached(server, tmp_path):
+    """A failed match (negative) is not cached, so it can be retried immediately."""
+    cache = PageCache(tmp_path / "c.sqlite")
+    # Try to match a book that doesn't exist in the shop
+    result = pick(cache, server, "/carte/hp1", "9999999999999", "Nonexistent Book")
+    assert result.status == "skipped"
+    # Verify no negative was cached
+    assert cache.get_confirmation("printing|2|libris|9999999999999|nonexistent book|j. k. rowling") is None
+    # Retry should fetch again (no cache hit)
+    initial_hits = len(HITS)
+    result2 = pick(cache, server, "/carte/hp1", "9999999999999", "Nonexistent Book")
+    assert result2.status == "skipped"
+    assert len(HITS) > initial_hits  # New fetch occurred
+
+
+def test_old_negative_purged_on_startup(tmp_path):
+    """Old negative entries from previous matcher versions are purged when cache opens."""
+    db_path = tmp_path / "c.sqlite"
+    # Create cache and manually insert an old negative (version 1)
+    cache1 = PageCache(db_path)
+    old_key = "printing|1|libris|9789734668465|sapiens|yuval noah harari"
+    cache1.put_confirmation(old_key, {"matched": False}, now=1000.0)
+    cache1.close()
+    
+    # Reopen cache (simulates restart) - should purge old negatives
+    cache2 = PageCache(db_path)
+    # The old negative should be gone
+    assert cache2.get_confirmation(old_key, now=2000.0) is None
+    cache2.close()

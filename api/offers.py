@@ -679,9 +679,9 @@ async def _read_other_printing(
     ISBN, price, availability) is kept for CONFIRMATION_TTL (24 h) under
     store|asked ISBN|title|author, so a repeat pick of the same work fetches nothing.
     """
-    from api.title_match import strong_match
+    from api.title_match import strong_match, MATCHER_VERSION
 
-    key = "|".join(["printing", store_id, isbn13 or "", title.strip().lower(), author.strip().lower()])
+    key = "|".join(["printing", str(MATCHER_VERSION), store_id, isbn13 or "", title.strip().lower(), author.strip().lower()])
     kept = cache.get_confirmation(key) if cache is not None else None
     if kept is not None:
         return _offer_from_confirmation(kept, store_id, isbn13, item_id, profile, day)
@@ -709,8 +709,6 @@ async def _read_other_printing(
         )
     data = extract_schema_org(result.text)
     if not strong_match(title, author, data.name, data.authors or []):
-        if cache is not None:
-            cache.put_confirmation(key, {"matched": False})
         return skipped
     if data.price_cents is None or not data.isbn13:
         return OfferRead(

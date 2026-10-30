@@ -11,6 +11,7 @@ import unicodedata
 from difflib import SequenceMatcher
 
 THRESHOLD = 0.92
+MATCHER_VERSION = 2  # bump when strong_match logic changes; invalidates old negative caches
 
 
 def fold(text: str | None) -> str:
