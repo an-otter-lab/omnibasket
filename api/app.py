@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Literal
 
 from fastapi import FastAPI, Query, Request
 from fastapi.concurrency import run_in_threadpool
@@ -65,6 +66,24 @@ class WhyIn(BaseModel):
 
     payload: dict
     lang: str = Field(default="en")
+
+
+class AskStateIn(BaseModel):
+    """What the UI already holds; every list is capped so a hostile body stays small."""
+
+    tab: Literal["cheapest", "one", "custom"] = "cheapest"
+    selected_store_ids: list[str] | None = Field(default=None, max_length=20)
+    memberships: list[str] = Field(default_factory=list, max_length=20)
+    edition_pins: dict[str, str] = Field(default_factory=dict)
+    store_ids: list[str] = Field(default_factory=list, max_length=20)
+    membership_ids: list[str] = Field(default_factory=list, max_length=20)
+    items: list[dict] = Field(default_factory=list, max_length=50)
+
+
+class AskIn(BaseModel):
+    text: str = Field(min_length=1, max_length=300)
+    lang: Literal["en", "ro"]
+    state: AskStateIn
 
 
 class SolveIn(BaseModel):
@@ -165,6 +184,14 @@ def create_app(db_path: Path | None = None) -> FastAPI:
         public = explain(body.payload, body.lang)
         public.pop("reason", None)
         return JSONResponse(public)
+
+    @app.post("/ask")
+    def ask_route(body: AskIn) -> JSONResponse:
+        """Ask Omnibasket: keys and ids only, never prose. Always 200 (429 comes from the shared limiter)."""
+        from api import ask
+
+        result = ask.answer(body.text, body.lang, body.state.model_dump())
+        return JSONResponse(result.as_response())
 
     @app.get("/events")
     async def events(
