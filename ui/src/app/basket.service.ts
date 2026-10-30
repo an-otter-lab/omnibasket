@@ -112,7 +112,7 @@ export class BasketService {
   }
 
   /** Add (or refresh) the book a live read was run for. Only that book joins; nothing else comes with it. */
-  addFromLive(input: object, isbn: string, fallbackTitle: string): BasketItem {
+  addFromLive(input: object, isbn: string, fallbackTitle: string, author: string | null = null): BasketItem {
     const payload = input as LivePayloadLike;
     const live = payload.live_offers || [];
     const row = (payload.books || []).find((b) => b.item_id === payload.joined_item_id) || (payload.books || []).find((b) => b.isbn13 === isbn);
@@ -132,12 +132,27 @@ export class BasketService {
         .filter((o) => o.price_cents != null)
         .map((o) => ({ store_id: o.store_id, price_cents: o.price_cents as number, seller_certainty: 'unknown', edition: null, listing_url: o.listing_url, read_at: null, in_stock: null }));
     }
-    const title = (payload.joined_title || fallbackTitle || '').trim() || 'ISBN ' + isbn;
-    const item: BasketItem = { id: itemId(isbn), isbn, title, author: null, offers, live_offers: live };
+    const old = this.items.find((i) => i.isbn === isbn);
+    // A re-read keeps what an earlier read priced: a shop that answers now overrides its old row, a shop
+    // that says nothing keeps it. A book is never made worse by being added twice.
+    if (old) {
+      const fresh = new Set(offers.map((o) => o.store_id));
+      offers = [...old.offers.filter((o) => !fresh.has(o.store_id)), ...offers];
+    }
+    const liveMerged: LiveOffer[] = old
+      ? [...old.live_offers.filter((o) => !live.some((n) => n.store_id === o.store_id)), ...live]
+      : live;
+    const title = (payload.joined_title || fallbackTitle || old?.title || '').trim() || 'ISBN ' + isbn;
+    const item: BasketItem = { id: itemId(isbn), isbn, title, author: author || old?.author || null, offers, live_offers: liveMerged };
     this.items = [...this.items.filter((i) => i.isbn !== isbn), item];
     this.mergeShops(payload.shops || []);
     this.save();
     return item;
+  }
+
+  /** A book whose read gave nothing: it is listed in the basket, not priced, and the books already priced stay as they were. */
+  addUnpriced(isbn: string, title: string, author: string | null = null): BasketItem {
+    return this.addFromLive({}, isbn, title, author);
   }
 
   private mergeShops(rows: Record<string, unknown>[]): void {
