@@ -5,42 +5,42 @@
       "from": "2026-10-30T00:00:00+02:00",
       "until": "2026-10-31T00:00:00+02:00",
       "cap_usd": 10.0,
-      "note": "Adrian, 30 Oct 18:3x: at most 10 USD of Meta API credits per working day until we submit (Wed 4 Nov)."
+      "note": "Adrian, 30 Oct: at most 10 USD of Meta API credits per day, weekends included, until we submit (Wed 4 Nov)."
     },
     {
       "provider": "meta",
       "from": "2026-10-31T00:00:00+02:00",
       "until": "2026-11-01T00:00:00+02:00",
-      "cap_usd": 0.0,
-      "note": "Adrian, 30 Oct 18:3x: the cap applies to working days only; no Meta spend on weekends until we submit."
+      "cap_usd": 10.0,
+      "note": "Adrian, 30 Oct: at most 10 USD of Meta API credits per day, weekends included, until we submit (Wed 4 Nov)."
     },
     {
       "provider": "meta",
       "from": "2026-11-01T00:00:00+02:00",
       "until": "2026-11-02T00:00:00+02:00",
-      "cap_usd": 0.0,
-      "note": "Adrian, 30 Oct 18:3x: the cap applies to working days only; no Meta spend on weekends until we submit."
+      "cap_usd": 10.0,
+      "note": "Adrian, 30 Oct: at most 10 USD of Meta API credits per day, weekends included, until we submit (Wed 4 Nov)."
     },
     {
       "provider": "meta",
       "from": "2026-11-02T00:00:00+02:00",
       "until": "2026-11-03T00:00:00+02:00",
       "cap_usd": 10.0,
-      "note": "Adrian, 30 Oct 18:3x: at most 10 USD of Meta API credits per working day until we submit (Wed 4 Nov)."
+      "note": "Adrian, 30 Oct: at most 10 USD of Meta API credits per day, weekends included, until we submit (Wed 4 Nov)."
     },
     {
       "provider": "meta",
       "from": "2026-11-03T00:00:00+02:00",
       "until": "2026-11-04T00:00:00+02:00",
       "cap_usd": 10.0,
-      "note": "Adrian, 30 Oct 18:3x: at most 10 USD of Meta API credits per working day until we submit (Wed 4 Nov)."
+      "note": "Adrian, 30 Oct: at most 10 USD of Meta API credits per day, weekends included, until we submit (Wed 4 Nov)."
     },
     {
       "provider": "meta",
       "from": "2026-11-04T00:00:00+02:00",
       "until": "2026-11-05T00:00:00+02:00",
       "cap_usd": 10.0,
-      "note": "Adrian, 30 Oct 18:3x: at most 10 USD of Meta API credits per working day until we submit (Wed 4 Nov)."
+      "note": "Adrian, 30 Oct: at most 10 USD of Meta API credits per day, weekends included, until we submit (Wed 4 Nov)."
     }
   ]
 }
