@@ -1,6 +1,6 @@
-.why { margin-top: 1rem; padding: .85rem 1rem; border-left: 2px solid var(--line, #d9d5cc); background: rgba(255,255,255,.45); color: var(--ink, #34342f); }
+.why { margin-top: 1rem; padding: .85rem 1rem; border-left: 2px solid var(--line); background: var(--why-bg); color: var(--ink); }
 .why p { margin: 0; line-height: 1.55; }
-.why-source { display: inline-block; margin-top: .4rem; color: var(--muted, #74736d); font-size: .75rem; }
+.why-source { display: inline-block; margin-top: .4rem; color: var(--muted); font-size: .75rem; }
 
 /* Entry screen layout: input box and photo button side by side */
 .entry-row {
