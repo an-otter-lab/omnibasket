@@ -23,6 +23,14 @@ DEFAULT_MAX_BYTES = 3 * 1024 * 1024
 DEFAULT_TIMEOUT_S = 10.0
 MAX_REDIRECTS = 5
 
+# Test hooks: production policy is these defaults; tests narrow-widen them locally.
+_ALLOWED_PORTS = frozenset({80, 443})
+
+
+def _tls_context() -> ssl.SSLContext:
+    return ssl.create_default_context()
+
+
 _CHUNK = 64 * 1024
 _ALLOWED_TYPES = frozenset({"text/html", "application/xhtml+xml"})
 _REDIRECTS = frozenset({301, 302, 303, 307, 308})
@@ -218,7 +226,7 @@ def _parse(url: str) -> _Request:
         raise FetchRefused("port") from exc
     if port is None:
         port = 443 if scheme == "https" else 80
-    if port not in (80, 443):
+    if port not in _ALLOWED_PORTS:
         raise FetchRefused("port")
     if "%" in host:
         raise FetchRefused("link_local")
@@ -380,13 +388,21 @@ def _open(target: Target):
             if left <= 0:
                 raise TimeoutError("deadline")
             sock.settimeout(left)
-            sock = ssl.create_default_context().wrap_socket(sock, server_hostname=target.host)
+            sock = _tls_context().wrap_socket(sock, server_hostname=target.host)
             conn = http.client.HTTPSConnection(target.host, target.port, timeout=target.timeout)
         else:
             conn = http.client.HTTPConnection(target.host, target.port, timeout=target.timeout)
         conn.sock = sock
         conn.request("GET", target.path or "/", headers=dict(target.headers))
-        resp = conn.getresponse()
+        # http.client closes conn.sock inside getresponse() for a
+        # Connection: close reply, which would leave set_timeout() with a dead
+        # fd. Keep the socket open until _SockResponse.close() releases it.
+        real_close = conn.close
+        conn.close = lambda: None
+        try:
+            resp = conn.getresponse()
+        finally:
+            conn.close = real_close
     except Exception:
         sock.close()
         raise
@@ -415,7 +431,10 @@ class _SockResponse:
         try:
             self._resp.close()
         finally:
-            self._conn.close()
+            try:
+                self._conn.close()
+            finally:
+                self._sock.close()
 
 
 def _exchange(target: Target, url: str):
