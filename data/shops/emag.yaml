@@ -25,3 +25,18 @@ shipping_rules:
     currency: RON
     source_url: https://www.emag.ro/help/livrarea-comenzilor-emag-2/
     read_date: 2026-10-28
+# Feature 5. Spike 3 (docs/ops/omnibasket-spikes-2026-10-30.md): the Genius
+# page refused both reads on 30 Oct 2026, so nothing about Genius is printed.
+memberships:
+  - id: emag_genius
+    name: eMAG Genius
+    effect: unknown
+    read_status: refused
+    source_url: https://www.emag.ro/genius
+    source_kind: manual_capture
+    read_date: 2026-10-30
+    evidence: >-
+      HTTP 511, title "eMAG Captcha", 78 characters of body. The same URL in
+      the interactive browser printed "Am detectat trafic neobișnuit de mare
+      din rețeaua de internet în care te afli." Delivery benefit, threshold,
+      eligible items and fee: not printed.
