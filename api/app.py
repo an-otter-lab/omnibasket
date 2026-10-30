@@ -101,33 +101,100 @@ def create_app(db_path: Path | None = None) -> FastAPI:
         return JSONResponse(payload)
 
     @app.get("/events")
-    def events(source: str = Query(default="cache")) -> StreamingResponse:
-        def generate():
-            # Finish every cache read before the first yield. The connection
-            # opened for this request is closed inside PageCache before we get here.
-            try:
-                pages, payload = _cached_solution(app, source)
-            except SolverError as exc:
-                payload: dict = {"error": str(exc)}
-                misses = getattr(exc, "misses", None)
-                if misses:
-                    payload["misses"] = misses
-                yield _sse("error", payload)
-                return
-            for page in pages:
-                yield _sse(
-                    "page",
-                    {
-                        "store_id": page["store_id"],
-                        "isbn13": page["isbn13"] or None,
-                        "item_id": page["item_id"],
-                        "cache": page["cache"],
-                        "status": page["status"],
-                    },
-                )
-            yield _sse("solution", payload)
+    async def events(
+        source: str = Query(default="cache"),
+        isbn13: str | None = Query(default=None),
+        item_id: str | None = Query(default=None),
+        title: str | None = Query(default=None),
+        stores: str | None = Query(default=None, description="comma list of shop ids; default is every indexed shop"),
+    ):
+        if source == "live":
+            from api.offers import default_live_stores, valid_live_stores
+            from matching.isbn import normalize_isbn13
 
-        return StreamingResponse(generate(), media_type="text/event-stream")
+            isbn = normalize_isbn13(isbn13)
+            if isbn is None:
+                return JSONResponse(
+                    status_code=400,
+                    content={"error": "isbn13 is required and must be a valid ISBN-13 (check digit)"},
+                )
+            chosen = [s.strip() for s in stores.split(",") if s.strip()] if stores else default_live_stores()
+            bad = [s for s in chosen if s not in valid_live_stores()]
+            if bad or not chosen:
+                return JSONResponse(status_code=400, content={"error": "unknown shops: " + ", ".join(bad or ["(none)"])})
+            book_id = (item_id or "").strip() or "book-" + isbn
+            book_title = (title or "").strip() or book_id
+
+            async def generate_live():
+                from api.offers import read_offers_parallel, solve_with_live_offers, ReadProgress
+                import asyncio
+
+                progress_queue: asyncio.Queue[ReadProgress | None] = asyncio.Queue()
+
+                async def progress_callback(progress: ReadProgress):
+                    await progress_queue.put(progress)
+
+                async def _run():
+                    try:
+                        return await read_offers_parallel(
+                            chosen, isbn, book_id, _cache(app), progress_callback
+                        )
+                    finally:
+                        await progress_queue.put(None)
+
+                read_task = asyncio.create_task(_run())
+
+                while True:
+                    progress = await progress_queue.get()
+                    if progress is None:
+                        break
+                    yield _sse(
+                        "read_progress",
+                        {
+                            "store_id": progress.store_id,
+                            "isbn13": progress.isbn13,
+                            "status": progress.status,
+                            "message": progress.message,
+                        },
+                    )
+
+                offers = await read_task
+                try:
+                    payload = solve_with_live_offers(offers, book_id, book_title, isbn)
+                except SolverError as exc:
+                    yield _sse("error", {"error": str(exc)})
+                    return
+                yield _sse("solution", payload)
+
+            return StreamingResponse(generate_live(), media_type="text/event-stream")
+        else:
+            # Cache mode: existing behavior
+            def generate():
+                # Finish every cache read before the first yield. The connection
+                # opened for this request is closed inside PageCache before we get here.
+                try:
+                    pages, payload = _cached_solution(app, source)
+                except SolverError as exc:
+                    payload: dict = {"error": str(exc)}
+                    misses = getattr(exc, "misses", None)
+                    if misses:
+                        payload["misses"] = misses
+                    yield _sse("error", payload)
+                    return
+                for page in pages:
+                    yield _sse(
+                        "page",
+                        {
+                            "store_id": page["store_id"],
+                            "isbn13": page["isbn13"] or None,
+                            "item_id": page["item_id"],
+                            "cache": page["cache"],
+                            "status": page["status"],
+                        },
+                    )
+                yield _sse("solution", payload)
+            
+            return StreamingResponse(generate(), media_type="text/event-stream")
 
     # API routes above take precedence. The built Angular app is the demo UI.
     if UI_DIST.is_dir():
@@ -144,6 +211,16 @@ def _cache(app: FastAPI) -> PageCache:
     return cache
 
 
+LIVE_SOLVE_REFUSAL = (
+    "POST /solve serves the cache only; a live solve runs over GET /events?source=live&isbn13=..."
+)
+
+
+def _refuse_live(source: str) -> None:
+    if source == "live":
+        raise SolverError(LIVE_SOLVE_REFUSAL)
+
+
 def _solve(
     app: FastAPI,
     body: SolveIn | None,
@@ -154,6 +231,7 @@ def _solve(
     profiles = load_profiles()
     declared = check_declared(body.memberships if body else None, profiles)
     if body and body.stores and body.items:
+        _refuse_live(source)
         if source not in {"given", "cache"}:
             raise SolverError(f"unsupported solve source {source!r}")
         # A caller-supplied basket is arithmetic only. It does not fetch pages.
@@ -200,7 +278,8 @@ def _cached_solution(
     _day, _currency, stores, _items, pages = load_locked()
     stores = apply_memberships(stores, declared, profiles)
     if source != "cache":
-        raise SolverError("live solve is not the demo path; use source=cache")
+        _refuse_live(source)
+        raise SolverError(f"unsupported solve source {source!r}")
     items, events = offers_from_cache(_cache(app), pages, source="cache")
     items = _drop_excluded_store_offers(stores, items)
     payload = solution_payload(
