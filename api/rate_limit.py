@@ -83,3 +83,45 @@ class PerIPRateLimitMiddleware:
                 "body": body,
             }
         )
+
+
+class DailyPasteLimiter:
+    """Per-IP daily caps on pasted links and on new domains, enforced server-side.
+
+    Counts only foreign-link pastes (the sample basket and ISBN or title
+    searches never touch it). The day rolls at Bucharest midnight.
+    """
+
+    def __init__(self, pastes_per_day=None, new_domains_per_day=None, today=None):
+        self.pastes_per_day = int(pastes_per_day if pastes_per_day is not None else LIMITS["pastes_per_day"])
+        self.new_domains_per_day = int(
+            new_domains_per_day if new_domains_per_day is not None else LIMITS["new_domains_per_day"]
+        )
+        self._today = today or _bucharest_today
+        self._day = None
+        self._pastes = defaultdict(int)
+        self._domains = defaultdict(set)
+        self._lock = Lock()
+
+    def check(self, ip, domain):
+        """Record one paste and return None, or the reason it is refused."""
+        with self._lock:
+            day = self._today()
+            if day != self._day:
+                self._day = day
+                self._pastes.clear()
+                self._domains.clear()
+            if self._pastes[ip] >= self.pastes_per_day:
+                return "paste_limit"
+            if domain not in self._domains[ip] and len(self._domains[ip]) >= self.new_domains_per_day:
+                return "new_domain_limit"
+            self._pastes[ip] += 1
+            self._domains[ip].add(domain)
+            return None
+
+
+def _bucharest_today():
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+
+    return datetime.now(ZoneInfo("Europe/Bucharest")).date()

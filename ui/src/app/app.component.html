@@ -315,6 +315,7 @@
               @if (stamp()) { <span class="stamp">{{ stamp() }}</span> }
             </div>
           </div>
+          <app-memberships [rows]="data.memberships || []" [declared]="declaredMemberships" [lang]="lang" (declaredChange)="setMemberships($event)" />
         }
         @if (note) { <p class="s note" role="status">{{ note }}</p> }
 
