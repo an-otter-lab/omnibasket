@@ -37,15 +37,34 @@ def _strip_author_suffix(name: str, authors: list[str]) -> str:
     return name
 
 
+_PAREN = re.compile(r"\s*[(\[][^()\[\]]*[)\]]")
+
+
+def core_title(text: str | None) -> str:
+    """Folded title without parentheticals and without a ' - ' subtitle."""
+    if not text:
+        return ""
+    cut = _PAREN.sub(" ", str(text))
+    for sep in (" - ", " – ", " — "):
+        cut = cut.split(sep)[0]
+    return fold(cut) or fold(text)
+
+
 def strong_match(want_title: str | None, want_author: str | None, page_name: str | None, page_authors: list[str]) -> bool:
     """Same work: near-equal normalised title, same numbers, same author surname."""
-    want = fold(want_title)
+    want = core_title(want_title)
     last = surname(want_author)
     if not want or not last or not page_name or not page_authors:
         return False
     if not any(last in fold(a).split() for a in page_authors):
         return False
-    have = fold(_strip_author_suffix(page_name, page_authors))
+    have = core_title(_strip_author_suffix(page_name, page_authors))
+    # Some pages run the author into the name ("Titlu Autor editie ...").
+    for name in [*page_authors, want_author or ""]:
+        folded = fold(name)
+        if folded and (" " + folded) in " " + have and have != folded:
+            have = have.split(folded)[0].strip() or have
+            break
     if not have:
         return False
     if sorted(re.findall(r"\d+", want)) != sorted(re.findall(r"\d+", have)):

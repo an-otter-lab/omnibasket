@@ -33,6 +33,12 @@ LIST6 = [
 ]
 
 
+@pytest.fixture(autouse=True)
+def no_online_lookup(monkeypatch):
+    """These tests cover the local index only; the Open Library fallback has its own tests."""
+    monkeypatch.setattr(photo_read, "online_lookup", lambda *a, **k: [])
+
+
 @pytest.fixture
 def client(tmp_path, monkeypatch):
     db = tmp_path / "books.sqlite3"

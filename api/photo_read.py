@@ -180,7 +180,6 @@ def match_line(line: dict, db_path, opener=None) -> dict:
     but one format edition is matched and labelled with that edition. More than one
     edition is ambiguous. Anything else, including a spin-off, is not a candidate.
     """
-    del opener  # matching never calls out; the index already holds the ISBN
     want = title_words(line.get("title"))
     base = {"read_title": line["title"], "read_author": line.get("author")}
     exact: dict[str, dict] = {}
@@ -233,7 +232,71 @@ def match_line(line: dict, db_path, opener=None) -> dict:
     if qualifiers:
         picks = [qualifiers[k][1] for k in sorted(qualifiers, key=lambda k: (qualifiers[k][0], k))][:MAX_CANDIDATES]
         return {**base, "status": "ambiguous", "candidates": picks}
-    return {**base, "status": "not_found"}
+    return resolve_online(line, base, db_path, opener)
+
+
+ONLINE_LIMIT = 8
+ONLINE_SIMILARITY = 0.85
+
+
+def online_lookup(line: dict, db_path, opener=None, fetcher=None) -> list[dict]:
+    """Resolve a read line through the same Open Library search the app uses for typed input.
+
+    Returns candidate dicts (title, author, isbn, cover_url) whose title and author agree
+    with the read line. An unreachable search is an empty answer, never an error.
+    """
+    from difflib import SequenceMatcher
+
+    from index.search import search
+    from api.title_match import core_title, fold, surname
+
+    title = line.get("title") or ""
+    author = line.get("author") or ""
+    want = core_title(title)
+    last = surname(author)
+    if not want:
+        return []
+    found: dict[str, dict] = {}
+    for query in ([" ".join([title, author]).strip(), title] if author else [title]):
+        try:
+            results = search(query, limit=ONLINE_LIMIT, db_path=db_path, opener=opener, fetcher=fetcher)
+        except Exception:  # SearchUnavailable, network, bad db: nothing resolved
+            results = []
+        for res in results:
+            isbn = res.get("isbn")
+            if not isbn or isbn in found:
+                continue
+            have = core_title(res.get("title"))
+            if not have or SequenceMatcher(None, want, have).ratio() < ONLINE_SIMILARITY:
+                continue
+            if sorted(re.findall(r"\d+", want)) != sorted(re.findall(r"\d+", have)):
+                continue
+            if last and res.get("author") and last not in fold(res["author"]).split():
+                continue
+            found[isbn] = {
+                "title": res["title"],
+                "author": res.get("author"),
+                "isbn": isbn,
+                "cover_url": res.get("cover_url") or _cover(isbn),
+                "_exact": want == have,
+                "_shops": len(res.get("shops") or []),
+            }
+        if found:
+            break
+    ranked = sorted(found.values(), key=lambda c: (not c["_exact"], -c["_shops"]))
+    for c in ranked:
+        c.pop("_exact"), c.pop("_shops")
+    return ranked
+
+
+def resolve_online(line: dict, base: dict, db_path, opener=None) -> dict:
+    """not_found fallback: one candidate is matched, several are for the shopper to pick."""
+    cands = online_lookup(line, db_path, opener)
+    if not cands:
+        return {**base, "status": "not_found"}
+    if len(cands) == 1:
+        return {**base, "status": "matched", "candidate": cands[0]}
+    return {**base, "status": "ambiguous", "candidates": cands[:MAX_CANDIDATES]}
 
 
 def read_and_match(data: bytes, mime: str, db_path, opener=None) -> dict:

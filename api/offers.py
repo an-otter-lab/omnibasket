@@ -192,9 +192,10 @@ def lookup_title_url(store_id: str, title: str | None, author: str | None, db_pa
     """
     from difflib import SequenceMatcher
 
-    from api.title_match import fold, surname
+    from api.title_match import core_title, surname
+    from api.title_match import fold
 
-    want = fold(title)
+    want = core_title(title)
     last = surname(author)
     if not want or not last or store_id == "amazon_de":
         return None
