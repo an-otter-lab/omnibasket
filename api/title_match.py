@@ -51,7 +51,14 @@ def core_title(text: str | None) -> str:
 
 
 def strong_match(want_title: str | None, want_author: str | None, page_name: str | None, page_authors: list[str]) -> bool:
-    """Same work: near-equal normalised title, same numbers, same author surname."""
+    """Same work: near-equal normalised title, same numbers, same author surname.
+    
+    Two paths to match:
+    1. Containment: shop title contains the book title (handles subtitles)
+    2. Similarity: SequenceMatcher ratio >= 0.92 (handles minor variations)
+    
+    Both paths require same author surname and identical number sets.
+    """
     want = core_title(want_title)
     last = surname(want_author)
     if not want or not last or not page_name or not page_authors:
@@ -69,4 +76,12 @@ def strong_match(want_title: str | None, want_author: str | None, page_name: str
         return False
     if sorted(re.findall(r"\d+", want)) != sorted(re.findall(r"\d+", have)):
         return False
+    
+    # Containment rule: if the shop title contains the book title, it's a match
+    # (after author and number gates passed). This handles subtitles like
+    # "Sapiens" matching "Sapiens: Scurtă istorie a omenirii".
+    if want in have:
+        return True
+    
+    # Fallback to similarity ratio for other cases
     return SequenceMatcher(None, want, have).ratio() >= THRESHOLD
