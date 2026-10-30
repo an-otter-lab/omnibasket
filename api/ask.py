@@ -30,6 +30,7 @@ MAX_TEXT = 300
 UNSUPPORTED = "askUnsupported"
 NOT_IN_BASKET = "askNotInBasket"
 UNAVAILABLE = "askUnavailable"
+ONE_NOT_POSSIBLE = "askOneNotPossible"
 
 
 @dataclass
@@ -362,6 +363,42 @@ def build_user_text(text: str, state: dict) -> str:
     )
 
 
+def _wants_one_order(text: str) -> bool:
+    for part in re.split(r"[,;+&]", norm(text)):
+        for piece in _SPLIT.split(part):
+            if _ONE.match(_POLITE.sub("", _FILLER.sub("", piece.strip())).strip()):
+                return True
+    return False
+
+
+def _one_order_possible(state: dict):
+    """True/False when every item says which shops list it, else None (unknown)."""
+    sets = []
+    for item in _as_list(state.get("items")):
+        ids = item.get("store_ids") if isinstance(item, dict) else None
+        if not isinstance(ids, list):
+            return None
+        sets.append({s for s in ids if isinstance(s, str)})
+    if not sets:
+        return None
+    return bool(set.intersection(*sets))
+
+
+def _absent_reply(text, state, names, absent) -> AskResult:
+    shop = {"shop": names.get("stores", {}).get(absent, absent)}
+    first = {"reply_key": NOT_IN_BASKET, "reply_args": shop}
+    if _wants_one_order(text):
+        possible = _one_order_possible(state)
+        if possible is True:
+            tab = {"reply_key": "askDoneTab", "reply_args": {"tab": "one"}}
+            return AskResult("ok", [{"name": "set_tab", "args": {"tab": "one"}}], NOT_IN_BASKET, shop,
+                             [first, tab], "fast")
+        if possible is False:
+            return AskResult("unsupported", [], NOT_IN_BASKET, shop,
+                             [first, {"reply_key": ONE_NOT_POSSIBLE, "reply_args": {}}], "fast")
+    return AskResult("unsupported", [], NOT_IN_BASKET, shop, [], "fast")
+
+
 def answer(text: str, lang: str, state: dict, muse=None, names: dict | None = None) -> AskResult:
     """Fast path, else one guarded Muse call; always validated; never raises."""
     try:
@@ -380,8 +417,7 @@ def _answer(text, state, muse, names) -> AskResult:
         # a known shop the current data has no offers for: say so, don't hide behind 'unsupported'
         absent = _absent_store(text, state, names)
         if absent:
-            return AskResult("unsupported", [], NOT_IN_BASKET,
-                             {"shop": names.get("stores", {}).get(absent, absent)}, [], "fast")
+            return _absent_reply(text, state, names, absent)
     if fast is not None:
         res = validate({"actions": fast}, state, names)
         res.via = "fast"

@@ -46,3 +46,30 @@ def test_nonsense_still_unsupported():
     for text in ("no Zorgblatt", "make me a sandwich"):
         r = run(text, FULL)
         assert r["status"] == "unsupported" and r["reply_key"] == "askUnsupported"
+
+
+def _items(*sets):
+    return [{"item_id": f"b{i}", "editions": [], "store_ids": s} for i, s in enumerate(sets)]
+
+
+def run_items(text, ids, items):
+    st = state(ids)
+    st["items"] = items
+    return ask.answer(text, "en", st, muse=no_muse, names=NAMES).as_response()
+
+
+def test_absent_shop_plus_one_order_impossible_says_both():
+    r = run_items("no Amazon, and keep it to one order", ["libris", "emag"], _items(["libris"], ["emag"]))
+    assert r["status"] == "unsupported" and r["actions"] == []
+    assert [x["reply_key"] for x in r["replies"]] == ["askNotInBasket", "askOneNotPossible"]
+
+
+def test_absent_shop_plus_one_order_possible_applies_it():
+    r = run_items("no Amazon, and keep it to one order", ["libris", "emag"], _items(["libris", "emag"], ["emag"]))
+    assert r["status"] == "ok" and r["actions"] == [{"name": "set_tab", "args": {"tab": "one"}}]
+    assert [x["reply_key"] for x in r["replies"]] == ["askNotInBasket", "askDoneTab"]
+
+
+def test_absent_shop_only_unchanged():
+    r = run_items("no Amazon", ["libris", "emag"], _items(["libris"], ["emag"]))
+    assert r["status"] == "unsupported" and r["reply_key"] == "askNotInBasket" and "replies" not in r

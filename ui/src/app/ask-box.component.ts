@@ -8,8 +8,8 @@ export interface AskApplied {
   done: (ok: boolean) => void;
 }
 
-type ReplyKey = 'askDoneTab' | 'askDoneExclude' | 'askDoneInclude' | 'askDoneMembership' | 'askDoneMembershipOff' | 'askDonePinned' | 'askDonePinsCleared' | 'askUnsupported' | 'askNotInBasket' | 'askUnavailable' | 'askBusy';
-const REPLY_KEYS: readonly string[] = ['askDoneTab', 'askDoneExclude', 'askDoneInclude', 'askDoneMembership', 'askDoneMembershipOff', 'askDonePinned', 'askDonePinsCleared', 'askUnsupported', 'askNotInBasket', 'askUnavailable', 'askBusy'];
+type ReplyKey = 'askDoneTab' | 'askDoneExclude' | 'askDoneInclude' | 'askDoneMembership' | 'askDoneMembershipOff' | 'askDonePinned' | 'askDonePinsCleared' | 'askUnsupported' | 'askNotInBasket' | 'askOneNotPossible' | 'askUnavailable' | 'askBusy';
+const REPLY_KEYS: readonly string[] = ['askDoneTab', 'askDoneExclude', 'askDoneInclude', 'askDoneMembership', 'askDoneMembershipOff', 'askDonePinned', 'askDonePinsCleared', 'askUnsupported', 'askNotInBasket', 'askOneNotPossible', 'askUnavailable', 'askBusy'];
 
 interface Reply { reply_key: string; reply_args?: Record<string, unknown> }
 interface AskResponse extends Reply { status: 'ok' | 'unsupported'; actions: unknown[]; replies?: Reply[] }
@@ -93,7 +93,7 @@ export class AskBoxComponent {
       if (res.status === 422) { this.lines = [this.say('askUnsupported')]; return; }
       if (!res.ok) { this.lines = [this.say('askUnavailable')]; return; }
       const body = (await res.json()) as AskResponse;
-      if (body.status !== 'ok') { this.lines = [this.say(body.reply_key, body.reply_args)]; return; }
+      if (body.status !== 'ok') { this.lines = (body.replies?.length ? body.replies : [body]).map((r) => this.say(r.reply_key, r.reply_args)); return; }
       const next = applyActions(body.actions, uiState(this.data, cur));
       if (next.ignored || !Array.isArray(body.actions) || !body.actions.length) { this.lines = [this.say('askUnsupported')]; return; }
       const ok = await new Promise<boolean>((done) => this.applied.emit({ next, done }));

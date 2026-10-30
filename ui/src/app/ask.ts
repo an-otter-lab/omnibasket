@@ -112,6 +112,6 @@ export function askState(data: AskData, cur: AskInputs): Record<string, unknown>
     edition_pins: cur.pins,
     store_ids: ui.stores,
     membership_ids: ui.membershipIds,
-    items: data.books.map((b) => ({ item_id: b.item_id, editions: b.editions.map((e) => e.edition) })),
+    items: data.books.map((b) => ({ item_id: b.item_id, editions: b.editions.map((e) => e.edition), store_ids: [...new Set((b.shops || []).filter((o) => o.price_cents != null).map((o) => o.store_id))] })),
   };
 }
