@@ -343,6 +343,7 @@ async def _read_one_page(
     title: str | None = None,
     author: str | None = None,
     title_lookup=None,
+    listing_urls: dict[str, str] | None = None,
 ) -> OfferRead:
     """Read one product page from a shop.
     
@@ -359,6 +360,7 @@ async def _read_one_page(
     # The shop file decides whether an unnamed seller counts as direct, so it
     # is needed on the cache path too.
     profile = _load_shop_profile(store_id)
+    forced_url = (listing_urls or {}).get(store_id)
 
     # Check cache first
     if isbn13:
@@ -483,7 +485,7 @@ async def _read_one_page(
         try:
             offer = await _fetch_and_extract(
                 store_id, isbn13, item_id, profile, cache, day, index_lookup=index_lookup,
-                title=title, author=author, title_lookup=title_lookup,
+                title=title, author=author, title_lookup=title_lookup, forced_url=forced_url,
             )
             if offer.status == "failed":
                 # Emit skip message for eMAG
@@ -527,7 +529,7 @@ async def _read_one_page(
     try:
         offer = await _fetch_and_extract(
             store_id, isbn13, item_id, profile, cache, day, index_lookup=index_lookup,
-            title=title, author=author, title_lookup=title_lookup,
+            title=title, author=author, title_lookup=title_lookup, forced_url=forced_url,
         )
         if progress_callback:
             await _emit_progress(progress_callback, ReadProgress(
@@ -568,9 +570,11 @@ async def _fetch_and_extract(
     title: str | None = None,
     author: str | None = None,
     title_lookup=None,
+    forced_url: str | None = None,
 ) -> OfferRead:
     """Fetch one indexed product page and extract offer data."""
-    url = _get_product_url(store_id, isbn13, index_lookup)
+    # A pasted shop page is the listing to read: the shop plainly has the book there.
+    url = forced_url or _get_product_url(store_id, isbn13, index_lookup)
     if not url and title and author and store_id != "amazon_de":
         return await _read_other_printing(store_id, isbn13, item_id, profile, day, title, author, title_lookup, cache)
     if not url:
@@ -989,6 +993,7 @@ async def read_offers_parallel(
     title: str | None = None,
     author: str | None = None,
     title_lookup=None,
+    listing_urls: dict[str, str] | None = None,
 ) -> list[OfferRead]:
     """Read offers from multiple shops in parallel.
     
@@ -1003,7 +1008,10 @@ async def read_offers_parallel(
         List of OfferRead results, one per shop
     """
     tasks = [
-        _read_one_page(store_id, isbn13, item_id, cache, progress_callback, index_lookup, title, author, title_lookup)
+        _read_one_page(
+            store_id, isbn13, item_id, cache, progress_callback, index_lookup, title, author, title_lookup,
+            listing_urls=listing_urls,
+        )
         for store_id in store_ids
     ]
     

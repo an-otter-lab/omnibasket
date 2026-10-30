@@ -133,13 +133,19 @@ describe('live flow: progress then per-shop reads', () => {
   });
 
   it('failure state: a link with no book on the page says so', async () => {
-    const fixture = TestBed.createComponent(AppComponent);
-    const app = fixture.componentInstance;
-    app.route = { name: 'find', arg: 'https://www.example.com/not-a-book' };
-    await app.runSearch('https://www.example.com/not-a-book');
-    fixture.detectChanges();
-    const el: HTMLElement = fixture.nativeElement;
-    expect(el.querySelector('[data-state="link-failed"]')!.textContent).toContain("I couldn't find a book on that page.");
+    const realFetch = window.fetch;
+    window.fetch = (async () => ({ ok: true, status: 200, json: async () => ({ type: 'link', status: 'not_found', isbn13: null, candidates: [] }) } as Response)) as typeof fetch;
+    try {
+      const fixture = TestBed.createComponent(AppComponent);
+      const app = fixture.componentInstance;
+      app.route = { name: 'find', arg: 'https://www.example.com/not-a-book' };
+      await app.runSearch('https://www.example.com/not-a-book');
+      fixture.detectChanges();
+      const el: HTMLElement = fixture.nativeElement;
+      expect(el.querySelector('[data-state="link-failed"]')!.textContent).toContain("I couldn't find a book on that page.");
+    } finally {
+      window.fetch = realFetch;
+    }
   });
 
   it('failure state: a dropped stream says the read did not finish and offers a retry', async () => {
