@@ -292,7 +292,7 @@ export class AppComponent {
       if (!res.ok || body.error) throw new Error(body.error || 'solve failed');
       this.snapshot = body;
       this.data = body;
-      void this.loadWhy({} as Payload);
+      void this.loadWhy(body);
       this.basket = new Set(body.books.map((b) => b.item_id));
       const known = new Set((body.memberships || []).map((row) => row.id));
       this.declaredMemberships = loadDeclared().filter((id) => known.has(id));
@@ -315,10 +315,23 @@ export class AppComponent {
     return !!this.snapshot && this.basket.size === this.snapshot.books.length;
   }
 
+  private hasDescribableResult(payload: unknown): boolean {
+    if (!payload || typeof payload !== 'object') return false;
+    const p = payload as Record<string, unknown>;
+    const books = p['books'];
+    if (!Array.isArray(books) || books.length === 0) return false;
+    const cheapest = p['cheapest'];
+    if (!cheapest || typeof cheapest !== 'object') return false;
+    const orders = (cheapest as Record<string, unknown>)['orders'];
+    if (!Array.isArray(orders) || orders.length === 0) return false;
+    return true;
+  }
+
   private async loadWhy(payload: unknown): Promise<void> {
     const request = ++this.whyRequest;
     this.whyMuse = false;
     this.whyText = MESSAGES[this.lang].whySplitTemplate;
+    if (!this.hasDescribableResult(payload)) return;
     try {
       const res = await fetch('/why', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ payload, lang: this.lang }) });
       if (!res.ok) return;
@@ -399,7 +412,7 @@ export class AppComponent {
     const next = await this.post(this.pins, this.selected, body);
     if (next) {
       this.data = next;
-      void this.loadWhy(body);
+      void this.loadWhy(next);
       this.dirty = false;
       if (next.degraded?.kind === 'one_shop' && this.route.name === 'result') this.tab = 'one';
     }
