@@ -13,7 +13,8 @@ import { Lang, MESSAGES, Messages, count, editionName, fieldName, fill } from '.
 import { I18nService } from './i18n';
 import { SettingsComponent } from './settings.component';
 import { MembershipsComponent } from './memberships.component';
-import { MembershipRow, loadDeclared } from './memberships';
+import { MembershipRow, loadDeclared, saveDeclared } from './memberships';
+import { AskApplied, AskBoxComponent } from './ask-box.component';
 import { PhotoInputComponent, PhotoInputEvent } from './photo-input.component';
 import { PhotoResultComponent } from './photo-result.component';
 import {
@@ -251,7 +252,7 @@ const STATUS_KEY: Record<string, keyof Messages> = {
 
 @Component({
   selector: 'app-root',
-  imports: [NgTemplateOutlet, SettingsComponent, BuyListComponent, InputBoxComponent, PickListComponent, LiveProgressComponent, ShopReadsComponent, MembershipsComponent, PhotoInputComponent, PhotoResultComponent],
+  imports: [NgTemplateOutlet, SettingsComponent, BuyListComponent, InputBoxComponent, PickListComponent, LiveProgressComponent, ShopReadsComponent, MembershipsComponent, PhotoInputComponent, PhotoResultComponent, AskBoxComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.css',
 })
@@ -623,6 +624,18 @@ export class AppComponent implements OnDestroy {
       return null;
     }
     return payload;
+  }
+
+  // Feature 7: apply the Ask box's answer, solve, route; if exact editions cannot be bought together, roll the pins back.
+  async onAsk(r: AskApplied): Promise<void> {
+    const before = this.pins;
+    this.tab = r.next.tab; this.selected = r.next.selected; this.pins = r.next.pins; this.declaredMemberships = r.next.memberships;
+    saveDeclared(this.declaredMemberships);
+    await this.solve();
+    const ok = !(this.data?.edition.status === 'not_possible' && JSON.stringify(before) !== JSON.stringify(this.pins));
+    if (!ok) { this.pins = before; await this.solve(); }
+    this.go('result/' + this.tab);
+    r.done(ok);
   }
 
   setMemberships(ids: string[]): void {

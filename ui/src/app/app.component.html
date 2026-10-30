@@ -334,6 +334,7 @@
               @if (stamp()) { <span class="stamp">{{ stamp() }}</span> }
             </div>
           </div>
+          <app-ask-box [lang]="lang" [data]="fixture ? null : data" [tab]="tab" [selected]="selected" [pins]="pins" [memberships]="declaredMemberships" [busy]="busy" (applied)="onAsk($event)" />
           <app-memberships [rows]="data.memberships || []" [declared]="declaredMemberships" [lang]="lang" (declaredChange)="setMemberships($event)" />
         }
         @if (note) { <p class="s note" role="status">{{ note }}</p> }

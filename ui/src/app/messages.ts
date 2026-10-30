@@ -343,6 +343,25 @@ export interface Messages {
   pricesRead: string;
   listAnd: string;
   progLabel: string;
+  // Feature 7: Ask Omnibasket
+  askTitle: string;
+  askPlaceholder: string;
+  askSubmit: string;
+  askExample1: string;
+  askExample2: string;
+  askExample3: string;
+  askDoneTab: string;
+  askDoneExclude: string;
+  askDoneInclude: string;
+  askDoneMembership: string;
+  askDoneMembershipOff: string;
+  askDonePinned: string;
+  askDonePinsCleared: string;
+  askPinsNotPossible: string;
+  askUnsupported: string;
+  askUnavailable: string;
+  askBusy: string;
+  askMadeByMuse: string;
 }
 
 export const MESSAGES: Record<Lang, Messages> = {
@@ -594,6 +613,25 @@ export const MESSAGES: Record<Lang, Messages> = {
     pricesRead: 'prices read {date}',
     listAnd: 'and',
     progLabel: 'Read progress',
+    // Feature 7: Ask Omnibasket
+    askTitle: 'Ask Omnibasket',
+    askPlaceholder: 'Try: no Amazon, and keep it to one order',
+    askSubmit: 'Ask',
+    askExample1: 'Keep it to one order',
+    askExample2: 'No Amazon',
+    askExample3: 'I have Genius',
+    askDoneTab: 'Showing {tab}.',
+    askDoneExclude: 'Left out {shop}.',
+    askDoneInclude: 'Added {shop} back.',
+    askDoneMembership: 'Counted your {name}.',
+    askDoneMembershipOff: 'No longer counting {name}.',
+    askDonePinned: 'Pinned {n} books to the editions in this answer.',
+    askDonePinsCleared: 'Any edition is fine again.',
+    askPinsNotPossible: 'Those exact editions cannot be bought together, so I left your editions as they were.',
+    askUnsupported: 'I can’t do that yet.',
+    askUnavailable: 'Ask is not available right now.',
+    askBusy: 'Too many questions at once. Try again in a minute.',
+    askMadeByMuse: 'Understood by Muse',
   },
   ro: {
     deliveryGapShort: 'Mai ai {amount} lei până la livrarea gratuită la {shop}',
@@ -843,6 +881,25 @@ export const MESSAGES: Record<Lang, Messages> = {
     pricesRead: 'prețuri citite {date}',
     listAnd: 'și',
     progLabel: 'Progresul citirii',
+    // Feature 7: Ask Omnibasket
+    askTitle: 'Întreabă Omnibasket',
+    askPlaceholder: 'Încearcă: fără Amazon, într-o singură comandă',
+    askSubmit: 'Întreabă',
+    askExample1: 'O singură comandă',
+    askExample2: 'Fără Amazon',
+    askExample3: 'Am Genius',
+    askDoneTab: 'Afișez: {tab}.',
+    askDoneExclude: 'Am scos {shop}.',
+    askDoneInclude: 'Am adăugat {shop} la loc.',
+    askDoneMembership: 'Am luat în calcul {name}.',
+    askDoneMembershipOff: 'Nu mai iau în calcul {name}.',
+    askDonePinned: 'Am fixat {n} cărți la edițiile din acest răspuns.',
+    askDonePinsCleared: 'Orice ediție e din nou bună.',
+    askPinsNotPossible: 'Edițiile exacte nu se pot cumpăra împreună, așa că am lăsat edițiile cum erau.',
+    askUnsupported: 'Încă nu pot face asta.',
+    askUnavailable: 'Întrebările nu sunt disponibile acum.',
+    askBusy: 'Prea multe întrebări deodată. Încearcă din nou peste un minut.',
+    askMadeByMuse: 'Înțeles de Muse',
   },
 };
 
