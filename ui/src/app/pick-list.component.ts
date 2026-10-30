@@ -1,6 +1,6 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { Candidate, coverUrl, initials, shopLabel } from './live';
-import { Lang, MESSAGES, fill } from './messages';
+import { Lang, MESSAGES, Messages, fill } from './messages';
 
 export type PickState = 'searching' | 'results' | 'empty' | 'error' | 'link_failed';
 
@@ -43,11 +43,15 @@ export type PickState = 'searching' | 'results' | 'empty' | 'error' | 'link_fail
                 </span>
                 @if (c.isbn) { <span class="pgo">{{ m.pickRead }} ›</span> }
               </button>
-              @for (x of unchecked(c); track x.shop) {
-                <p class="s other" [attr.data-other]="x.shop">
-                  {{ label(x.shop) }}: {{ m.readsNotChecked }}
-                  @if (x.url) { · <a class="store" [href]="x.url" target="_blank" rel="noopener">{{ m.pickOpenShop }}</a> }
-                </p>
+              @if (unchecked(c).length) {
+                <div class="not-checked">
+                  @for (x of unchecked(c); track x.shop) {
+                    <span class="not-checked-chip">
+                      {{ label(x.shop) }}
+                      @if (x.url) { · <a [href]="x.url" target="_blank" rel="noopener" [attr.aria-label]="t('pickOpenShop', { shop: label(x.shop) })">{{ m.pickOpenShop }}</a> }
+                    </span>
+                  }
+                </div>
               }
             </li>
           }
@@ -80,6 +84,10 @@ export class PickListComponent {
 
   label(id: string): string {
     return shopLabel(id);
+  }
+
+  t(key: keyof Messages, values: Record<string, string> = {}): string {
+    return fill(this.m[key], values);
   }
 
   listed(c: Candidate): string {

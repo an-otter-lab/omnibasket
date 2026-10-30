@@ -28,11 +28,14 @@ This file says what each screen is made of, which `/solve` field feeds each numb
 ---
 
 ## 01 Entry
-Structure: header (brand) · h1 "One parcel, or the cheapest?" · field `Book title or ISBN` (52 px, r16) + `Find book` · box "How it works" (3 steps) · footnote naming the shops.
-Fields: footnote shop names = `shops[].store_id`; step 2 count = `shops.length`. Hidden until the load returns.
-States: loading (field enabled, footnote hidden) · load error ("We couldn't load the shops.", `Try again`).
-390: stacked. 834: h1 48 px, content 640 max. 1440: field and button on one row.
+Structure: header (brand left · two 44×44 icon buttons right: globe for language menu, sun/moon for theme menu) · h1 "One parcel, or the cheapest?" · subtitle · field label `Book title or ISBN` · input (52 px, r16) · `Find book` primary button · `Photo of a list` secondary button with camera icon · box "How it works" (3 steps) · generic footnote ("We read and index shop data from a few sources. Where a shop does not publish a fee, we leave it blank rather than guess.").
+Header menus: `.iconbtn` triggers open `.icmenu` with `role="menu"` and `aria-haspopup="menu"`. Language menu: English / Română, current item has `aria-current="true"` and checkmark. Theme menu: System / Light / Dark, same pattern. Menus open on click/Enter/Space/ArrowDown, close on Escape/outside click/item select, focus returns to trigger on close. Keyboard navigation: ArrowUp/Down cycle within menu, Home/End go to first/last.
+Dense layout: field top 184/220/249 at 390/834/1440. No segmented footer on entry (settings moved to header menus).
+Fields: step 2 text is generic ("We read each shop's prices, postage and free-delivery thresholds."), not naming specific shops. Footnote is generic, not naming shops.
+States: loading (field enabled, footnote visible) · load error ("We couldn't load the shops.", `Try again`).
+390: stacked. 834: h1 48 px, content 640 max. 1440: stacked, content 720 max.
 Reach: `#/`.
+Pick list: unchecked shops shown as compact chip row per book (`.not-checked` with `.not-checked-chip`), not repeated paragraphs. No-offer state: shows "No shop lists this ISBN." with next-step links (Try another edition → editions overlay, Search this shop → first shop's search URL if available).
 
 ## 02 Adding books
 Header with `{basket.length} books` · field (same label as 01) · result card · basket chips · `See parcels` (disabled with an empty basket).

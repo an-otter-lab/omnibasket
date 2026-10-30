@@ -1,6 +1,6 @@
 import { Component, Input } from '@angular/core';
 import { Candidate, LiveOffer, Outcome, outcomeOf, shopLabel, shopLink, sortOffers } from './live';
-import { Lang, MESSAGES, fill } from './messages';
+import { Lang, MESSAGES, Messages, fill } from './messages';
 
 /** One row per shop the live read tried: its outcome, its price if one was read, its link. */
 @Component({
@@ -10,8 +10,14 @@ import { Lang, MESSAGES, fill } from './messages';
       <h2 class="k" id="reads-h">{{ m.readsTitle }}</h2>
       @if (title) { <p class="pt">{{ title }}</p> }
       @if (noOfferAnywhere) {
-        <div class="box" role="alert" data-state="no-offer">
-          <p class="pt">{{ m.readsNoOfferAnywhere }}</p>
+        <div class="box no-offer-next" role="alert" data-state="no-offer">
+          <p class="pt">{{ m.entryNoOffer }}</p>
+          <div class="no-offer-actions">
+            <a class="lnk" href="#/editions">{{ m.entryTryAnother }}</a>
+            @if (firstShopWithSearch(); as search) {
+              <a class="lnk" [href]="search" target="_blank" rel="noopener">{{ m.entrySearchShop }}</a>
+            }
+          </div>
         </div>
       }
       <ul class="rlist">
@@ -158,5 +164,20 @@ export class ShopReadsComponent {
     // A link that is a search, not the book's own page, says so.
     const own = o.listing_url || this.pick?.shops.some((s) => s.shop.replace(/_/g, '-') === o.store_id.replace(/_/g, '-'));
     return own ? fill(m.readsOpen, { shop }) : fill(m.readsSearch, { shop });
+  }
+
+  t(key: keyof Messages, values: Record<string, string> = {}): string {
+    return fill(this.m[key], values);
+  }
+
+  firstShopWithSearch(): string | null {
+    if (!this.isbn) return null;
+    // Try to find a shop from offers or other_shops and generate a search URL
+    const allShops = [...this.offers, ...(this.pick?.other_shops || []).map(x => ({ store_id: x.shop, listing_url: x.url || '' }))];
+    for (const shop of allShops) {
+      const link = shopLink({ store_id: shop.store_id, listing_url: shop.listing_url } as LiveOffer, this.pick, this.isbn);
+      if (link && link.includes('search')) return link;
+    }
+    return null;
   }
 }

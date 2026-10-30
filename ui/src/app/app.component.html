@@ -106,19 +106,111 @@
 @if (route.name === 'buy') {
   <app-buy-list [code]="route.arg" [lang]="lang" />
 } @else if (route.name === 'entry') {
-  <header class="hdr"><a class="brand" href="#/">{{ m.brand }}</a></header>
-  <main class="wrap narrow first" data-screen="first">
-    <div class="entry-stack">
-      <app-input-box [lang]="lang" [showSample]="isDemoMode" (submitted)="submitBox($event)" />
-      <app-photo-input [lang]="lang" mode="inline" [busy]="photoState.kind === 'reading'" (photoEvent)="onPhotoEvent($event)" />
+  <header class="hdr">
+    <a class="brand" href="#/">{{ m.brand }}</a>
+    <div class="hcontrols">
+      <button class="iconbtn" type="button" id="lang-btn"
+              aria-haspopup="menu" [attr.aria-expanded]="langMenuOpen"
+              aria-controls="lang-menu"
+              [attr.aria-label]="t('menuLangLabel') + ': ' + (lang === 'en' ? m.langEnName : m.langRoName)"
+              (click)="toggleLangMenu()"
+              (keydown)="onMenuKey($event, 'lang')">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="12" cy="12" r="10"></circle>
+          <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+        </svg>
+      </button>
+      <button class="iconbtn" type="button" id="theme-btn"
+              aria-haspopup="menu" [attr.aria-expanded]="themeMenuOpen"
+              aria-controls="theme-menu"
+              [attr.aria-label]="t('menuThemeLabel') + ': ' + (theme === 'system' ? m.menuSystem : theme === 'light' ? m.menuLight : m.menuDark)"
+              (click)="toggleThemeMenu()"
+              (keydown)="onMenuKey($event, 'theme')">
+        @if (theme === 'dark') {
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+          </svg>
+        } @else {
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          </svg>
+        }
+      </button>
     </div>
+    <div class="icmenu" id="lang-menu" role="menu" aria-labelledby="lang-btn" [attr.aria-hidden]="!langMenuOpen">
+      <button role="menuitem" [attr.aria-current]="lang === 'en'" (click)="setLang('en')">
+        {{ m.langEnName }}
+        @if (lang === 'en') { <svg class="iccheck" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> }
+      </button>
+      <button role="menuitem" [attr.aria-current]="lang === 'ro'" (click)="setLang('ro')">
+        {{ m.langRoName }}
+        @if (lang === 'ro') { <svg class="iccheck" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> }
+      </button>
+    </div>
+    <div class="icmenu" id="theme-menu" role="menu" aria-labelledby="theme-btn" [attr.aria-hidden]="!themeMenuOpen">
+      <button role="menuitem" [attr.aria-current]="theme === 'system'" (click)="setTheme('system')">
+        {{ m.menuSystem }}
+        @if (theme === 'system') { <svg class="iccheck" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> }
+      </button>
+      <button role="menuitem" [attr.aria-current]="theme === 'light'" (click)="setTheme('light')">
+        {{ m.menuLight }}
+        @if (theme === 'light') { <svg class="iccheck" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> }
+      </button>
+      <button role="menuitem" [attr.aria-current]="theme === 'dark'" (click)="setTheme('dark')">
+        {{ m.menuDark }}
+        @if (theme === 'dark') { <svg class="iccheck" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> }
+      </button>
+    </div>
+  </header>
+  <main class="wrap narrow entry" data-screen="first">
+    <h1 class="h1">{{ m.entryHeadline }}</h1>
+    <p class="p soft">{{ m.entrySubtitle }}</p>
+
+    <form class="efield" (submit)="onEntrySubmit($event)">
+      <label class="lbl" for="entry-inp">{{ m.entryFieldLabel }}</label>
+      <input class="inp" id="entry-inp" name="entry-inp" type="text"
+             [placeholder]="m.entryPlaceholder"
+             autocomplete="off"
+             [(ngModel)]="entryInputValue"
+             (keydown.enter)="onEntrySubmit($event)" />
+      <button class="btn full" type="submit">{{ m.entrySubmit }}</button>
+      <button class="btn2 full" type="button" id="photo-trigger" (click)="entryPhotoInput.click()">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+          <circle cx="12" cy="13" r="4"></circle>
+        </svg>
+        <span>{{ m.entryPhoto }}</span>
+      </button>
+      <input #entryPhotoInput type="file" accept="image/*" capture="environment" style="display:none" (change)="onEntryPhoto($event)" />
+    </form>
+
+    <div class="box how" aria-labelledby="how-h">
+      <p class="k" id="how-h">{{ m.entryHowItWorks }}</p>
+      <div class="step"><span class="num">1</span><p class="p">{{ m.entryStep1 }}</p></div>
+      <div class="step"><span class="num">2</span><p class="p">{{ m.entryStep2 }}</p></div>
+      <div class="step"><span class="num">3</span><p class="p">{{ m.entryStep3 }}</p></div>
+    </div>
+
+    <p class="s footnote">{{ m.entryFootnote }}</p>
+
+    @if (isDemoMode) {
+      <p class="sample"><a class="lnk" href="?sample=ro-v1#/result/cheapest" data-sample>{{ m.boxSample }}</a></p>
+    }
+
     @if (photoState.kind === 'oversize') {
       <p class="s note" role="alert">{{ photoOversizeText }}</p>
     } @else if (photoState.kind === 'failed') {
       <p class="s note" role="alert">{{ m.photoReadFail }}</p>
     }
   </main>
-  <footer class="entry-prefs"><app-settings /></footer>
 } @else if (route.name === 'photo') {
   <header class="hdr"><a class="brand" href="#/">{{ m.brand }}</a></header>
   <main class="wrap narrow" data-screen="photo">

@@ -380,6 +380,28 @@ export interface Messages {
   askUnavailable: string;
   askBusy: string;
   askMadeByMuse: string;
+  
+  // Entry screen v2
+  entryHeadline: string;
+  entrySubtitle: string;
+  entryFieldLabel: string;
+  entrySubmit: string;
+  entryPhoto: string;
+  entryHowItWorks: string;
+  entryStep1: string;
+  entryStep2: string;
+  entryStep3: string;
+  entryFootnote: string;
+  menuLangLabel: string;
+  menuThemeLabel: string;
+  menuSystem: string;
+  menuLight: string;
+  menuDark: string;
+  entryNoOffer: string;
+  entryTryAnother: string;
+  entrySearchShop: string;
+  entryPlaceholder: string;
+  entryPhotoPlaceholder: string;
 }
 
 export const MESSAGES: Record<Lang, Messages> = {
@@ -667,6 +689,26 @@ export const MESSAGES: Record<Lang, Messages> = {
     askUnavailable: 'Ask is not available right now.',
     askBusy: 'Too many questions at once. Try again in a minute.',
     askMadeByMuse: 'Understood by Muse',
+    entryHeadline: 'One parcel, or the cheapest?',
+    entrySubtitle: 'List the books. We\'ll show what each way of buying them costs, with postage in and nothing guessed.',
+    entryFieldLabel: 'Book title or ISBN',
+    entrySubmit: 'Find book',
+    entryPhoto: 'Photo of a list',
+    entryHowItWorks: 'How it works',
+    entryStep1: 'Add books by title or ISBN.',
+    entryStep2: 'We read each shop\'s prices, postage and free-delivery thresholds.',
+    entryStep3: 'Pick one parcel, the cheapest split, or your own shops.',
+    entryFootnote: 'We read and index shop data from a few sources. Where a shop does not publish a fee, we leave it blank rather than guess.',
+    menuLangLabel: 'Language',
+    menuThemeLabel: 'Appearance',
+    menuSystem: 'System',
+    menuLight: 'Light',
+    menuDark: 'Dark',
+    entryNoOffer: 'No shop lists this ISBN.',
+    entryTryAnother: 'Try another edition',
+    entrySearchShop: 'Search this shop',
+    entryPlaceholder: 'e.g. Room on the Broom',
+    entryPhotoPlaceholder: 'Photo of a list',
   },
   ro: {
     deliveryGapShort: 'Mai ai {amount} lei până la livrarea gratuită la {shop}',
@@ -952,6 +994,26 @@ export const MESSAGES: Record<Lang, Messages> = {
     askUnavailable: 'Întrebările nu sunt disponibile acum.',
     askBusy: 'Prea multe întrebări deodată. Încearcă din nou peste un minut.',
     askMadeByMuse: 'Înțeles de Muse',
+    entryHeadline: 'Un singur colet, sau cel mai ieftin?',
+    entrySubtitle: 'Înșiră cărțile. Îți arătăm cât te costă fiecare fel de a le cumpăra, cu poșta inclusă, fără să ghicim nimic.',
+    entryFieldLabel: 'Titlu sau ISBN',
+    entrySubmit: 'Caută cartea',
+    entryPhoto: 'Fotografie a unei liste',
+    entryHowItWorks: 'Cum funcționează',
+    entryStep1: 'Adaugă cărți după titlu sau ISBN.',
+    entryStep2: 'Citim din fiecare magazin prețurile, poșta și pragurile de livrare gratuită.',
+    entryStep3: 'Alege un singur colet, cea mai ieftină împărțire, sau magazinele tale.',
+    entryFootnote: 'Citim și indexăm datele magazinelor din câteva surse. Unde un magazin nu publică o taxă, o lăsăm liberă în loc să o ghicim.',
+    menuLangLabel: 'Limbă',
+    menuThemeLabel: 'Aspect',
+    menuSystem: 'Sistem',
+    menuLight: 'Luminoasă',
+    menuDark: 'Întunecată',
+    entryNoOffer: 'Niciun magazin nu are acest ISBN.',
+    entryTryAnother: 'Încearcă altă ediție',
+    entrySearchShop: 'Caută în acest magazin',
+    entryPlaceholder: 'ex. Camera din Pădure',
+    entryPhotoPlaceholder: 'Fotografie a unei liste',
   },
 };
 
