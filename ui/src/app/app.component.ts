@@ -243,6 +243,8 @@ const SHOP_NAME: Record<string, string> = {
   bookzone: 'Bookzone',
   amazon_de: 'Amazon.de',
   carturesti: 'Cărturești',
+  books_express: 'Books-Express',
+  'books-express': 'Books-Express',
 };
 
 const STATUS_KEY: Record<string, keyof Messages> = {

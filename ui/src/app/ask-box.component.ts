@@ -8,8 +8,8 @@ export interface AskApplied {
   done: (ok: boolean) => void;
 }
 
-type ReplyKey = 'askDoneTab' | 'askDoneExclude' | 'askDoneInclude' | 'askDoneMembership' | 'askDoneMembershipOff' | 'askDonePinned' | 'askDonePinsCleared' | 'askUnsupported' | 'askUnavailable' | 'askBusy';
-const REPLY_KEYS: readonly string[] = ['askDoneTab', 'askDoneExclude', 'askDoneInclude', 'askDoneMembership', 'askDoneMembershipOff', 'askDonePinned', 'askDonePinsCleared', 'askUnsupported', 'askUnavailable', 'askBusy'];
+type ReplyKey = 'askDoneTab' | 'askDoneExclude' | 'askDoneInclude' | 'askDoneMembership' | 'askDoneMembershipOff' | 'askDonePinned' | 'askDonePinsCleared' | 'askUnsupported' | 'askNotInBasket' | 'askUnavailable' | 'askBusy';
+const REPLY_KEYS: readonly string[] = ['askDoneTab', 'askDoneExclude', 'askDoneInclude', 'askDoneMembership', 'askDoneMembershipOff', 'askDonePinned', 'askDonePinsCleared', 'askUnsupported', 'askNotInBasket', 'askUnavailable', 'askBusy'];
 
 interface Reply { reply_key: string; reply_args?: Record<string, unknown> }
 interface AskResponse extends Reply { status: 'ok' | 'unsupported'; actions: unknown[]; replies?: Reply[] }

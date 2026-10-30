@@ -267,7 +267,8 @@ def test_fast_path_needs_ids_from_state(client, model):
     st["store_ids"] = ["libris", "emag"]
     r = _ask(client, "no Amazon", st)
     assert r.json()["status"] == "unsupported"  # amazon_de is not in this state
-    assert len(model.calls) == 1
+    assert r.json()["reply_key"] == "askNotInBasket"  # said honestly, no model call
+    assert len(model.calls) == 0
 
 
 def test_prompt_holds_only_sentence_and_id_lists(client, model):
