@@ -203,6 +203,7 @@ def create_app(db_path: Path | None = None) -> FastAPI:
         isbn13: str | None = Query(default=None),
         item_id: str | None = Query(default=None),
         title: str | None = Query(default=None),
+        author: str | None = Query(default=None),
         stores: str | None = Query(default=None, description="comma list of shop ids; default is every indexed shop"),
     ):
         if source == "live":
@@ -234,7 +235,8 @@ def create_app(db_path: Path | None = None) -> FastAPI:
                 async def _run():
                     try:
                         return await read_offers_parallel(
-                            chosen, isbn, book_id, _cache(app), progress_callback
+                            chosen, isbn, book_id, _cache(app), progress_callback,
+                            title=(title or None), author=(author or None),
                         )
                     finally:
                         await progress_queue.put(None)

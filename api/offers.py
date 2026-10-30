@@ -66,6 +66,7 @@ class OfferRead:
     reason: str | None = None
     cache: str = "miss"  # "hit", "miss", "live"
     day: str | None = None
+    other_printing: bool = False  # shop page declares another ISBN of the same work
 
 
 # Progress callback type
@@ -161,6 +162,47 @@ def lookup_product_url(store_id: str, isbn13: str | None, db_path: Path | None =
     return row[0]
 
 
+def lookup_title_url(store_id: str, title: str | None, author: str | None, db_path: Path | None = None) -> str | None:
+    """Product page for a shop row that has the title but no ISBN. Never a search URL.
+
+    Only a candidate: the page itself must still match strongly on name and author.
+    """
+    from difflib import SequenceMatcher
+
+    from api.title_match import fold, surname
+
+    want = fold(title)
+    last = surname(author)
+    if not want or not last or store_id == "amazon_de":
+        return None
+    path = db_path or (ROOT / "data" / "index" / "books.sqlite3")
+    if not path.is_file():
+        return None
+    import sqlite3
+
+    shop = _INDEX_SHOP.get(store_id, store_id)
+    first = " ".join(want.split()[:2])
+    con = sqlite3.connect(path)
+    try:
+        rows = con.execute(
+            "SELECT url, title FROM books WHERE shop = ? AND (isbn IS NULL OR isbn = '') AND title LIKE ? LIMIT 400",
+            (shop, first + "%"),
+        ).fetchall()
+    except sqlite3.Error:
+        return None
+    finally:
+        con.close()
+    best, best_score = None, 0.0
+    for url, row_title in rows:
+        key = fold(row_title)
+        if not url or _searchish(url) or last not in key.split():
+            continue
+        score = SequenceMatcher(None, want, key[: len(want) + 1]).ratio()
+        if score > best_score:
+            best, best_score = url, score
+    return best if best_score >= 0.85 else None
+
+
 def captured_amazon() -> dict[str, str]:
     """ISBN -> listing URL for Amazon.de rows already in the locked basket."""
     import yaml
@@ -235,6 +277,9 @@ async def _read_one_page(
     cache: PageCache,
     progress_callback: ProgressCallback | None = None,
     index_lookup=None,
+    title: str | None = None,
+    author: str | None = None,
+    title_lookup=None,
 ) -> OfferRead:
     """Read one product page from a shop.
     
@@ -370,7 +415,8 @@ async def _read_one_page(
         # Try once, then skip if failed
         try:
             offer = await _fetch_and_extract(
-                store_id, isbn13, item_id, profile, cache, day, index_lookup=index_lookup
+                store_id, isbn13, item_id, profile, cache, day, index_lookup=index_lookup,
+                title=title, author=author, title_lookup=title_lookup,
             )
             if offer.status == "failed":
                 # Emit skip message for eMAG
@@ -413,7 +459,8 @@ async def _read_one_page(
     # Normal read for other shops
     try:
         offer = await _fetch_and_extract(
-            store_id, isbn13, item_id, profile, cache, day, index_lookup=index_lookup
+            store_id, isbn13, item_id, profile, cache, day, index_lookup=index_lookup,
+            title=title, author=author, title_lookup=title_lookup,
         )
         if progress_callback:
             await _emit_progress(progress_callback, ReadProgress(
@@ -451,9 +498,14 @@ async def _fetch_and_extract(
     cache: PageCache,
     day: str,
     index_lookup=None,
+    title: str | None = None,
+    author: str | None = None,
+    title_lookup=None,
 ) -> OfferRead:
     """Fetch one indexed product page and extract offer data."""
     url = _get_product_url(store_id, isbn13, index_lookup)
+    if not url and title and author and store_id != "amazon_de":
+        return await _read_other_printing(store_id, isbn13, item_id, profile, day, title, author, title_lookup)
     if not url:
         return OfferRead(
             store_id=store_id,
@@ -557,6 +609,64 @@ async def _fetch_and_extract(
     return offer
 
 
+async def _read_other_printing(
+    store_id: str,
+    isbn13: str | None,
+    item_id: str,
+    profile: ShopProfile,
+    day: str,
+    title: str,
+    author: str,
+    title_lookup=None,
+) -> OfferRead:
+    """The shop has the work but not under this ISBN. Attach it only on a strong match.
+
+    The offer keeps the page's own ISBN and is flagged other_printing. If the page
+    does carry the asked-for ISBN it is the same edition and the flag stays off.
+    No Muse call and no cache write: schema.org is the only source here.
+    """
+    from api.title_match import strong_match
+
+    skipped = OfferRead(
+        store_id=store_id, isbn13=isbn13, item_id=item_id, status="skipped",
+        reason="no_match_in_index", cache="miss", day=day,
+    )
+    url = (title_lookup or lookup_title_url)(store_id, title, author)
+    if not url or _searchish(url):
+        return skipped
+    try:
+        result = await asyncio.to_thread(fetch, url)
+    except FetchRefused as e:
+        return OfferRead(
+            store_id=store_id, isbn13=isbn13, item_id=item_id, listing_url=url,
+            status="failed", reason=f"fetch_refused: {e.reason}", cache="miss", day=day,
+        )
+    data = extract_schema_org(result.text)
+    if not strong_match(title, author, data.name, data.authors or []):
+        return skipped
+    if data.price_cents is None or not data.isbn13:
+        return OfferRead(
+            store_id=store_id, isbn13=isbn13, item_id=item_id, listing_url=url,
+            status="failed", reason="no_price_extracted", cache="miss", day=day,
+        )
+    return OfferRead(
+        store_id=store_id,
+        isbn13=data.isbn13,
+        item_id=item_id,
+        price_cents=data.price_cents,
+        currency=data.currency or profile.currency,
+        availability=data.availability,
+        listing_url=url,
+        read_at=datetime.now(TZ).isoformat(timespec="seconds"),
+        in_stock=("instock" in data.availability.lower()) if data.availability else None,
+        schema_org=data,
+        status="ok",
+        cache="live",
+        day=day,
+        other_printing=data.isbn13 != isbn13,
+    )
+
+
 async def _emit_progress(callback: ProgressCallback, progress: ReadProgress) -> None:
     """Emit a progress event."""
     result = callback(progress)
@@ -634,6 +744,7 @@ def live_offer_row(offer: OfferRead, priced: set[str], unranked_fees: set[str]) 
         "listing_url": offer.listing_url,
         "isbn13": offer.isbn13,
         "ranked": reason is None,
+        "other_printing": bool(offer.other_printing),
     }
     if reason is not None:
         row["not_ranked_reason"] = reason
@@ -744,6 +855,9 @@ async def read_offers_parallel(
     cache: PageCache,
     progress_callback: ProgressCallback | None = None,
     index_lookup=None,
+    title: str | None = None,
+    author: str | None = None,
+    title_lookup=None,
 ) -> list[OfferRead]:
     """Read offers from multiple shops in parallel.
     
@@ -758,7 +872,7 @@ async def read_offers_parallel(
         List of OfferRead results, one per shop
     """
     tasks = [
-        _read_one_page(store_id, isbn13, item_id, cache, progress_callback, index_lookup)
+        _read_one_page(store_id, isbn13, item_id, cache, progress_callback, index_lookup, title, author, title_lookup)
         for store_id in store_ids
     ]
     

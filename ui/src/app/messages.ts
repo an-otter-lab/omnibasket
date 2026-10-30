@@ -94,6 +94,8 @@ export interface Messages {
   readsSearch: string;
   readsNoLink: string;
   readsOther: string;
+  /** {shop} {isbn} */
+  readsOtherPrinting: string;
   sampleTitle: string;
   sampleNote: string;
   // Feature 5: declared memberships. {name} is the membership, {shop} the shop.
@@ -430,6 +432,7 @@ export const MESSAGES: Record<Lang, Messages> = {
     readsSearch: 'Search {shop} for this ISBN ↗',
     readsNoLink: 'no link',
     readsOther: 'Not read',
+    readsOtherPrinting: '{shop}: other printing, ISBN {isbn}',
     sampleTitle: 'Your sample basket',
     sampleNote: 'A demo basket of books. Its totals are for the whole basket, not the price of the book you picked. That is in the shop rows above.',
     membershipsTitle: 'Memberships',
@@ -698,6 +701,7 @@ export const MESSAGES: Record<Lang, Messages> = {
     readsSearch: 'Caută pe {shop} acest ISBN ↗',
     readsNoLink: 'fără link',
     readsOther: 'Necitit',
+    readsOtherPrinting: '{shop}: altă tipărire, ISBN {isbn}',
     sampleTitle: 'Coșul demo',
     sampleNote: 'Un coș demo de cărți. Totalurile sunt pentru tot coșul, nu prețul cărții alese. Acela e în rândurile magazinelor de mai sus.',
     membershipsTitle: 'Abonamente',

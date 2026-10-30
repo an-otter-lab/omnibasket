@@ -31,6 +31,8 @@ export interface LiveOffer {
   price_cents: number | null;
   listing_url: string | null;
   isbn13?: string | null;
+  /** The shop's page declares another ISBN of the same work. */
+  other_printing?: boolean;
   ranked: boolean;
   not_ranked_reason?: string;
 }

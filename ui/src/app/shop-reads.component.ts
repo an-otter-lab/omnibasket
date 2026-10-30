@@ -15,6 +15,7 @@ import { Lang, MESSAGES, fill } from './messages';
             <span class="col">
               <span class="strong">{{ name(o) }}</span>
               <span class="s" [class.warn]="warn(o)">{{ line(o) }}</span>
+              @if (printingNote(o); as note) { <span class="s note" data-note="other-printing">{{ note }}</span> }
               @if (kind(o) === 'refused') { <span class="s">{{ m.readsRefusedLine }}</span> }
             </span>
             <span class="rowr">
@@ -85,6 +86,12 @@ export class ShopReadsComponent {
       default:
         return m.readsOther;
     }
+  }
+
+  /** Honest note when the shop's page carries another ISBN of the same work. */
+  printingNote(o: LiveOffer): string | null {
+    if (!o.other_printing || !o.isbn13) return null;
+    return fill(this.m.readsOtherPrinting, { shop: shopLabel(o.store_id), isbn: o.isbn13 });
   }
 
   linkText(o: LiveOffer): string {
