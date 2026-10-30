@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import json
+import os
+import subprocess
 from pathlib import Path
 from typing import Literal
 
-from fastapi import FastAPI, Query, Request
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -99,6 +101,27 @@ class SolveIn(BaseModel):
     memberships: list[str] | None = None
 
 
+def demo_enabled() -> bool:
+    """Demo mode is on only when OMNIBASKET_DEMO says 1/true. Anything else is normal mode."""
+    return os.environ.get("OMNIBASKET_DEMO", "").strip().lower() in {"1", "true"}
+
+
+def _commit_sha() -> str | None:
+    try:
+        out = subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"], cwd=ROOT, capture_output=True, text=True, timeout=2
+        )
+        return (out.stdout.strip() or None) if out.returncode == 0 else None
+    except Exception:
+        return None
+
+
+def _require_demo(app: FastAPI) -> None:
+    """Captured sample data is served in demo mode only; normal mode answers 404."""
+    if not app.state.demo:
+        raise HTTPException(status_code=404, detail="Not found")
+
+
 def create_app(db_path: Path | None = None) -> FastAPI:
     app = FastAPI(title="Omnibasket", version="v1")
     app.add_middleware(PerIPRateLimitMiddleware)
@@ -107,10 +130,26 @@ def create_app(db_path: Path | None = None) -> FastAPI:
     from index.search import DB as INDEX_DB
     app.state.index_db_path = INDEX_DB
     app.state.paste_limiter = DailyPasteLimiter()
+    app.state.demo = demo_enabled()
+    app.state.commit = _commit_sha()
 
     @app.get("/health")
     def health() -> dict:
         return {"status": "ok"}
+
+    @app.get("/config")
+    def config_route() -> dict:
+        return {"demo": app.state.demo, "commit": app.state.commit}
+
+    @app.get("/sample")
+    def sample_route() -> JSONResponse:
+        """The ro-v1 sample basket ('Try a sample basket'). Demo mode only."""
+        _require_demo(app)
+        try:
+            _pages, payload = _cached_solution(app, "cache")
+        except SolverError as exc:
+            return JSONResponse(status_code=400, content={"error": str(exc)})
+        return JSONResponse(payload)
 
     @app.get("/search")
     def search_route(q: str = Query(default=""), limit: int = Query(default=10, ge=1, le=100)) -> dict:
@@ -261,7 +300,8 @@ def create_app(db_path: Path | None = None) -> FastAPI:
 
             return StreamingResponse(generate_live(), media_type="text/event-stream")
         else:
-            # Cache mode: existing behavior
+            # Cache mode serves captured data: demo mode only.
+            _require_demo(app)
             def generate():
                 # Finish every cache read before the first yield. The connection
                 # opened for this request is closed inside PageCache before we get here.
@@ -344,6 +384,7 @@ def _solve(
         )
         payload["memberships"] = memberships_payload(stores, declared, profiles)
         return payload
+    _require_demo(app)
     _, payload = _cached_solution(
         app,
         source,
