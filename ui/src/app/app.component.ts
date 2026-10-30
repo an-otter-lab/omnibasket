@@ -12,6 +12,19 @@ import { buyListFromOrders, encodeBuyList } from './buy-list';
 import { Lang, MESSAGES, fill } from './messages';
 import { MembershipsComponent } from './memberships.component';
 import { MembershipRow, loadDeclared } from './memberships';
+import { PhotoInputComponent, PhotoInputEvent } from './photo-input.component';
+import { PhotoResultComponent } from './photo-result.component';
+import {
+  PhotoCandidate,
+  PhotoLine,
+  PhotoLineAmbiguous,
+  PhotoLineMatched,
+  PhotoLineNotFound,
+  PhotoReadResponse,
+  PhotoState,
+  ResolvedLine,
+  isPhotoError,
+} from './photo';
 
 type Tab = 'cheapest' | 'one' | 'custom';
 
@@ -212,7 +225,7 @@ export function adapt(body: Payload): Payload {
 }
 
 interface Route {
-  name: 'entry' | 'find' | 'live' | 'add' | 'result' | 'order' | 'book' | 'editions' | 'shop' | 'buy';
+  name: 'entry' | 'find' | 'live' | 'photo' | 'add' | 'result' | 'order' | 'book' | 'editions' | 'shop' | 'buy';
   arg: string;
 }
 
@@ -238,7 +251,7 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 
 @Component({
   selector: 'app-root',
-  imports: [NgTemplateOutlet, BuyListComponent, InputBoxComponent, PickListComponent, LiveProgressComponent, ShopReadsComponent, MembershipsComponent],
+  imports: [NgTemplateOutlet, BuyListComponent, InputBoxComponent, PickListComponent, LiveProgressComponent, ShopReadsComponent, MembershipsComponent, PhotoInputComponent, PhotoResultComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.css',
 })
@@ -281,6 +294,8 @@ export class AppComponent implements OnDestroy {
   get museLabel(): string { return MESSAGES[this.lang].writtenByMuse; }
   // Feature 5: memberships the shopper declared, kept in localStorage.
   declaredMemberships: string[] = [];
+  // Feature 2: photo reading state.
+  photoState: PhotoState = { kind: 'idle' };
 
   constructor() {
     const sample = new URLSearchParams(window.location.search).get('sample');
@@ -413,6 +428,12 @@ export class AppComponent implements OnDestroy {
     return this.liveOffers.length > 0 && !!this.data?.live_offers;
   }
 
+  get photoOversizeText(): string {
+    if (this.photoState.kind !== 'oversize') return '';
+    const mb = (this.photoState.size / (1024 * 1024)).toFixed(1);
+    return fill(this.m.photoOversize, { size: mb + ' MB' });
+  }
+
   get m() {
     return MESSAGES[this.lang];
   }
@@ -428,6 +449,7 @@ export class AppComponent implements OnDestroy {
     const arg = decodeURIComponent(rest.join('/'));
     if (name === 'find') this.route = { name: 'find', arg };
     else if (name === 'live') this.route = { name: 'live', arg };
+    else if (name === 'photo') this.route = { name: 'photo', arg: '' };
     else if (name === 'add') this.route = { name: 'add', arg: '' };
     else if (name === 'result') {
       this.route = { name: 'result', arg: '' };
@@ -573,6 +595,128 @@ export class AppComponent implements OnDestroy {
   setMemberships(ids: string[]): void {
     this.declaredMemberships = ids;
     void this.solve();
+  }
+
+  // ------------------------------------------------------------ photo (Feature 2)
+
+  onPhotoEvent(ev: PhotoInputEvent): void {
+    if (ev.kind === 'oversize') {
+      this.photoState = { kind: 'oversize', size: ev.size };
+    } else if (ev.kind === 'error') {
+      this.photoState = { kind: 'failed' };
+    } else if (ev.kind === 'read') {
+      this.handlePhotoResponse(ev.response);
+    }
+  }
+
+  private handlePhotoResponse(response: PhotoReadResponse): void {
+    if (isPhotoError(response)) {
+      this.photoState = { kind: 'failed' };
+      return;
+    }
+    const matched: ResolvedLine[] = [];
+    const ambiguous: { line: PhotoLineAmbiguous; picked: PhotoCandidate | null }[] = [];
+    const notFound: PhotoLineNotFound[] = [];
+    for (const line of response.lines) {
+      if (line.status === 'matched') {
+        matched.push({ read_title: line.read_title, read_author: line.read_author, candidate: line.candidate });
+      } else if (line.status === 'ambiguous') {
+        ambiguous.push({ line, picked: null });
+      } else if (line.status === 'not_found') {
+        notFound.push(line);
+      }
+    }
+    this.photoState = { kind: 'result', matched, ambiguous, notFound };
+    this.go('photo');
+  }
+
+  onPhotoPick(ev: { index: number; candidate: PhotoCandidate }): void {
+    if (this.photoState.kind !== 'result') return;
+    const next = [...this.photoState.ambiguous];
+    next[ev.index] = { ...next[ev.index], picked: ev.candidate };
+    this.photoState = { ...this.photoState, ambiguous: next };
+  }
+
+  onPhotoContinue(): void {
+    if (this.photoState.kind !== 'result') return;
+    const resolved: ResolvedLine[] = [...this.photoState.matched];
+    for (const a of this.photoState.ambiguous) {
+      if (a.picked) {
+        resolved.push({ read_title: a.line.read_title, read_author: a.line.read_author, candidate: a.picked });
+      }
+    }
+    if (resolved.length === 0) return;
+    
+    // Reset photo state and start parallel live reads for ALL resolved ISBNs
+    this.photoState = { kind: 'idle' };
+    this.go('live/photo');
+    
+    // Open parallel SSE streams for all resolved ISBNs
+    this.progress = [];
+    this.liveFailed = false;
+    this.liveOffers = [];
+    this.liveIsbn = '';
+    this.liveTitle = `${resolved.length} book${resolved.length === 1 ? '' : 's'} from photo`;
+    
+    const collectedPayloads: Payload[] = [];
+    let completed = 0;
+    const total = resolved.length;
+    
+    resolved.forEach((line, idx) => {
+      const sub = this.events.open(liveUrl(line.candidate.isbn, `photo-${idx}`, line.candidate.title)).subscribe({
+        next: (ev) => {
+          if (ev.type === 'progress') {
+            this.progress = [...this.progress, ev.progress];
+          } else if (ev.type === 'solution') {
+            const payload = adapt(ev.payload as Payload);
+            collectedPayloads.push(payload);
+            completed++;
+            sub.unsubscribe();
+            
+            if (completed === total) {
+              // All streams done - merge results and solve
+              this.finishPhotoLive(collectedPayloads);
+            }
+          } else {
+            this.liveFailed = true;
+          }
+        },
+        error: () => {
+          this.liveFailed = true;
+        },
+      });
+    });
+  }
+
+  private finishPhotoLive(payloads: Payload[]): void {
+    // Merge all payloads into one combined snapshot
+    const allBooks: BookRow[] = [];
+    const allLiveOffers: LiveOffer[] = [];
+    for (const p of payloads) {
+      allBooks.push(...(p.books || []));
+      allLiveOffers.push(...(p.live_offers || []));
+    }
+    
+    // Build merged snapshot with all books, keep shops/other data from first payload
+    const firstPayload = payloads[0];
+    const merged: Payload = {
+      ...firstPayload,
+      books: allBooks,
+      live_offers: allLiveOffers,
+    };
+    
+    this.snapshot = merged;
+    this.basket = new Set(allBooks.map((b) => b.item_id));
+    this.picked = null;
+    this.pins = {};
+    this.selected = null;
+    this.dirty = false;
+    this.tab = 'cheapest';
+    
+    // Trigger one solve with all books in basket
+    void this.solve().then(() => {
+      this.go('result/cheapest');
+    });
   }
 
   async solve(): Promise<void> {

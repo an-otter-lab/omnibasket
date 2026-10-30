@@ -79,7 +79,25 @@
 } @else if (route.name === 'entry') {
   <header class="hdr"><a class="brand" href="#/">omnibasket</a></header>
   <main class="wrap narrow first" data-screen="first">
-    <app-input-box [lang]="lang" (submitted)="submitBox($event)" />
+    <div class="entry-row">
+      <app-input-box [lang]="lang" (submitted)="submitBox($event)" />
+      <app-photo-input [lang]="lang" [busy]="photoState.kind === 'reading'" (photoEvent)="onPhotoEvent($event)" />
+    </div>
+    @if (photoState.kind === 'oversize') {
+      <p class="s note" role="alert">{{ photoOversizeText }}</p>
+    } @else if (photoState.kind === 'failed') {
+      <p class="s note" role="alert">{{ m.photoReadFail }}</p>
+    }
+  </main>
+} @else if (route.name === 'photo') {
+  <header class="hdr"><a class="brand" href="#/">omnibasket</a></header>
+  <main class="wrap narrow" data-screen="photo">
+    <app-photo-result
+      [lang]="lang"
+      [state]="photoState"
+      (pick)="onPhotoPick($event)"
+      (continue)="onPhotoContinue()"
+    />
   </main>
 } @else if (route.name === 'find') {
   <header class="hdr"><a class="brand" href="#/">omnibasket</a></header>
