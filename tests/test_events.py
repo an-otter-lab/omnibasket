@@ -272,3 +272,44 @@ def test_ro_v1_locked_solve_is_untouched(tmp_path):
 
     unchanged = solve_with_live_offers([], "none", None, None)
     assert unchanged["total_cents"] == 51516
+
+
+def test_live_offers_expose_ranked_state_as_data(tmp_path):
+    """eMAG is read but unranked with a stable reason; a priced Books-Express offer is ranked."""
+    prices = {"libris": "80.00", "bookzone": "90.00", "books-express": "30.00", "emag": "25.00"}
+    res = _live_priced(
+        _client(tmp_path), prices, item_id="hp", stores="libris,books_express,emag,amazon_de"
+    )
+    sol = _parse(res.text)[-1][1]
+    rows = {r["store_id"]: r for r in sol["live_offers"]}
+
+    emag = rows["emag"]
+    assert emag["ranked"] is False
+    assert emag["not_ranked_reason"] == "delivery_rules_not_read"
+    assert emag["price_cents"] == 2500  # read and shown, just not priced
+    assert emag["free_shipping_threshold_cents"] is None
+    assert emag["shipping_fee_cents"] is None
+    assert emag["per_order_fee_cents"] is None
+
+    be = rows["books_express"]
+    assert be["ranked"] is True
+    assert "not_ranked_reason" not in be
+
+    assert rows["amazon_de"]["ranked"] is False
+    assert rows["amazon_de"]["not_ranked_reason"] == "not_read_live"
+    assert "not ranked" not in res.text.lower().replace("not_ranked_reason", "")
+
+
+def test_not_ranked_reasons_cover_the_honest_cases():
+    from api.offers import OfferRead, not_ranked_reason
+
+    priced = {"libris"}
+
+    def row(**kw):
+        return OfferRead(store_id=kw.pop("store_id", "libris"), isbn13=None, item_id="x", **kw)
+
+    assert not_ranked_reason(row(status="ok", price_cents=100), priced, set()) is None
+    assert not_ranked_reason(row(status="skipped", reason="no_match_in_index"), priced, set()) == "no_offer"
+    assert not_ranked_reason(row(status="failed", reason="fetch_refused: timeout"), priced, set()) == "fetch_refused"
+    assert not_ranked_reason(row(status="failed", reason="no_price_extracted"), priced, set()) == "no_price_extracted"
+    assert not_ranked_reason(row(store_id="emag", status="ok", price_cents=100), priced, {"emag"}) == "delivery_rules_not_read"

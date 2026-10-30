@@ -599,6 +599,50 @@ def store_from_profile(store_id: str):
     )
 
 
+_NOT_RANKED_FEE_FIELDS = (
+    "free_shipping_threshold_cents",
+    "shipping_fee_cents",
+    "per_order_fee_cents",
+)
+
+
+def not_ranked_reason(offer: OfferRead, priced: set[str], unranked_fees: set[str]) -> str | None:
+    """Stable machine reason an offer is not ranked, or None when it is priced."""
+    if offer.status == "ok" and offer.price_cents is not None and offer.store_id in priced:
+        return None
+    if offer.store_id in unranked_fees:
+        return "delivery_rules_not_read"
+    reason = offer.reason or ""
+    if reason == "amazon_de_never_read_live":
+        return "not_read_live"
+    if reason == "no_match_in_index":
+        return "no_offer"
+    if reason.startswith("fetch_refused"):
+        return "fetch_refused"
+    if reason == "no_price_extracted":
+        return "no_price_extracted"
+    return reason or "no_offer"
+
+
+def live_offer_row(offer: OfferRead, priced: set[str], unranked_fees: set[str]) -> dict:
+    reason = not_ranked_reason(offer, priced, unranked_fees)
+    row = {
+        "store_id": offer.store_id,
+        "status": offer.status,
+        "reason": offer.reason,
+        "price_cents": offer.price_cents,
+        "listing_url": offer.listing_url,
+        "isbn13": offer.isbn13,
+        "ranked": reason is None,
+    }
+    if reason is not None:
+        row["not_ranked_reason"] = reason
+        if offer.store_id in unranked_fees:
+            for name in _NOT_RANKED_FEE_FIELDS:
+                row[name] = None
+    return row
+
+
 def solve_with_live_offers(offers: list[OfferRead], item_id: str, title: str | None, isbn13: str | None) -> dict:
     """Join the chosen book onto the locked basket and return a real /solve payload.
 
@@ -686,16 +730,9 @@ def solve_with_live_offers(offers: list[OfferRead], item_id: str, title: str | N
     payload["joined_item_id"] = item_id
     payload["joined_title"] = book_title
     payload["joined_isbn13"] = isbn13
+    unranked_fees = {e["id"] for e in excluded}
     payload["live_offers"] = [
-        {
-            "store_id": offer.store_id,
-            "status": offer.status,
-            "reason": offer.reason,
-            "price_cents": offer.price_cents,
-            "listing_url": offer.listing_url,
-            "isbn13": offer.isbn13,
-        }
-        for offer in offers
+        live_offer_row(offer, priced, unranked_fees) for offer in offers
     ]
     return payload
 
