@@ -16,6 +16,7 @@ import { ShopReadsComponent } from './shop-reads.component';
 import { buyListFromOrders, encodeBuyList } from './buy-list';
 import { Lang, MESSAGES, Messages, count, editionName, fieldName, fill } from './messages';
 import { I18nService } from './i18n';
+import { ThemePref, ThemeService } from './theme';
 import { SettingsComponent } from './settings.component';
 import { MembershipsComponent } from './memberships.component';
 import { MembershipRow, loadDeclared, saveDeclared } from './memberships';
@@ -268,6 +269,7 @@ const STATUS_KEY: Record<string, keyof Messages> = {
 export class AppComponent implements OnDestroy {
   private readonly events = inject(EventsService);
   private readonly i18n = inject(I18nService);
+  private readonly themeService = inject(ThemeService);
   private readonly config = inject(ConfigService);
   readonly basketSvc = inject(BasketService);
   // True only in demo mode, after the shopper asked for the sample. Never in normal mode.
@@ -390,8 +392,8 @@ export class AppComponent implements OnDestroy {
 
   // ------------------------------------------------------------ entry screen v2 menus
 
-  get theme(): string {
-    return localStorage.getItem('omnibasket-theme') || 'system';
+  get theme(): ThemePref {
+    return this.themeService.pref();
   }
 
   toggleLangMenu(): void {
@@ -409,10 +411,9 @@ export class AppComponent implements OnDestroy {
     this.langMenuOpen = false;
   }
 
-  setTheme(theme: string): void {
-    localStorage.setItem('omnibasket-theme', theme);
+  setTheme(theme: ThemePref): void {
+    this.themeService.choose(theme); // remembered under THEME_KEY and applied to <html data-theme>
     this.themeMenuOpen = false;
-    // Theme change is handled by the browser re-evaluating the CSS
   }
 
   closeMenus(): void {
