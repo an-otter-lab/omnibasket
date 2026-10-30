@@ -34,6 +34,22 @@ describe('other shops (not checked)', () => {
     expect(el.querySelector('[data-shop="emag"] a')).toBeTruthy();
   });
 
+  it('does not say no offer for a not-checked shop that has an empty read row', () => {
+    const empty = (id: string): LiveOffer => ({ ...NO_OFFER, store_id: id });
+    const offers = [empty('books_express'), empty('bookzone'), empty('emag')];
+    for (const [lang, line] of [['en', 'Not checked here'], ['ro', 'Nu a fost verificat aici']] as const) {
+      const el = reads(lang, BOOK, offers);
+      for (const id of ['bookzone', 'emag']) {
+        const rows = el.querySelectorAll('[data-shop="' + id + '"]');
+        expect(rows.length).toBe(1);
+        expect(rows[0].textContent).toContain(line);
+        expect(rows[0].textContent).not.toMatch(/No offer|Nicio ofert/);
+        expect(rows[0].querySelector('a')).toBeTruthy();
+      }
+      expect(el.querySelector('[data-shop="books_express"]')!.textContent).toMatch(/No offer|Nicio ofert/);
+    }
+  });
+
   it('says it in Romanian', () => {
     const el = reads('ro', BOOK, []);
     expect(el.querySelector('[data-shop="emag"]')!.textContent).toContain('Nu a fost verificat aici');
