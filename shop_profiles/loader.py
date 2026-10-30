@@ -18,6 +18,10 @@ class ShopProfile:
     # Memberships a shopper can declare (feature 5). Each is a rule read
     # from the shop's own page, with its source and read date.
     memberships: tuple = ()
+    # Who sells on this shop: "direct_only" when the shop sells only its own
+    # stock (no third-party marketplace sellers). A live offer from such a
+    # shop is direct even when the page does not name a seller.
+    seller_model: str = "mixed"
 
     @classmethod
     def from_mapping(cls, raw: dict) -> "ShopProfile":
@@ -27,6 +31,9 @@ class ShopProfile:
             raise ValueError("missing profile fields: " + ", ".join(sorted(missing)))
         if raw["status"] not in {"checked", "auto-read"}:
             raise ValueError("invalid profile status")
+        seller_model = raw.get("seller_model", "mixed")
+        if seller_model not in SELLER_MODELS:
+            raise ValueError("seller_model must be one of: " + ", ".join(sorted(SELLER_MODELS)))
         if not isinstance(raw["product_pages"], dict) or raw["product_pages"].get("strategy") != "schema.org-first":
             raise ValueError("product pages must use schema.org-first")
         rules = raw["shipping_rules"]
@@ -65,7 +72,17 @@ class ShopProfile:
         if raw["status"] == "auto-read" and rules is not None:
             raise ValueError("paste-only rules must remain null until read")
         memberships = tuple(_memberships(raw.get("memberships"), live_reading))
-        return cls(**{key: raw[key] for key in required}, memberships=memberships)
+        return cls(
+            **{key: raw[key] for key in required},
+            memberships=memberships,
+            seller_model=seller_model,
+        )
+
+
+# Who sells on the shop.
+#   mixed        the shop may host third-party sellers (default: seller unknown)
+#   direct_only  the shop sells only its own stock, so every offer is direct
+SELLER_MODELS = frozenset({"mixed", "direct_only"})
 
 # What a declared membership does to an order.
 #   none            the rules page was read and the membership changes nothing here

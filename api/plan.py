@@ -11,7 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from solver.optimize import NoFeasibleAssignment, cheapest_unranked, solve
-from solver.types import THRESHOLD_CERTAINTIES, Item, Offer, Store
+from solver.types import Item, Offer, Store, counts_toward_threshold
 
 REASON_TEXT = {
     "not_listed": "not listed here",
@@ -162,7 +162,9 @@ def _order_rows(ctx: PlanContext, rows: list[dict]) -> list[dict]:
         lines = by_store[store_id]
         items_cents = sum(r["price_cents"] for r in lines)
         qualifying = sum(
-            r["price_cents"] for r in lines if r["seller_certainty"] in THRESHOLD_CERTAINTIES
+            r["price_cents"]
+            for r in lines
+            if counts_toward_threshold(store, r["seller_certainty"])
         )
         crossed = qualifying >= store.free_shipping_threshold_cents
         # Bookzone's unprinted delivery charge applies at the 200 lei bar

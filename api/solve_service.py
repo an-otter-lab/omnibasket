@@ -326,11 +326,18 @@ def _romanian_answer(result: Solution | None) -> dict | None:
     return body
 
 
-def stores_from_body(rows: list[dict]) -> list[Store]:
+def stores_from_body(rows: list[dict], profiles=None) -> list[Store]:
+    """Posted store rows. The shop file, then the row, may say direct-only."""
+
+    by_shop = {profile.id: profile for profile in (profiles or [])}
     stores = []
     for row in rows:
         shipping = row["shipping_fee_cents"]
         known = shipping is not None
+        profile = by_shop.get(row["id"])
+        seller_model = (
+            profile.seller_model if profile is not None else row.get("seller_model") or "mixed"
+        )
         stores.append(
             Store(
                 id=row["id"],
@@ -340,6 +347,7 @@ def stores_from_body(rows: list[dict]) -> list[Store]:
                 per_order_fee_cents=int(row["per_order_fee_cents"]),
                 membership=None,
                 shipping_fee_known=known,
+                direct_only=seller_model == "direct_only",
             )
         )
     return stores

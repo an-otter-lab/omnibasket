@@ -6,7 +6,6 @@ import math
 from itertools import product
 
 from solver.types import (
-    THRESHOLD_CERTAINTIES,
     Assignment,
     Item,
     MembershipVerdict,
@@ -16,6 +15,8 @@ from solver.types import (
     Solution,
     Store,
     StoreBreakdown,
+    counts_toward_threshold,
+    effective_certainty,
 )
 
 # Core Romanian shops for the pitch. Libris is Romanian too, but a forced-RO
@@ -131,6 +132,7 @@ def store_if_fees_resolved(row: dict) -> Store | None:
         per_order_fee_cents=int(per_order),
         membership=None,
         shipping_fee_known=known,
+        direct_only=row.get("seller_model") == "direct_only",
     )
 
 
@@ -272,7 +274,7 @@ def _evaluate(
 
 def _store_cost(store: Store, rows: list[tuple[Item, Offer]], membership_on: bool) -> int | None:
     items_cents = sum(offer.price_cents for _, offer in rows)
-    qualifying = _qualifying_cents(rows)
+    qualifying = _qualifying_cents(store, rows)
     shipping = _shipping_cents(store, qualifying, membership_on)
     if shipping is None:
         return None
@@ -280,11 +282,18 @@ def _store_cost(store: Store, rows: list[tuple[Item, Offer]], membership_on: boo
     return items_cents + shipping + store.per_order_fee_cents
 
 
-def _qualifying_cents(rows: list[tuple[Item, Offer]]) -> int:
+def _qualifying_cents(store: Store, rows: list[tuple[Item, Offer]]) -> int:
+    """Prices that count toward this store's free-delivery bar.
+
+    A direct-only shop counts an unnamed seller as direct; any other shop
+    leaves unknown out. The bar is compared with this subtotal, never with
+    the whole order.
+    """
+
     return sum(
         offer.price_cents
         for _, offer in rows
-        if offer.seller_certainty in THRESHOLD_CERTAINTIES
+        if counts_toward_threshold(store, offer.seller_certainty)
     )
 
 
@@ -333,7 +342,10 @@ def _build_solution(
         assert membership is not None
         membership_price = membership.price_cents
 
-    certainties = [offer.seller_certainty for offer in combo]
+    certainties = [
+        effective_certainty(store_by_id[offer.store_id], offer.seller_certainty)
+        for offer in combo
+    ]
     currency = next(iter(store_by_id.values())).currency
     headline_total = goods_and_fees + membership_price
 
@@ -360,17 +372,26 @@ def _build_solution(
 
 def _breakdown(store: Store, rows: list[tuple[Item, Offer]], membership_on: bool) -> StoreBreakdown:
     items_cents = sum(offer.price_cents for _, offer in rows)
-    qualifying = _qualifying_cents(rows)
-    unknown = sum(offer.price_cents for _, offer in rows if offer.seller_certainty == "unknown")
+    qualifying = _qualifying_cents(store, rows)
+    unknown = sum(
+        offer.price_cents
+        for _, offer in rows
+        if not counts_toward_threshold(store, offer.seller_certainty)
+    )
     crossed = qualifying >= store.free_shipping_threshold_cents
     covers = bool(
         membership_on and store.membership is not None and store.membership.covers_shipping
+    )
+    unknown_note = (
+        "unknown sellers count as direct: the shop file says it sells only its own stock"
+        if store.direct_only
+        else f"unknown {unknown} cents excluded and never treated as direct"
     )
     if crossed:
         threshold_reason = (
             f"crossed: qualifying subtotal {qualifying} cents >= threshold "
             f"{store.free_shipping_threshold_cents} cents "
-            f"(unknown {unknown} cents excluded; marketplace counts, direct counts)"
+            f"({unknown_note}; marketplace counts, direct counts)"
         )
         shipping_reason = "waived: qualifying subtotal reached the free-shipping threshold"
         shipping = 0
@@ -378,7 +399,7 @@ def _breakdown(store: Store, rows: list[tuple[Item, Offer]], membership_on: bool
         threshold_reason = (
             f"not crossed: qualifying subtotal {qualifying} cents < threshold "
             f"{store.free_shipping_threshold_cents} cents "
-            f"(unknown {unknown} cents excluded and never treated as direct)"
+            f"({unknown_note})"
         )
         if covers:
             shipping_reason = (
@@ -392,7 +413,9 @@ def _breakdown(store: Store, rows: list[tuple[Item, Offer]], membership_on: bool
             shipping = store.shipping_fee_cents
 
     fee = store.per_order_fee_cents
-    certainties = tuple(offer.seller_certainty for _, offer in rows)
+    certainties = tuple(
+        effective_certainty(store, offer.seller_certainty) for _, offer in rows
+    )
     return StoreBreakdown(
         store_id=store.id,
         currency=store.currency,
