@@ -94,13 +94,11 @@ def create_app(db_path: Path | None = None) -> FastAPI:
         if source == "live":
             # Live read mode: stream progress events during parallel reads
             async def generate_live():
-                from api.offers import read_offers_parallel, ReadProgress
+                from api.offers import read_offers_parallel, solve_with_live_offers, ReadProgress
                 import asyncio
                 
-                # For now, use a hardcoded test case
-                # In production, this would come from the request parameters
                 store_ids = ["libris", "bookzone", "emag", "amazon_de"]
-                isbn13 = "9786068996011"  # Ghici
+                isbn13 = "9786068996011"
                 item_id = "ghici"
                 
                 progress_queue: asyncio.Queue[ReadProgress | None] = asyncio.Queue()
@@ -108,12 +106,16 @@ def create_app(db_path: Path | None = None) -> FastAPI:
                 async def progress_callback(progress: ReadProgress):
                     await progress_queue.put(progress)
                 
-                # Start parallel reads in background
-                read_task = asyncio.create_task(
-                    read_offers_parallel(store_ids, isbn13, item_id, _cache(app), progress_callback)
-                )
+                async def _run():
+                    try:
+                        return await read_offers_parallel(
+                            store_ids, isbn13, item_id, _cache(app), progress_callback
+                        )
+                    finally:
+                        await progress_queue.put(None)
                 
-                # Stream progress events
+                read_task = asyncio.create_task(_run())
+                
                 while True:
                     progress = await progress_queue.get()
                     if progress is None:
@@ -128,12 +130,13 @@ def create_app(db_path: Path | None = None) -> FastAPI:
                         },
                     )
                 
-                # Wait for reads to complete
                 offers = await read_task
-                
-                # TODO: Convert offers to solver format and run solve
-                # For now, just emit a placeholder solution
-                yield _sse("solution", {"status": "complete", "offers_count": len(offers)})
+                try:
+                    payload = solve_with_live_offers(offers, item_id, "Ghici cât de mult te iubesc", isbn13)
+                except SolverError as exc:
+                    yield _sse("error", {"error": str(exc)})
+                    return
+                yield _sse("solution", payload)
             
             return StreamingResponse(generate_live(), media_type="text/event-stream")
         else:

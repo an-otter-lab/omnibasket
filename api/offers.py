@@ -80,25 +80,133 @@ def _load_shop_profile(store_id: str) -> ShopProfile | None:
     return load_profile(profile_path)
 
 
-def _get_product_url(store_id: str, isbn13: str) -> str | None:
-    """Get product URL for a shop and ISBN.
-    
-    Constructs search URLs for each indexed shop based on ISBN.
-    In production, this would search the index for exact product URLs.
+SHOP_LABEL = {
+    "libris": "Libris",
+    "bookzone": "Bookzone",
+    "emag": "eMAG",
+    "books_express": "Books-Express",
+    "amazon_de": "Amazon.de",
+}
+
+_SEARCH_BITS = ("cauta", "cautare", "/search", "?q=", "/s?k=")
+_INDEX_SHOP = {"books_express": "books-express"}
+
+
+def shop_label(store_id: str) -> str:
+    return SHOP_LABEL.get(store_id, store_id)
+
+
+def progress_message(store_id: str, status: str) -> str:
+    name = shop_label(store_id)
+    if store_id == "emag" and status == "failed":
+        return "eMAG couldn't be read, skipped"
+    if store_id == "amazon_de" and status in {"skipped", "ok"}:
+        return "Amazon.de: not read live"
+    if status == "reading":
+        return f"Reading {name}…"
+    if status == "skipped" and store_id != "amazon_de":
+        return f"{name}: no match in our index"
+    return f"{name}: {status}"
+
+
+def _searchish(url: str) -> bool:
+    low = url.lower()
+    return any(bit in low for bit in _SEARCH_BITS)
+
+
+def lookup_product_url(store_id: str, isbn13: str | None, db_path: Path | None = None) -> str | None:
+    """Product page from our sitemap index. Never a shop search URL.
+
+    Amazon.de is not in the pulled index and is never fetched.
     """
+    if not isbn13 or store_id == "amazon_de":
+        return None
+    path = db_path or (ROOT / "data" / "index" / "books.sqlite3")
+    if not path.is_file():
+        return None
+    import sqlite3
+
+    shop = _INDEX_SHOP.get(store_id, store_id)
+    con = sqlite3.connect(path)
+    try:
+        row = con.execute(
+            "SELECT url FROM books WHERE shop = ? AND isbn = ? ORDER BY last_seen DESC LIMIT 1",
+            (shop, isbn13),
+        ).fetchone()
+    except sqlite3.Error:
+        return None
+    finally:
+        con.close()
+    if not row or not row[0] or _searchish(row[0]):
+        return None
+    return row[0]
+
+
+def captured_amazon() -> dict[str, str]:
+    """ISBN -> listing URL for Amazon.de rows already in the locked basket."""
+    import yaml
+
+    basket = yaml.safe_load((ROOT / "data" / "baskets" / "ro-v1.yaml").read_text())
+    found: dict[str, str] = {}
+    for book in basket.get("books") or []:
+        isbn = book.get("isbn13") or ""
+        for offer in book.get("offers") or []:
+            if offer.get("store_id") != "amazon_de":
+                continue
+            url = offer.get("listing_url")
+            if isbn and url:
+                found[str(isbn)] = str(url)
+    return found
+
+
+def amazon_check_link(isbn13: str | None) -> str | None:
+    """Shopper link only. Never fetched. Captured ISBNs keep their product URL."""
     if not isbn13:
         return None
-    
-    # Construct search/product URLs for each shop
-    url_patterns = {
-        "libris": f"https://www.libris.ro/cauta?q={isbn13}",
-        "bookzone": f"https://bookzone.ro/cauta?q={isbn13}",
-        "emag": f"https://www.emag.ro/search?q={isbn13}",
-        "books_express": f"https://www.books-express.ro/cauta?q={isbn13}",
-        "amazon_de": f"https://www.amazon.de/s?k={isbn13}",
+    captured = captured_amazon()
+    if isbn13 in captured:
+        return captured[isbn13]
+    return f"https://www.amazon.de/s?k={isbn13}"
+
+
+def _get_product_url(store_id: str, isbn13: str | None, index_lookup=None) -> str | None:
+    """Resolve a product page from the index. Shop search URLs are never returned."""
+    if store_id == "amazon_de":
+        return None
+    lookup = index_lookup or lookup_product_url
+    url = lookup(store_id, isbn13)
+    if not url or _searchish(url):
+        return None
+    return url
+
+
+def run_matching_checks(fields: dict, primary_isbn: str | None) -> dict:
+    """ISBN check digit, strict edition split, seller tri-state. Production path."""
+    from matching.editions import match_offers
+    from matching.validate import validate_extraction
+
+    validated, verdict = validate_extraction(dict(fields))
+    grouped = match_offers([validated], "strict_isbn", primary_isbn)
+    primary = normalize_isbn13(primary_isbn) if primary_isbn else None
+    isbn = validated.get("isbn13")
+    edition_rejected = bool(primary and isbn and isbn != primary)
+    if "false_without_named_seller" in verdict["reasons"]:
+        validated["sold_and_shipped_by_store"] = None
+        validated["seller_certainty"] = "unknown"
+    elif validated.get("sold_and_shipped_by_store") is True:
+        validated["seller_certainty"] = "direct"
+    elif validated.get("sold_and_shipped_by_store") is False:
+        validated["seller_certainty"] = "marketplace"
+    else:
+        validated["seller_certainty"] = "unknown"
+    return {
+        "fields": validated,
+        "verdict": verdict,
+        "groups": grouped,
+        "edition_rejected": edition_rejected,
+        "isbn_rejected": "isbn_invalid" in verdict["reasons"],
+        "seller_rejected": "false_without_named_seller" in verdict["reasons"],
     }
-    
-    return url_patterns.get(store_id)
 
 
 async def _read_one_page(
@@ -107,6 +215,7 @@ async def _read_one_page(
     item_id: str,
     cache: PageCache,
     progress_callback: ProgressCallback | None = None,
+    index_lookup=None,
 ) -> OfferRead:
     """Read one product page from a shop.
     
@@ -152,11 +261,27 @@ async def _read_one_page(
                 day=day,
             )
             
-            # If schema.org didn't find price but we have model_json, use it
-            if not schema_org.price_cents and model_json:
-                if "price" in model_json and model_json["price"] is not None:
-                    offer.price_cents = int(round(float(model_json["price"]) * 100))
-                    offer.currency = model_json.get("currency")
+            # Muse numbers from a previous read are checked against the saved page.
+            if model_json:
+                from api.muse_integration import adopt_muse_fields
+
+                adopted = adopt_muse_fields(model_json, page_text, schema_org)
+                checked = run_matching_checks(adopted, isbn13)
+                fields = checked["fields"]
+                if schema_org.price_cents is None and fields.get("price") is not None:
+                    offer.price_cents = int(round(float(fields["price"]) * 100))
+                    offer.currency = fields.get("currency") or offer.currency
+                if fields.get("isbn13"):
+                    offer.isbn13 = fields["isbn13"]
+                offer.seller_certainty = fields.get("seller_certainty") or "unknown"
+                offer.edition = fields.get("format")
+                if offer.price_cents is None:
+                    offer.status = "failed"
+                    offer.reason = "muse_price_dropped"
+                elif checked["edition_rejected"]:
+                    offer.status = "failed"
+                    offer.reason = "edition_mismatch"
+                else:
                     offer.status = "ok"
                     offer.reason = None
             
@@ -196,7 +321,7 @@ async def _read_one_page(
             store_id=store_id,
             isbn13=isbn13,
             status="reading",
-            message=f"Reading {store_id}…",
+            message=progress_message(store_id, "reading"),
         ))
     
     # Special handling for Amazon.de (never read live)
@@ -205,6 +330,7 @@ async def _read_one_page(
             store_id=store_id,
             isbn13=isbn13,
             item_id=item_id,
+            listing_url=amazon_check_link(isbn13),
             status="skipped",
             reason="amazon_de_never_read_live",
             cache="miss",
@@ -223,7 +349,9 @@ async def _read_one_page(
     if store_id == "emag":
         # Try once, then skip if failed
         try:
-            offer = await _fetch_and_extract(store_id, isbn13, item_id, profile, cache, day)
+            offer = await _fetch_and_extract(
+                store_id, isbn13, item_id, profile, cache, day, index_lookup=index_lookup
+            )
             if offer.status == "failed":
                 # Emit skip message for eMAG
                 if progress_callback:
@@ -247,6 +375,7 @@ async def _read_one_page(
                 store_id=store_id,
                 isbn13=isbn13,
                 item_id=item_id,
+                listing_url=_get_product_url(store_id, isbn13, index_lookup),
                 status="failed",
                 reason=f"emag_read_error: {type(e).__name__}",
                 cache="miss",
@@ -263,13 +392,15 @@ async def _read_one_page(
     
     # Normal read for other shops
     try:
-        offer = await _fetch_and_extract(store_id, isbn13, item_id, profile, cache, day)
+        offer = await _fetch_and_extract(
+            store_id, isbn13, item_id, profile, cache, day, index_lookup=index_lookup
+        )
         if progress_callback:
             await _emit_progress(progress_callback, ReadProgress(
                 store_id=store_id,
                 isbn13=isbn13,
                 status=offer.status,
-                message=f"{store_id}: {offer.status}",
+                message=progress_message(store_id, offer.status),
             ))
         return offer
     except Exception as e:
@@ -299,17 +430,17 @@ async def _fetch_and_extract(
     profile: ShopProfile,
     cache: PageCache,
     day: str,
+    index_lookup=None,
 ) -> OfferRead:
-    """Fetch a page and extract offer data."""
-    # Get product URL
-    url = _get_product_url(store_id, isbn13)
+    """Fetch one indexed product page and extract offer data."""
+    url = _get_product_url(store_id, isbn13, index_lookup)
     if not url:
         return OfferRead(
             store_id=store_id,
             isbn13=isbn13,
             item_id=item_id,
-            status="failed",
-            reason="no_product_url",
+            status="skipped",
+            reason="no_match_in_index",
             cache="miss",
             day=day,
         )
@@ -322,6 +453,7 @@ async def _fetch_and_extract(
             store_id=store_id,
             isbn13=isbn13,
             item_id=item_id,
+            listing_url=url,
             status="failed",
             reason=f"fetch_refused: {e.reason}",
             cache="miss",
@@ -342,48 +474,27 @@ async def _fetch_and_extract(
     availability = schema_org.availability
     isbn = schema_org.isbn13
     
-    # Fill from Muse if schema.org was incomplete
+    edition = None
+    in_stock = None
+    seller_certainty = "unknown"
+    edition_rejected = False
     if muse_result and muse_result.fields:
-        fields = muse_result.fields
-        if price_cents is None and "price" in fields and fields["price"] is not None:
+        checked = run_matching_checks(muse_result.fields, isbn13)
+        fields = checked["fields"]
+        edition_rejected = checked["edition_rejected"]
+        if price_cents is None and fields.get("price") is not None:
             price_cents = int(round(float(fields["price"]) * 100))
-        if currency is None and "currency" in fields:
+        if currency is None and fields.get("currency"):
             currency = fields["currency"]
-        if isbn is None and "isbn13" in fields:
-            isbn = normalize_isbn13(fields["isbn13"])
-        if "format" in fields:
-            edition = fields["format"]
-        else:
-            edition = None
-        if "in_stock" in fields:
-            in_stock = fields["in_stock"]
-        else:
-            in_stock = None
-        
-        # Determine seller certainty
-        if "sold_and_shipped_by_store" in fields:
-            if fields["sold_and_shipped_by_store"] is True:
-                seller_certainty = "direct"
-            elif fields["sold_and_shipped_by_store"] is False:
-                seller_certainty = "marketplace"
-            else:
-                seller_certainty = "unknown"
-        else:
-            seller_certainty = "unknown"
-    else:
-        edition = None
-        in_stock = None
-        seller_certainty = "unknown"
-        if availability:
-            in_stock = "instock" in availability.lower()
-    
-    # Validate ISBN
+        if fields.get("isbn13"):
+            isbn = fields["isbn13"]
+        edition = fields.get("format")
+        in_stock = fields.get("in_stock")
+        seller_certainty = fields.get("seller_certainty") or "unknown"
+    elif availability:
+        in_stock = "instock" in availability.lower()
     if isbn:
-        validated_isbn = normalize_isbn13(isbn)
-        if validated_isbn is None:
-            isbn = None
-        else:
-            isbn = validated_isbn
+        isbn = normalize_isbn13(isbn)
     
     # Build offer
     offer = OfferRead(
@@ -400,8 +511,8 @@ async def _fetch_and_extract(
         in_stock=in_stock,
         schema_org=schema_org,
         muse_result=muse_result,
-        status="ok" if price_cents is not None else "failed",
-        reason=None if price_cents is not None else "no_price_extracted",
+        status="failed" if edition_rejected or price_cents is None else "ok",
+        reason="edition_mismatch" if edition_rejected else (None if price_cents is not None else "no_price_extracted"),
         cache="live",
         day=day,
     )
@@ -433,12 +544,62 @@ async def _emit_progress(callback: ProgressCallback, progress: ReadProgress) -> 
         await result
 
 
+def solve_with_live_offers(offers: list[OfferRead], item_id: str, title: str | None, isbn13: str | None) -> dict:
+    """Join the chosen book onto the locked basket and return a real /solve payload."""
+    from api.basket import load_locked
+    from api.solve_service import solution_payload
+    from solver.types import Item, Offer
+
+    _day, _currency, stores, items, _pages = load_locked()
+    allowed = {store.id for store in stores}
+    live = tuple(
+        Offer(
+            offer.store_id,
+            int(offer.price_cents),
+            offer.seller_certainty if offer.seller_certainty in {"direct", "marketplace", "unknown"} else "unknown",
+        )
+        for offer in offers
+        if offer.status == "ok" and offer.price_cents is not None and offer.store_id in allowed
+    )
+    merged: list[Item] = []
+    replaced = False
+    for item in items:
+        if item.id == item_id and live:
+            merged.append(Item(item_id, live))
+            replaced = True
+        else:
+            merged.append(item)
+    if not replaced and live:
+        merged.append(Item(item_id, live))
+    if not live and not replaced:
+        # Still solve the locked basket so a refused shop does not stop the answer.
+        payload = solution_payload(stores, list(items))
+    else:
+        payload = solution_payload(stores, merged)
+    payload["joined_item_id"] = item_id
+    payload["joined_title"] = title or item_id
+    payload["joined_isbn13"] = isbn13
+    payload["live_offers"] = [
+        {
+            "store_id": offer.store_id,
+            "status": offer.status,
+            "reason": offer.reason,
+            "price_cents": offer.price_cents,
+            "listing_url": offer.listing_url,
+            "isbn13": offer.isbn13,
+        }
+        for offer in offers
+    ]
+    return payload
+
+
 async def read_offers_parallel(
     store_ids: list[str],
     isbn13: str | None,
     item_id: str,
     cache: PageCache,
     progress_callback: ProgressCallback | None = None,
+    index_lookup=None,
 ) -> list[OfferRead]:
     """Read offers from multiple shops in parallel.
     
@@ -453,7 +614,7 @@ async def read_offers_parallel(
         List of OfferRead results, one per shop
     """
     tasks = [
-        _read_one_page(store_id, isbn13, item_id, cache, progress_callback)
+        _read_one_page(store_id, isbn13, item_id, cache, progress_callback, index_lookup)
         for store_id in store_ids
     ]
     
@@ -482,9 +643,9 @@ def read_offers_sync(
     isbn13: str | None,
     item_id: str,
     cache: PageCache,
+    index_lookup=None,
 ) -> list[OfferRead]:
-    """Synchronous wrapper for read_offers_parallel.
-    
-    Convenience function for non-async contexts.
-    """
-    return asyncio.run(read_offers_parallel(store_ids, isbn13, item_id, cache))
+    """Synchronous wrapper for read_offers_parallel."""
+    return asyncio.run(
+        read_offers_parallel(store_ids, isbn13, item_id, cache, index_lookup=index_lookup)
+    )

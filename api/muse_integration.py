@@ -123,38 +123,65 @@ def _extract_muse_json(response: str | None) -> dict | None:
     return None
 
 
+def _payload_text(payload: dict) -> str:
+    if not isinstance(payload, dict):
+        return ""
+    if payload.get("output_text"):
+        return str(payload["output_text"])
+    parts = []
+    for block in payload.get("output") or []:
+        for piece in block.get("content") or []:
+            if piece.get("text"):
+                parts.append(piece["text"])
+    if parts:
+        return "".join(parts)
+    choices = payload.get("choices") or []
+    if choices:
+        return str((choices[0].get("message") or {}).get("content") or "")
+    return ""
+
+
 def _call_muse(page_text: str) -> tuple[dict, int, int, float, int, str]:
-    """Call Muse Spark through meta_budget.
-    
-    Returns (fields, tokens_in, tokens_out, cost_usd, latency_ms, endpoint).
-    Raises RuntimeError if budget exceeded or call fails.
+    """One Muse call through meta_budget.guarded_post (the spend-window HTTP path).
+
+    spike.extract.call_model is not used: it opens the API on its own.
     """
-    from spike.extract import call_model
-    
     estimate = _estimate_cost(page_text)
-    meta_budget.assert_can_spend(estimate)
-    
-    content = [{"type": "text", "text": _MUSE_PROMPT + "\n\nPAGE TEXT:\n" + page_text}]
-    
-    raw, latency_ms, tokens, endpoint = call_model(content)
-    
-    # Parse JSON from response
-    fields = _extract_muse_json(raw)
-    
-    tokens_in = int(tokens[0] or 0)
-    tokens_out = int(tokens[1] or 0)
-    cost = meta_budget.compute_cost(tokens_in, tokens_out)
-    
-    # Record the spend
-    meta_budget.record(
-        tokens_in,
-        tokens_out,
-        cost,
-        note="muse-gap-fill",
-        extra={"endpoint": endpoint, "latency_ms": latency_ms, "cost_source": "computed_list_rate"},
+    body = {
+        "model": meta_budget.MODEL,
+        "input": [
+            {
+                "role": "user",
+                "content": [{"type": "input_text", "text": _MUSE_PROMPT + "\n\nPAGE TEXT:\n" + page_text}],
+            }
+        ],
+        "max_output_tokens": 2500,
+    }
+    payload, row = meta_budget.guarded_post(body, estimate, note="muse-gap-fill")
+    fields = _extract_muse_json(_payload_text(payload))
+    return (
+        fields,
+        int(row.get("tokens_in") or 0),
+        int(row.get("tokens_out") or 0),
+        float(row.get("cost_usd") or 0),
+        int(row.get("latency_ms") or 0),
+        str(row.get("endpoint") or ""),
     )
-    
-    return fields, tokens_in, tokens_out, cost, latency_ms, endpoint
+
+
+def adopt_muse_fields(model_json: dict | None, page_text: str, schema_org: SchemaOrgData) -> dict:
+    """Return Muse fields with every mismatching number removed.
+
+    This is the production check. A price that is not on the page or in
+    schema.org does not come back.
+    """
+    if not isinstance(model_json, dict):
+        return {}
+    fields = dict(model_json)
+    _passed, mismatches = cross_check_muse_fields(fields, page_text or "", schema_org)
+    for name in mismatches:
+        fields[name] = None
+    return fields
 
 
 def _cross_check_number(value: Any, page_text: str, field_name: str) -> bool:

@@ -200,29 +200,20 @@ def test_extract_muse_json_empty():
 
 
 def test_cross_check_drops_mismatched_numbers():
-    """Test that mismatched numbers are dropped from Muse output."""
+    """Production adopt_muse_fields drops a price that is not on the page."""
+    from api.muse_integration import adopt_muse_fields
+
     fields = {
-        "price": 99.99,  # Wrong price
-        "isbn13": "9781234567890",  # Wrong ISBN
-        "title": "Test Book",  # Non-number, should stay
+        "price": 99.99,
+        "isbn13": "9781234567890",
+        "title": "Test Book",
     }
     page_text = "Price: 57.00 Lei, ISBN: 9786068996011"
     schema_org = SchemaOrgData(price_cents=5700, isbn13="9786068996011")
-    
-    passed, mismatches = cross_check_muse_fields(fields, page_text, schema_org)
-    
-    # After cross-check, mismatched numbers should be dropped
-    assert "price" in mismatches
-    assert "isbn13" in mismatches
-    
-    # Simulate dropping mismatched numbers (as done in gap_fill_with_muse)
-    for field in mismatches:
-        if field in fields:
-            fields[field] = None
-    
-    assert fields["price"] is None
-    assert fields["isbn13"] is None
-    assert fields["title"] == "Test Book"  # Non-number stays
+    adopted = adopt_muse_fields(fields, page_text, schema_org)
+    assert adopted["price"] is None
+    assert adopted["isbn13"] is None
+    assert adopted["title"] == "Test Book"
 
 
 def test_cross_check_preserves_matching_numbers():
