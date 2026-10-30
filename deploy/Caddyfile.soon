@@ -1,0 +1,8 @@
+# Placeholder until go-live: a static page only; the app on 127.0.0.1:8000 is not proxied.
+omnibasket.anottersolution.com {
+	encode zstd gzip
+	header X-Robots-Tag "noindex"
+	root * /var/www/omnibasket-soon
+	try_files {path} /index.html
+	file_server
+}

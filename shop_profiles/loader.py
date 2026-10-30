@@ -39,6 +39,18 @@ class ShopProfile:
                     date.fromisoformat(str(rule.get("read_date", "")))
                 except ValueError:
                     raise ValueError("each shipping rule needs an ISO read_date")
+                # manual_capture rules don't need robots-allowed sources
+                source_kind = rule.get("source_kind", "fetched")
+                if source_kind not in {"fetched", "manual_capture"}:
+                    raise ValueError("source_kind must be 'fetched' or 'manual_capture'")
+        # Validate currency consistency for non-live profiles
+        live_reading = raw.get("live_reading", True)
+        if live_reading is False and rules is not None:
+            # A profile that is never read live must not claim a fetched source
+            for rule in rules:
+                source_kind = rule.get("source_kind", "fetched")
+                if source_kind != "manual_capture":
+                    raise ValueError("non-live profiles require all rules to be source_kind: manual_capture")
         if raw["robots"] is not None:
             robots = raw["robots"]
             if not robots.get("source_url") or not robots.get("read_date"):

@@ -17,15 +17,18 @@ shipping_rules:
     amount: 200.00
     currency: RON
     source_url: https://bookzone.ro/cos/produse
+    source_kind: manual_capture
     read_date: 2026-10-28
   - kind: below_threshold_fee_floor
     amount: 10.90
     currency: RON
     floor: true
     source_url: https://bookzone.ro/cos/produse
+    source_kind: manual_capture
     read_date: 2026-10-28
   - kind: per_order_fee
     amount: 1.99
     currency: RON
     source_url: https://bookzone.ro/cos/produse
+    source_kind: manual_capture
     read_date: 2026-10-28
