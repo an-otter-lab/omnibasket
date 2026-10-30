@@ -1,7 +1,7 @@
 """Feature 2 backend tests: mocked model, fixture image, fixture index, no network."""
 import json
 import sqlite3
-from email.message import Message
+import time
 
 import pytest
 from fastapi.testclient import TestClient
@@ -33,11 +33,6 @@ LIST6 = [
 ]
 
 
-class NoNet:
-    def __call__(self, *a, **k):
-        raise OSError("no network in tests")
-
-
 @pytest.fixture
 def client(tmp_path, monkeypatch):
     db = tmp_path / "books.sqlite3"
@@ -46,8 +41,6 @@ def client(tmp_path, monkeypatch):
         c.executemany("INSERT INTO books VALUES(?,?,?,?,?,?)", [(*r, "2026-10-30") for r in BOOKS])
     app = create_app()
     app.state.index_db_path = db
-    real = photo_read.search
-    monkeypatch.setattr(photo_read, "search", lambda q, limit, db_path, opener=None: real(q, limit=limit, db_path=db_path, opener=NoNet()))
     return TestClient(app)
 
 
@@ -98,7 +91,63 @@ def test_unmatched_and_ambiguous(client, monkeypatch):
     assert lines[0]["status"] == "not_found" and "candidate" not in lines[0]
     assert lines[1]["status"] == "ambiguous"
     assert {c["isbn"] for c in lines[1]["candidates"]} == {"9780441172719", "9780765312891"}
+    assert all("edition" not in c for c in lines[1]["candidates"])
     assert lines[2]["status"] == "matched"
+    assert "edition" not in lines[2]["candidate"]
+
+
+def test_edition_variant_is_labelled(client, monkeypatch):
+    mock_model(monkeypatch, json.dumps({"lines": [
+        {"title": "Owl Babies", "author": "Martin Waddell"},
+    ]}))
+    with sqlite3.connect(client.app.state.index_db_path) as c:
+        c.execute(
+            "INSERT INTO books VALUES(?,?,?,?,?,?)",
+            ("libris", "https://libris.ro/p/owl", "Owl Babies Big Book", "Martin Waddell", "9780763612832", "2026-10-30"),
+        )
+    # The fixture index is rebuilt inside the request; drop the stale FTS so the new row is visible.
+    with sqlite3.connect(client.app.state.index_db_path) as c:
+        c.execute("DROP TABLE IF EXISTS books_search")
+    out = post(client).json()["lines"][0]
+    assert out["status"] == "matched"
+    assert out["candidate"]["isbn"] == "9780763612832"
+    assert out["candidate"]["edition"] == "big book"
+
+
+def test_spinoff_is_not_a_candidate(client, monkeypatch):
+    mock_model(monkeypatch, json.dumps({"lines": [
+        {"title": "The Very Hungry Caterpillar", "author": "Eric Carle"},
+    ]}))
+    with sqlite3.connect(client.app.state.index_db_path) as c:
+        c.execute("DELETE FROM books WHERE isbn = ?", ("9780141367941",))
+        c.execute(
+            "INSERT INTO books VALUES(?,?,?,?,?,?)",
+            ("libris", "https://libris.ro/p/abc", "The Very Hungry Caterpillar's ABC", "", "9780141361673", "2026-10-30"),
+        )
+        c.execute("DROP TABLE IF EXISTS books_search")
+    out = post(client).json()["lines"][0]
+    assert out["status"] == "not_found"
+
+
+def test_common_word_title_stays_fast(tmp_path):
+    """A title made of common words must not scan the table: one AND query, well under a second."""
+    db = tmp_path / "books.sqlite3"
+    with sqlite3.connect(db) as c:
+        c.execute("CREATE TABLE books(shop TEXT NOT NULL,url TEXT NOT NULL,title TEXT,author_hint TEXT,isbn TEXT,last_seen TEXT NOT NULL,PRIMARY KEY(shop,url))")
+        rows = [
+            ("s", "https://ex/%d" % i, "web of the white sea %d" % i, "", "9780000000%04d" % i, "2026-10-30")
+            for i in range(3000)
+        ]
+        rows.append(("s", "https://ex/hit", "Charlotte's Web Deluxe Edition", "", "9780141368832", "2026-10-30"))
+        c.executemany("INSERT INTO books VALUES(?,?,?,?,?,?)", rows)
+    started = time.perf_counter()
+    out = photo_read.match_line({"title": "Charlotte's Web", "author": "E. B. White"}, db)
+    elapsed = time.perf_counter() - started
+    assert elapsed < 1.0, elapsed
+    assert out["status"] == "matched"
+    assert out["candidate"]["isbn"] == "9780141368832"
+    assert out["candidate"]["edition"] == "deluxe edition"
+    assert photo_read.fts_and_query(photo_read.title_words("Charlotte's Web")) == '"charlotte" "web"'
 
 
 @pytest.mark.parametrize("text", ["", "   ", "sorry, I cannot read this", '{"lines": []}', '{"lines": [{"title": 5}]}', "[1, 2]"])

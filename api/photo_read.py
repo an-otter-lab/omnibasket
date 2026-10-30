@@ -9,7 +9,9 @@ from __future__ import annotations
 import base64
 import json
 import re
+import sqlite3
 import sys
+import urllib.parse
 from pathlib import Path
 from typing import Any, Callable
 
@@ -18,12 +20,17 @@ sys.path.insert(0, str(ROOT / "tools"))
 
 import meta_budget  # noqa: E402
 from api.muse_integration import _payload_text  # noqa: E402
-from index.search import normalize, search, _filter_stop_words  # noqa: E402
+from index.search import ensure_books_search, normalize, _filter_stop_words  # noqa: E402
 
 MAX_IMAGE_BYTES = 4 * 1024 * 1024
 MAX_LINES = 30
 MAX_CANDIDATES = 5
-SEARCH_LIMIT = 50
+QUERY_LIMIT = 200
+MIN_WORD = 3
+# A format variant may add only these words. Anything else is a different book.
+FORMAT_WORDS = frozenset({
+    "board", "book", "big", "deluxe", "edition", "special", "colour", "anniversary",
+})
 ALLOWED_TYPES = {"image/png", "image/jpeg", "image/webp"}
 
 PROMPT = (
@@ -102,50 +109,110 @@ def read_list(data: bytes, mime: str) -> list[dict]:
     return parse_lines(_payload_text(payload))
 
 
-def _tokens(value: str | None) -> list[str]:
-    return _filter_stop_words(normalize(value).split()) if value else []
+def title_words(value: str | None) -> list[str]:
+    """Title words used for matching: no stop words, no words under 3 letters.
+
+    Apostrophes split the way the FTS tokenizer does, so "Charlotte's" is "charlotte".
+    """
+    raw = normalize(value) if value else ""
+    tokens = re.findall(r"[a-z0-9]+", raw)
+    return [t for t in _filter_stop_words(tokens) if len(t) >= MIN_WORD]
 
 
-def _is_candidate(line: dict, hit: dict) -> bool:
-    if not hit.get("isbn"):
-        return False
-    want, have = _tokens(line["title"]), _tokens(hit.get("title"))
-    if not want or not have:
-        return False
-    short, long_ = sorted((want, have), key=len)
-    # same title, or the same title plus a short subtitle/series tag; not a different book that merely mentions it
-    if long_[: len(short)] != short or len(long_) - len(short) > 3:
-        return False
-    if line.get("author") and hit.get("author"):
-        if not set(_tokens(line["author"])) & set(_tokens(hit["author"])):
-            return False
-    return True
+def fts_and_query(words: list[str]) -> str:
+    """FTS5 AND of whole tokens. No OR and no prefix, so a common word cannot scan the catalogue."""
+    return " ".join('"%s"' % w for w in words)
+
+
+def _cover(isbn: str) -> str:
+    return "https://covers.openlibrary.org/b/isbn/%s-M.jpg" % urllib.parse.quote(isbn)
+
+
+def _edition_label(want: list[str], have: list[str]) -> str | None:
+    """None when this title is not the read title or a format variant of it.
+
+    Empty string means an exact word match. Any other string is the edition label.
+    """
+    from collections import Counter
+
+    spare = Counter(want)
+    extras: list[str] = []
+    for word in have:
+        if spare[word]:
+            spare[word] -= 1
+        else:
+            extras.append(word)
+    if any(spare.values()):
+        return None
+    if not extras:
+        return ""
+    if any(word not in FORMAT_WORDS for word in extras):
+        return None
+    return " ".join(extras)
+
+
+def query_line(words: list[str], db_path) -> list[sqlite3.Row]:
+    """One query: every title word, ISBN only, at most 200 rows."""
+    if not words or not Path(db_path).is_file():
+        return []
+    with sqlite3.connect(str(db_path)) as db:
+        db.row_factory = sqlite3.Row
+        ensure_books_search(db)
+        try:
+            return db.execute(
+                """
+                SELECT b.title AS title, b.author_hint AS author, b.isbn AS isbn
+                FROM books_search s
+                JOIN books b ON b.rowid = s.rowid
+                WHERE books_search MATCH ? AND b.isbn IS NOT NULL AND b.isbn != ''
+                LIMIT ?
+                """,
+                (fts_and_query(words), QUERY_LIMIT),
+            ).fetchall()
+        except sqlite3.OperationalError:
+            return []
 
 
 def match_line(line: dict, db_path, opener=None) -> dict:
-    # The index search ORs prefix tokens and ranks in Python, so common words ("web", "white", "'s")
-    # make it scan a large part of the catalogue. Ask it for the most distinctive (longest) title word
-    # only; the full title and the author are then checked here, in _is_candidate.
-    words = _filter_stop_words(normalize(line["title"]).split())
-    query = max(words, key=len) if words else line["title"]
-    hits = search(query, limit=SEARCH_LIMIT, db_path=db_path, opener=opener) if opener else search(query, limit=SEARCH_LIMIT, db_path=db_path)
-    cands = [h for h in hits if _is_candidate(line, h)]
-    seen, uniq = set(), []
-    for h in cands:
-        if h["isbn"] not in seen:
-            seen.add(h["isbn"])
-            uniq.append(h)
+    """Match one read line. The author is ignored; an ISBN comes only from the index.
 
-    def pick(h: dict) -> dict:
-        # cover_url is the Open Library reference built from the ISBN; shop images are never used
-        return {"title": h["title"], "author": h.get("author"), "isbn": h["isbn"], "cover_url": h["cover_url"]}
-
+    One exact ISBN is matched. More than one exact ISBN is ambiguous. No exact title
+    but one format edition is matched and labelled with that edition. More than one
+    edition is ambiguous. Anything else, including a spin-off, is not a candidate.
+    """
+    del opener  # matching never calls out; the index already holds the ISBN
+    want = title_words(line.get("title"))
     base = {"read_title": line["title"], "read_author": line.get("author")}
-    if not uniq:
-        return {**base, "status": "not_found"}
-    if len(uniq) == 1:
-        return {**base, "status": "matched", "candidate": pick(uniq[0])}
-    return {**base, "status": "ambiguous", "candidates": [pick(h) for h in uniq[:MAX_CANDIDATES]]}
+    exact: dict[str, dict] = {}
+    editions: dict[str, dict] = {}
+    for row in query_line(want, db_path):
+        label = _edition_label(want, title_words(row["title"]))
+        if label is None:
+            continue
+        isbn = row["isbn"]
+        item = {
+            "title": row["title"],
+            "author": row["author"] or None,
+            "isbn": isbn,
+            "cover_url": _cover(isbn),
+        }
+        if label == "":
+            exact.setdefault(isbn, item)
+        else:
+            item["edition"] = label
+            editions.setdefault(isbn, item)
+
+    if len(exact) == 1:
+        return {**base, "status": "matched", "candidate": next(iter(exact.values()))}
+    if len(exact) > 1:
+        picks = [exact[k] for k in sorted(exact)][:MAX_CANDIDATES]
+        return {**base, "status": "ambiguous", "candidates": picks}
+    if len(editions) == 1:
+        return {**base, "status": "matched", "candidate": next(iter(editions.values()))}
+    if len(editions) > 1:
+        picks = [editions[k] for k in sorted(editions)][:MAX_CANDIDATES]
+        return {**base, "status": "ambiguous", "candidates": picks}
+    return {**base, "status": "not_found"}
 
 
 def read_and_match(data: bytes, mime: str, db_path, opener=None) -> dict:
