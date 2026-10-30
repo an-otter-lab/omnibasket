@@ -29,3 +29,51 @@
   height: 100%;
   white-space: nowrap;
 }
+
+/* R0/R4: the add-book state (entry, #/add, #/find/<q>) */
+.addbar { gap: 10px; }
+.addbar.empty { border-top: 0; padding-top: 0; margin-top: 0; }
+.addbar .addlive:empty { display: none; }
+.addbar .btn { width: 100%; }
+.addchips { display: flex; flex-wrap: wrap; gap: 8px; }
+.addchip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 44px;
+  max-width: 100%;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  padding: 0 2px 0 14px;
+}
+.addtitle {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 500 14px/1.2 Inter, sans-serif;
+  color: var(--ink);
+}
+.chipx {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 22px;
+  background: none;
+  color: var(--ink-soft);
+  font: 400 20px/1 Inter, sans-serif;
+  cursor: pointer;
+}
+.chipx:hover { background: var(--surface-3); color: var(--ink); }
+@media (max-width: 767px) {
+  .addchip { max-width: 70%; }
+}
+@media (min-width: 768px) {
+  .addchip { max-width: 330px; }
+  .addbar .btn { width: auto; align-self: flex-start; }
+}
