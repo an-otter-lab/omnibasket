@@ -10,7 +10,7 @@ import { MembershipRow, membershipNote, membershipSource, saveDeclared } from '.
   styles: [
     '.mships{margin:10px 0 0}',
     '.mships label{display:inline-flex;align-items:center;gap:6px;margin-right:14px;cursor:pointer}',
-    '.mships input{width:18px;height:18px;accent-color:#14532d}',
+    '.mships input{width:18px;height:18px;accent-color:var(--brand)}',
     '.mnote{margin:6px 0 0}',
     '.msrc{word-break:break-all}',
   ],

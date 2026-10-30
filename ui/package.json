@@ -8,7 +8,8 @@
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "check:manifest": "node scripts/check-manifest.mjs public",
-    "check:manifest:dist": "node scripts/check-manifest.mjs dist/ui/browser"
+    "check:manifest:dist": "node scripts/check-manifest.mjs dist/ui/browser",
+    "check:contrast": "node scripts/check-contrast.mjs"
   },
   "private": true,
   "dependencies": {
