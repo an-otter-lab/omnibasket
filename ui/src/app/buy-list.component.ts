@@ -54,7 +54,7 @@ interface Saved {
         }
 
         @for (s of shops; track s.store_id; let si = $index) {
-          <section class="parcel on shoplist" [attr.data-shop]="s.store_id">
+          <section class="obox on shoplist" [attr.data-shop]="s.store_id">
             <div class="phead"><h2 class="pt">{{ orderTitle(s.store_id) }}</h2></div>
             @for (b of s.books; track $index; let bi = $index) {
               <div class="row">

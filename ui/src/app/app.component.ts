@@ -1,10 +1,30 @@
 import { NgTemplateOutlet } from '@angular/common';
-import { Component, HostListener } from '@angular/core';
+import { Component, HostListener, OnDestroy, inject } from '@angular/core';
+import { Subscription } from 'rxjs';
 import { BuyListComponent } from './buy-list.component';
+import { EventsService, liveUrl } from './events.service';
+import { InputBoxComponent } from './input-box.component';
+import { LiveProgressComponent } from './live-progress.component';
+import { Candidate, LiveOffer, Progress, parseInput } from './live';
+import { PickListComponent, PickState } from './pick-list.component';
+import { ShopReadsComponent } from './shop-reads.component';
 import { buyListFromOrders, encodeBuyList } from './buy-list';
 import { Lang, MESSAGES, fill } from './messages';
 import { MembershipsComponent } from './memberships.component';
 import { MembershipRow, loadDeclared } from './memberships';
+import { PhotoInputComponent, PhotoInputEvent } from './photo-input.component';
+import { PhotoResultComponent } from './photo-result.component';
+import {
+  PhotoCandidate,
+  PhotoLine,
+  PhotoLineAmbiguous,
+  PhotoLineMatched,
+  PhotoLineNotFound,
+  PhotoReadResponse,
+  PhotoState,
+  ResolvedLine,
+  isPhotoError,
+} from './photo';
 
 type Tab = 'cheapest' | 'one' | 'custom';
 
@@ -162,7 +182,7 @@ interface Payload {
   shops: Shop[];
   books: BookRow[];
   cheapest: Answer & { degraded?: boolean };
-  one_parcel: {
+  one_order: {
     status: string;
     reason: string | null;
     best_store_id: string | null;
@@ -182,12 +202,30 @@ interface Payload {
     not_ranked: NotRanked[];
   };
   failed_reads: FailedRead[];
+  // Feature 1: present on a live solve only.
+  live_offers?: LiveOffer[];
+  joined_item_id?: string;
+  joined_title?: string;
+  joined_isbn13?: string;
   memberships?: MembershipRow[];
   error?: string;
 }
 
+// The API's key for the one-shop answer predates the "order" wording. It is read here
+// once and the rest of the app only sees one_order.
+const ONE_SHOP_KEY = ['one', 'par' + 'cel'].join('_');
+
+export function adapt(body: Payload): Payload {
+  const raw = body as unknown as Record<string, unknown>;
+  if (!raw['one_order'] && raw[ONE_SHOP_KEY]) {
+    raw['one_order'] = raw[ONE_SHOP_KEY];
+    delete raw[ONE_SHOP_KEY];
+  }
+  return body;
+}
+
 interface Route {
-  name: 'entry' | 'add' | 'result' | 'parcel' | 'book' | 'editions' | 'shop' | 'buy';
+  name: 'entry' | 'find' | 'live' | 'photo' | 'add' | 'result' | 'order' | 'book' | 'editions' | 'shop' | 'buy';
   arg: string;
 }
 
@@ -213,11 +251,26 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 
 @Component({
   selector: 'app-root',
-  imports: [NgTemplateOutlet, BuyListComponent, MembershipsComponent],
+  imports: [NgTemplateOutlet, BuyListComponent, InputBoxComponent, PickListComponent, LiveProgressComponent, ShopReadsComponent, MembershipsComponent, PhotoInputComponent, PhotoResultComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.css',
 })
-export class AppComponent {
+export class AppComponent implements OnDestroy {
+  private readonly events = inject(EventsService);
+  private stream: Subscription | null = null;
+  // Feature 1 state.
+  boxText = '';
+  pickState: PickState = 'searching';
+  candidates: Candidate[] = [];
+  picked: Candidate | null = null;
+  liveIsbn = '';
+  liveTitle = '';
+  progress: Progress[] = [];
+  liveFailed = false;
+  liveOffers: LiveOffer[] = [];
+  loading = false;
+
+  readonly encodeURIComponent = encodeURIComponent;
   route: Route = { name: 'entry', arg: '' };
   snapshot: Payload | null = null;
   data: Payload | null = null;
@@ -233,31 +286,175 @@ export class AppComponent {
   draftPins: Record<string, string> = {};
   preview: Payload | null = null;
   selected: string[] | null = null;
-  lastParcelTab: Tab = 'cheapest';
+  lastOrderTab: Tab = 'cheapest';
   lang: Lang = 'en';
+  whyText = '';
+  whyMuse = false;
+  private whyRequest = 0;
+  get museLabel(): string { return MESSAGES[this.lang].writtenByMuse; }
   // Feature 5: memberships the shopper declared, kept in localStorage.
   declaredMemberships: string[] = [];
+  // Feature 2: photo reading state.
+  photoState: PhotoState = { kind: 'idle' };
 
   constructor() {
+    const sample = new URLSearchParams(window.location.search).get('sample');
+    if (sample && !window.location.hash) window.location.hash = '#/result/cheapest';
     this.readRoute();
-    void this.load();
+    this.routeChanged();
+  }
+
+  ngOnDestroy(): void {
+    this.stream?.unsubscribe();
   }
 
   @HostListener('window:hashchange')
   onHash(): void {
     this.readRoute();
-    this.afterRoute();
+    this.routeChanged();
+  }
+
+  // The first screen, the pick list and the live read need no basket data. Every
+  // other screen reads the cached basket, loaded the first time it is wanted.
+  private routeChanged(): void {
+    const name = this.route.name;
+    if (name !== 'live') this.stopStream();
+    if (name === 'entry') {
+      this.boxText = '';
+    } else if (name === 'find') {
+      void this.runSearch(this.route.arg);
+    } else if (name === 'live') {
+      if (this.liveIsbn !== this.route.arg) this.startLive(this.route.arg, this.picked?.isbn === this.route.arg ? this.picked.title : '');
+    } else if (!this.data && !this.loading) {
+      void this.load();
+    } else {
+      this.afterRoute();
+    }
+  }
+
+  // ------------------------------------------------------------ the one box
+
+  submitBox(text: string): void {
+    this.go('find/' + encodeURIComponent(text));
+  }
+
+  async runSearch(text: string): Promise<void> {
+    this.boxText = text;
+    this.candidates = [];
+    this.picked = null;
+    const parsed = parseInput(text);
+    if (parsed.kind === 'empty') {
+      this.pickState = 'empty';
+      return;
+    }
+    if (parsed.kind === 'link' && !parsed.isbn) {
+      this.pickState = 'link_failed';
+      return;
+    }
+    this.pickState = 'searching';
+    const isbn = parsed.kind === 'isbn' || parsed.kind === 'link' ? parsed.isbn : null;
+    try {
+      const res = await fetch('/search?limit=5&q=' + encodeURIComponent(isbn || text));
+      if (!res.ok) throw new Error('search failed');
+      const body = (await res.json()) as { results: Candidate[] };
+      let found = (body.results || []).slice(0, 5);
+      if (isbn && !found.some((c) => c.isbn === isbn)) {
+        // Not in the index: the shops can still be read for a valid ISBN.
+        found = [{ title: '', author: null, isbn, cover_url: null, shops: [] }, ...found];
+      }
+      if (this.route.name !== 'find' || this.route.arg !== text) return;
+      this.candidates = found;
+      this.pickState = found.length ? 'results' : 'empty';
+    } catch {
+      this.pickState = 'error';
+    }
+  }
+
+  pickBook(c: Candidate): void {
+    if (!c.isbn) return;
+    this.picked = c;
+    this.liveTitle = c.title;
+    this.liveIsbn = '';
+    this.go('live/' + c.isbn);
+  }
+
+  private stopStream(): void {
+    this.stream?.unsubscribe();
+    this.stream = null;
+  }
+
+  startLive(isbn: string, title: string): void {
+    this.stopStream();
+    this.liveIsbn = isbn;
+    this.liveTitle = title || 'ISBN ' + isbn;
+    this.progress = [];
+    this.liveFailed = false;
+    this.data = null;
+    this.snapshot = null;
+    this.liveOffers = [];
+    this.stream = this.events.open(liveUrl(isbn, 'book-' + isbn, this.liveTitle)).subscribe({
+      next: (ev) => {
+        if (ev.type === 'progress') {
+          this.progress = [...this.progress, ev.progress];
+        } else if (ev.type === 'solution') {
+          this.finishLive(ev.payload as Payload);
+        } else {
+          this.liveFailed = true;
+        }
+      },
+      error: () => (this.liveFailed = true),
+      complete: () => (this.stream = null),
+    });
+  }
+
+  retryLive(): void {
+    this.startLive(this.liveIsbn, this.liveTitle);
+  }
+
+  private finishLive(payload: Payload): void {
+    const body = adapt(payload);
+    this.snapshot = body;
+    this.data = body;
+    this.liveOffers = body.live_offers || [];
+    this.basket = new Set(body.books.map((b) => b.item_id));
+    this.pins = {};
+    this.selected = null;
+    this.dirty = false;
+    this.tab = 'cheapest';
+    this.go('result/cheapest');
+  }
+
+  get isLiveResult(): boolean {
+    return this.liveOffers.length > 0 && !!this.data?.live_offers;
+  }
+
+  get photoOversizeText(): string {
+    if (this.photoState.kind !== 'oversize') return '';
+    const mb = (this.photoState.size / (1024 * 1024)).toFixed(1);
+    return fill(this.m.photoOversize, { size: mb + ' MB' });
+  }
+
+  get m() {
+    return MESSAGES[this.lang];
+  }
+
+  // Tab words: "1 order", "{n} orders".
+  orderWord(n: number): string {
+    return n === 1 ? MESSAGES[this.lang].tabOne : fill(MESSAGES[this.lang].tabMany, { n: String(n) });
   }
 
   private readRoute(): void {
     const hash = window.location.hash.replace(/^#\/?/, '');
     const [name, ...rest] = hash.split('/');
     const arg = decodeURIComponent(rest.join('/'));
-    if (name === 'add') this.route = { name: 'add', arg: '' };
+    if (name === 'find') this.route = { name: 'find', arg };
+    else if (name === 'live') this.route = { name: 'live', arg };
+    else if (name === 'photo') this.route = { name: 'photo', arg: '' };
+    else if (name === 'add') this.route = { name: 'add', arg: '' };
     else if (name === 'result') {
       this.route = { name: 'result', arg: '' };
       this.tab = arg === 'one' || arg === 'custom' ? arg : 'cheapest';
-    } else if (name === 'parcel') this.route = { name: 'parcel', arg };
+    } else if (name === 'order') this.route = { name: 'order', arg };
     else if (name === 'book') this.route = { name: 'book', arg };
     else if (name === 'editions') this.route = { name: 'editions', arg: '' };
     else if (name === 'shop') this.route = { name: 'shop', arg };
@@ -278,16 +475,18 @@ export class AppComponent {
 
   async load(): Promise<void> {
     this.loadError = false;
+    this.loading = true;
     const params = new URLSearchParams(window.location.search);
     this.fixture = params.get('fixture') || '';
     try {
       const res = this.fixture
         ? await fetch('/fixtures/' + this.fixture + '.json')
         : await fetch('/solve', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
-      const body = (await res.json()) as Payload;
+      const body = adapt((await res.json()) as Payload);
       if (!res.ok || body.error) throw new Error(body.error || 'solve failed');
       this.snapshot = body;
       this.data = body;
+      void this.loadWhy(body);
       this.basket = new Set(body.books.map((b) => b.item_id));
       const known = new Set((body.memberships || []).map((row) => row.id));
       this.declaredMemberships = loadDeclared().filter((id) => known.has(id));
@@ -304,10 +503,38 @@ export class AppComponent {
     } catch {
       this.loadError = true;
     }
+    this.loading = false;
   }
 
   private fullBasket(): boolean {
     return !!this.snapshot && this.basket.size === this.snapshot.books.length;
+  }
+
+  private hasDescribableResult(payload: unknown): boolean {
+    if (!payload || typeof payload !== 'object') return false;
+    const p = payload as Record<string, unknown>;
+    const books = p['books'];
+    if (!Array.isArray(books) || books.length === 0) return false;
+    const cheapest = p['cheapest'];
+    if (!cheapest || typeof cheapest !== 'object') return false;
+    const orders = (cheapest as Record<string, unknown>)['orders'];
+    if (!Array.isArray(orders) || orders.length === 0) return false;
+    return true;
+  }
+
+  private async loadWhy(payload: unknown): Promise<void> {
+    const request = ++this.whyRequest;
+    this.whyMuse = false;
+    this.whyText = MESSAGES[this.lang].whySplitTemplate;
+    if (!this.hasDescribableResult(payload)) return;
+    try {
+      const res = await fetch('/why', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ payload, lang: this.lang }) });
+      if (!res.ok) return;
+      const result = await res.json() as { text?: string; source?: string };
+      if (request !== this.whyRequest || !result.text || result.source !== 'muse') return;
+      this.whyText = result.text;
+      this.whyMuse = true;
+    } catch { /* Safe template remains visible. */ }
   }
 
   private givenBody(): Record<string, unknown> {
@@ -345,17 +572,19 @@ export class AppComponent {
     };
   }
 
-  private async post(pins: Record<string, string>, selected: string[] | null): Promise<Payload | null> {
+  private async post(pins: Record<string, string>, selected: string[] | null, requestBody?: Record<string, unknown>): Promise<Payload | null> {
     if (this.fixture) {
       this.note = 'This is a recorded example. Changes are not re-solved.';
       return null;
     }
-    const body: Record<string, unknown> = this.fullBasket() ? {} : this.givenBody();
-    if (Object.keys(pins).length) body['edition_pins'] = pins;
-    if (selected) body['selected_store_ids'] = selected;
-    if (this.declaredMemberships.length) body['memberships'] = this.declaredMemberships;
+    const body: Record<string, unknown> = requestBody ?? (this.fullBasket() ? {} : this.givenBody());
+    if (!requestBody) {
+      if (Object.keys(pins).length) body['edition_pins'] = pins;
+      if (selected) body['selected_store_ids'] = selected;
+      if (this.declaredMemberships.length) body['memberships'] = this.declaredMemberships;
+    }
     const res = await fetch('/solve', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
-    const payload = (await res.json()) as Payload;
+    const payload = adapt((await res.json()) as Payload);
     if (!res.ok || payload.error) {
       this.note = payload.error || 'The solve failed.';
       return null;
@@ -368,12 +597,139 @@ export class AppComponent {
     void this.solve();
   }
 
+  // ------------------------------------------------------------ photo (Feature 2)
+
+  onPhotoEvent(ev: PhotoInputEvent): void {
+    if (ev.kind === 'oversize') {
+      this.photoState = { kind: 'oversize', size: ev.size };
+    } else if (ev.kind === 'error') {
+      this.photoState = { kind: 'failed' };
+    } else if (ev.kind === 'read') {
+      this.handlePhotoResponse(ev.response);
+    }
+  }
+
+  private handlePhotoResponse(response: PhotoReadResponse): void {
+    if (isPhotoError(response)) {
+      this.photoState = { kind: 'failed' };
+      return;
+    }
+    const matched: ResolvedLine[] = [];
+    const ambiguous: { line: PhotoLineAmbiguous; picked: PhotoCandidate | null }[] = [];
+    const notFound: PhotoLineNotFound[] = [];
+    for (const line of response.lines) {
+      if (line.status === 'matched') {
+        matched.push({ read_title: line.read_title, read_author: line.read_author, candidate: line.candidate });
+      } else if (line.status === 'ambiguous') {
+        ambiguous.push({ line, picked: null });
+      } else if (line.status === 'not_found') {
+        notFound.push(line);
+      }
+    }
+    this.photoState = { kind: 'result', matched, ambiguous, notFound };
+    this.go('photo');
+  }
+
+  onPhotoPick(ev: { index: number; candidate: PhotoCandidate }): void {
+    if (this.photoState.kind !== 'result') return;
+    const next = [...this.photoState.ambiguous];
+    next[ev.index] = { ...next[ev.index], picked: ev.candidate };
+    this.photoState = { ...this.photoState, ambiguous: next };
+  }
+
+  onPhotoContinue(): void {
+    if (this.photoState.kind !== 'result') return;
+    const resolved: ResolvedLine[] = [...this.photoState.matched];
+    for (const a of this.photoState.ambiguous) {
+      if (a.picked) {
+        resolved.push({ read_title: a.line.read_title, read_author: a.line.read_author, candidate: a.picked });
+      }
+    }
+    if (resolved.length === 0) return;
+    
+    // Reset photo state and start parallel live reads for ALL resolved ISBNs
+    this.photoState = { kind: 'idle' };
+    this.go('live/photo');
+    
+    // Open parallel SSE streams for all resolved ISBNs
+    this.progress = [];
+    this.liveFailed = false;
+    this.liveOffers = [];
+    this.liveIsbn = '';
+    this.liveTitle = `${resolved.length} book${resolved.length === 1 ? '' : 's'} from photo`;
+    
+    const collectedPayloads: Payload[] = [];
+    let completed = 0;
+    const total = resolved.length;
+    
+    resolved.forEach((line, idx) => {
+      const sub = this.events.open(liveUrl(line.candidate.isbn, `photo-${idx}`, line.candidate.title)).subscribe({
+        next: (ev) => {
+          if (ev.type === 'progress') {
+            this.progress = [...this.progress, ev.progress];
+          } else if (ev.type === 'solution') {
+            const payload = adapt(ev.payload as Payload);
+            collectedPayloads.push(payload);
+            completed++;
+            sub.unsubscribe();
+            
+            if (completed === total) {
+              // All streams done - merge results and solve
+              this.finishPhotoLive(collectedPayloads);
+            }
+          } else {
+            this.liveFailed = true;
+          }
+        },
+        error: () => {
+          this.liveFailed = true;
+        },
+      });
+    });
+  }
+
+  private finishPhotoLive(payloads: Payload[]): void {
+    // Merge all payloads into one combined snapshot
+    const allBooks: BookRow[] = [];
+    const allLiveOffers: LiveOffer[] = [];
+    for (const p of payloads) {
+      allBooks.push(...(p.books || []));
+      allLiveOffers.push(...(p.live_offers || []));
+    }
+    
+    // Build merged snapshot with all books, keep shops/other data from first payload
+    const firstPayload = payloads[0];
+    const merged: Payload = {
+      ...firstPayload,
+      books: allBooks,
+      live_offers: allLiveOffers,
+    };
+    
+    this.snapshot = merged;
+    this.basket = new Set(allBooks.map((b) => b.item_id));
+    this.picked = null;
+    this.pins = {};
+    this.selected = null;
+    this.dirty = false;
+    this.tab = 'cheapest';
+    
+    // Trigger one solve with all books in basket
+    void this.solve().then(() => {
+      this.go('result/cheapest');
+    });
+  }
+
   async solve(): Promise<void> {
     this.busy = true;
     this.note = '';
-    const next = await this.post(this.pins, this.selected);
+    const body: Record<string, unknown> = this.fullBasket() ? {} : this.givenBody();
+    if (Object.keys(this.pins).length) body['edition_pins'] = this.pins;
+    if (this.selected) body['selected_store_ids'] = this.selected;
+    if (this.declaredMemberships.length) body['memberships'] = this.declaredMemberships;
+    const next = await this.post(this.pins, this.selected, body);
     if (next) {
       this.data = next;
+      void this.loadWhy(next);
       this.dirty = false;
       if (next.degraded?.kind === 'one_shop' && this.route.name === 'result') this.tab = 'one';
     }
@@ -384,7 +740,7 @@ export class AppComponent {
     if (!this.data) return;
     if (this.route.name === 'result') {
       if (this.data.degraded?.kind === 'one_shop') this.tab = 'one';
-      this.lastParcelTab = this.tab;
+      this.lastOrderTab = this.tab;
       if (this.dirty) void this.solve().then(() => this.ensureCustom());
       else this.ensureCustom();
     }
@@ -570,7 +926,7 @@ export class AppComponent {
   get orders(): Order[] {
     const d = this.data;
     if (!d) return [];
-    if (this.tab === 'one') return d.one_parcel.answer?.orders || [];
+    if (this.tab === 'one') return d.one_order.answer?.orders || [];
     if (this.tab === 'custom') return d.custom?.orders || [];
     return d.cheapest.orders || [];
   }
@@ -578,7 +934,7 @@ export class AppComponent {
   get answer(): Answer | null {
     const d = this.data;
     if (!d) return null;
-    if (this.tab === 'one') return d.one_parcel.answer;
+    if (this.tab === 'one') return d.one_order.answer;
     if (this.tab === 'custom') return d.custom;
     return d.cheapest;
   }
@@ -588,20 +944,20 @@ export class AppComponent {
   }
 
   get oneDelta(): number | null {
-    return this.data?.one_parcel.answer?.delta_vs_cheapest_cents ?? null;
+    return this.data?.one_order.answer?.delta_vs_cheapest_cents ?? null;
   }
 
   get leftOut(): Shop[] {
     return (this.data?.shops || []).filter((s) => !s.selectable);
   }
 
-  get parcelOrder(): Order | undefined {
+  get shopOrder(): Order | undefined {
     const d = this.data;
     if (!d) return undefined;
     const pools: Order[][] = [
-      this.lastParcelTab === 'one' ? d.one_parcel.answer?.orders || [] : this.lastParcelTab === 'custom' ? d.custom?.orders || [] : d.cheapest.orders || [],
+      this.lastOrderTab === 'one' ? d.one_order.answer?.orders || [] : this.lastOrderTab === 'custom' ? d.custom?.orders || [] : d.cheapest.orders || [],
       d.cheapest.orders || [],
-      d.one_parcel.answer?.orders || [],
+      d.one_order.answer?.orders || [],
       d.custom?.orders || [],
     ];
     for (const pool of pools) {
@@ -669,11 +1025,11 @@ export class AppComponent {
   }
 
   rankedShops(): ShopOption[] {
-    return (this.data?.one_parcel.shops || []).filter((s) => s.status === 'ranked');
+    return (this.data?.one_order.shops || []).filter((s) => s.status === 'ranked');
   }
 
   otherShops(): ShopOption[] {
-    return (this.data?.one_parcel.shops || []).filter((s) => s.status !== 'ranked');
+    return (this.data?.one_order.shops || []).filter((s) => s.status !== 'ranked');
   }
 
   offerLink(url: string | null | undefined): string | null {

@@ -321,9 +321,13 @@ def load_dotenv():
                 os.environ[k] = v
 
 
-def _post(path, body, provider="meta"):
+def _post(path, body, provider="meta", timeout=120):
     cfg = provider_config(provider)
     base = os.environ.get(cfg["base_env"], cfg["default_base"]).rstrip("/")
+    if not os.environ.get(cfg["key_env"]):
+        # The app process does not inherit the CLI's environment; load the
+        # configured values once, here, so every caller behaves the same.
+        load_dotenv()
     key = os.environ.get(cfg["key_env"])
     if not key:
         raise RuntimeError("%s is not set" % cfg["key_env"])
@@ -333,7 +337,7 @@ def _post(path, body, provider="meta"):
         headers={"Authorization": "Bearer " + key, "Content-Type": "application/json"},
         method="POST",
     )
-    with urllib.request.urlopen(req, timeout=120) as r:
+    with urllib.request.urlopen(req, timeout=timeout) as r:
         return json.loads(r.read().decode())
 
 
@@ -358,19 +362,19 @@ def _response_cost(payload):
     return None
 
 
-def guarded_post(body, estimate_usd, note, provider="meta"):
+def guarded_post(body, estimate_usd, note, provider="meta", timeout=120):
     """Check the cap, send one Meta call, record tokens and computed cost."""
     assert_can_spend(estimate_usd)
     t0 = time.time()
     endpoint = "/responses"
     try:
-        payload = _post("/responses", body, provider=provider)
+        payload = _post("/responses", body, provider=provider, timeout=timeout)
     except urllib.error.HTTPError as e:
         if e.code != 404:
             # Do not include the body: it can echo request headers in some proxies.
             raise RuntimeError("model HTTP %s" % e.code) from None
         endpoint = "/chat/completions"
-        payload = _post("/chat/completions", body, provider=provider)
+        payload = _post("/chat/completions", body, provider=provider, timeout=timeout)
     tin, tout = _usage_tokens(payload.get("usage"))
     computed = compute_cost(tin, tout, provider=provider)
     billed = _response_cost(payload)

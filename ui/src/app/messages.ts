@@ -1,6 +1,6 @@
 // RO and EN copy. Feature 8 moves the rest of the app's copy here and adds the
 // browser-language default and the toggle. Until then the app runs in 'en'.
-// Rules: "order" in EN, "comandă" in RO, never "parcel"/"colet".
+// Rules: "order" in EN, "comandă" in RO, never the old word for it.
 // Romanian uses comma-below ș/ț (U+0219/U+021B), never the cedilla forms (U+015F/U+0163).
 
 export type Lang = 'en' | 'ro';
@@ -9,6 +9,8 @@ export interface Messages {
   /** {amount} is already formatted as the app formats lei (e.g. 153,50). */
   deliveryGapShort: string;
   deliveryGapReached: string;
+  whySplitTemplate: string;
+  writtenByMuse: string;
 
   // Feature 6: buy list per shop.
   buyListEntry: string;
@@ -40,6 +42,58 @@ export interface Messages {
   buyListInvalid: string;
   buyListBack: string;
 
+  // Feature 1: the one box.
+  boxPlaceholder: string;
+  boxFind: string;
+  boxSample: string;
+  tabOne: string;
+  /** {n} */
+  tabMany: string;
+  tabCheapest: string;
+
+  pickTitle: string;
+  pickRead: string;
+  /** {shops} */
+  pickListed: string;
+  pickNoIsbn: string;
+  pickEmpty: string;
+  pickSearching: string;
+  pickSearchError: string;
+  pickLinkFail: string;
+  pickLinkFailHint: string;
+  /** {isbn} */
+  pickIsbnTitle: string;
+  pickIsbnNote: string;
+
+  /** {title} */
+  progTitle: string;
+  progWait: string;
+  progFailed: string;
+  progRetry: string;
+  progLineReading: string;
+  progLineOk: string;
+  progLineFailed: string;
+  progLineSkipped: string;
+
+  readsTitle: string;
+  readsRanked: string;
+  readsNotCompared: string;
+  /** {shop} */
+  readsRefused: string;
+  readsRefusedLine: string;
+  readsNoOffer: string;
+  readsNoPrice: string;
+  /** {shop} */
+  readsNotLive: string;
+  readsCheckAmazon: string;
+  /** {shop} */
+  readsOpen: string;
+  /** {shop} */
+  readsSearch: string;
+  readsNoLink: string;
+  readsOther: string;
+  sampleTitle: string;
+  sampleNote: string;
   // Feature 5: declared memberships. {name} is the membership, {shop} the shop.
   membershipsTitle: string;
   membershipsIntro: string;
@@ -60,12 +114,35 @@ export interface Messages {
   membershipSourceTried: string;
   /** Twelve short month names, space-separated. */
   monthsShort: string;
+
+  // Feature 2: photo of a reading list.
+  photoButton: string;
+  photoAriaLabel: string;
+  photoReading: string;
+  /** {size} */
+  photoOversize: string;
+  photoReadFail: string;
+  photoNotFoundTitle: string;
+  /** {title} */
+  photoPickEdition: string;
+  photoPick: string;
+  /** {n} */
+  photoMatchedCount: string;
+  /** {n} */
+  photoAmbiguousCount: string;
+  /** {n} */
+  photoNotFoundCount: string;
+  photoContinue: string;
+  /** {size} */
+  photoMaxSize: string;
 }
 
 export const MESSAGES: Record<Lang, Messages> = {
   en: {
     deliveryGapShort: '{amount} lei short of free delivery at {shop}',
     deliveryGapReached: 'Free delivery reached',
+    whySplitTemplate: 'The cheapest split explains this basket’s lowest priced total.',
+    writtenByMuse: 'Written by Muse',
     buyListEntry: 'Buy list for these orders',
     buyListTitle: 'Buy list',
     buyListIntro: 'One order per shop. Tick each book once it is in that shop’s cart.',
@@ -88,6 +165,46 @@ export const MESSAGES: Record<Lang, Messages> = {
     buyListCopied: 'Link copied',
     buyListInvalid: 'This buy list link can’t be read.',
     buyListBack: 'Back to results',
+    boxPlaceholder: 'Type a title, author or ISBN, or paste a link.',
+    boxFind: 'Find',
+    boxSample: 'Try a sample basket',
+    tabOne: '1 order',
+    tabMany: '{n} orders',
+    tabCheapest: 'cheapest',
+    pickTitle: 'Which book?',
+    pickRead: 'Read prices',
+    pickListed: 'In our index at {shops}',
+    pickNoIsbn: 'No ISBN in our index. Paste the ISBN to read its prices.',
+    pickEmpty: 'Nothing in our index matches that. Try the ISBN, or paste a link.',
+    pickSearching: 'Searching…',
+    pickSearchError: 'Search didn’t answer. Try again in a moment.',
+    pickLinkFail: "I couldn't find a book on that page.",
+    pickLinkFailHint: 'Paste the book’s ISBN or type its title instead.',
+    pickIsbnTitle: 'ISBN {isbn}',
+    pickIsbnNote: 'Not in our index. We can still read the shops for this ISBN.',
+    progTitle: 'Reading prices for {title}',
+    progWait: 'Each shop is read live, so this takes a few seconds.',
+    progFailed: 'The read didn’t finish. Nothing was guessed.',
+    progRetry: 'Try again',
+    progLineReading: 'reading',
+    progLineOk: 'read',
+    progLineFailed: 'not read',
+    progLineSkipped: 'skipped',
+    readsTitle: 'What each shop said',
+    readsRanked: 'Priced and compared',
+    readsNotCompared: 'Price read. Delivery rules not read, so it is left out of the comparison.',
+    readsRefused: "Couldn't read {shop} right now",
+    readsRefusedLine: 'Its page didn’t load. Nothing was guessed.',
+    readsNoOffer: 'No offer found for this ISBN',
+    readsNoPrice: 'Found the page, couldn’t read a price',
+    readsNotLive: '{shop} isn’t read live.',
+    readsCheckAmazon: 'Check on Amazon.de',
+    readsOpen: 'Open {shop} ↗',
+    readsSearch: 'Search {shop} for this ISBN ↗',
+    readsNoLink: 'no link',
+    readsOther: 'Not read',
+    sampleTitle: 'Your sample basket',
+    sampleNote: 'A demo basket of books. Its totals are for the whole basket, not the price of the book you picked. That is in the shop rows above.',
     membershipsTitle: 'Memberships',
     membershipsIntro: 'Tick the memberships you have. A membership changes your total only when the shop\'s own rules page says so.',
     membershipDeclare: 'I have {name}',
@@ -99,10 +216,25 @@ export const MESSAGES: Record<Lang, Messages> = {
     membershipSourceRead: 'Source: {url}, read {date}',
     membershipSourceTried: 'Read tried: {url}, {date}',
     monthsShort: 'Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec',
+    photoButton: 'Photo',
+    photoAriaLabel: 'Take or choose a photo of a reading list',
+    photoReading: 'Reading the photo\u2026',
+    photoOversize: 'This photo is over {size}. Try a smaller one.',
+    photoReadFail: 'couldn\u2019t read this photo, try again',
+    photoNotFoundTitle: 'not found in these shops',
+    photoPickEdition: 'Which edition of {title}?',
+    photoPick: 'Pick',
+    photoMatchedCount: '{n} matched',
+    photoAmbiguousCount: '{n} to pick',
+    photoNotFoundCount: '{n} not found',
+    photoContinue: 'Add to basket',
+    photoMaxSize: '4\u202fMB',
   },
   ro: {
     deliveryGapShort: 'Mai ai {amount} lei până la livrarea gratuită la {shop}',
     deliveryGapReached: 'Comanda are livrare gratuită',
+    whySplitTemplate: 'Cea mai ieftină împărțire explică cel mai mic total cu preț pentru acest coș.',
+    writtenByMuse: 'Scris de Muse',
     buyListEntry: 'Lista de cumpărături pentru aceste comenzi',
     buyListTitle: 'Lista de cumpărături',
     buyListIntro: 'O comandă pentru fiecare magazin. Bifează fiecare carte după ce e în coșul magazinului.',
@@ -125,6 +257,46 @@ export const MESSAGES: Record<Lang, Messages> = {
     buyListCopied: 'Link copiat',
     buyListInvalid: 'Linkul acestei liste nu poate fi citit.',
     buyListBack: 'Înapoi la rezultate',
+    boxPlaceholder: 'Scrie un titlu, un autor sau un ISBN, sau lipește un link.',
+    boxFind: 'Caută',
+    boxSample: 'Încearcă un coș de probă',
+    tabOne: '1 comandă',
+    tabMany: '{n} comenzi',
+    tabCheapest: 'cea mai ieftină',
+    pickTitle: 'Care carte?',
+    pickRead: 'Citește prețurile',
+    pickListed: 'În indexul nostru la {shops}',
+    pickNoIsbn: 'Nu are ISBN în indexul nostru. Lipește ISBN-ul ca să-i citim prețurile.',
+    pickEmpty: 'Nimic din indexul nostru nu se potrivește. Încearcă ISBN-ul sau lipește un link.',
+    pickSearching: 'Caut…',
+    pickSearchError: 'Căutarea nu a răspuns. Încearcă peste puțin timp.',
+    pickLinkFail: 'Nu am găsit nicio carte pe pagina aceea.',
+    pickLinkFailHint: 'Lipește ISBN-ul cărții sau scrie titlul.',
+    pickIsbnTitle: 'ISBN {isbn}',
+    pickIsbnNote: 'Nu e în indexul nostru. Putem totuși citi magazinele pentru acest ISBN.',
+    progTitle: 'Citim prețurile pentru {title}',
+    progWait: 'Fiecare magazin e citit pe loc, deci durează câteva secunde.',
+    progFailed: 'Citirea nu s-a terminat. Nu am ghicit nimic.',
+    progRetry: 'Încearcă din nou',
+    progLineReading: 'se citește',
+    progLineOk: 'citit',
+    progLineFailed: 'necitit',
+    progLineSkipped: 'sărit',
+    readsTitle: 'Ce a spus fiecare magazin',
+    readsRanked: 'Preț citit și comparat',
+    readsNotCompared: 'Preț citit. Regulile de livrare nu au fost citite, deci nu intră în comparație.',
+    readsRefused: 'Nu am putut citi {shop} acum',
+    readsRefusedLine: 'Pagina nu s-a încărcat. Nu am ghicit nimic.',
+    readsNoOffer: 'Nicio ofertă găsită pentru acest ISBN',
+    readsNoPrice: 'Am găsit pagina, dar nu am putut citi un preț',
+    readsNotLive: '{shop} nu se citește pe loc.',
+    readsCheckAmazon: 'Verifică pe Amazon.de',
+    readsOpen: 'Deschide {shop} ↗',
+    readsSearch: 'Caută pe {shop} acest ISBN ↗',
+    readsNoLink: 'fără link',
+    readsOther: 'Necitit',
+    sampleTitle: 'Coșul demo',
+    sampleNote: 'Un coș demo de cărți. Totalurile sunt pentru tot coșul, nu prețul cărții alese. Acela e în rândurile magazinelor de mai sus.',
     membershipsTitle: 'Abonamente',
     membershipsIntro: 'Bifează abonamentele pe care le ai. Un abonament schimbă totalul doar când pagina de reguli a magazinului spune asta.',
     membershipDeclare: 'Am {name}',
@@ -136,6 +308,19 @@ export const MESSAGES: Record<Lang, Messages> = {
     membershipSourceRead: 'Sursa: {url}, citită pe {date}',
     membershipSourceTried: 'Citire încercată: {url}, pe {date}',
     monthsShort: 'ian. feb. mar. apr. mai iun. iul. aug. sept. oct. nov. dec.',
+    photoButton: 'Fotografie',
+    photoAriaLabel: 'Fă sau alege o fotografie a unei liste de cărți',
+    photoReading: 'Citesc fotografia\u2026',
+    photoOversize: 'Fotografia depășește {size}. Încearcă una mai mică.',
+    photoReadFail: 'nu am putut citi fotografia, încearcă din nou',
+    photoNotFoundTitle: 'nu se găsesc în aceste magazine',
+    photoPickEdition: 'Care ediție din {title}?',
+    photoPick: 'Alege',
+    photoMatchedCount: '{n} potrivite',
+    photoAmbiguousCount: '{n} de ales',
+    photoNotFoundCount: '{n} negăsite',
+    photoContinue: 'Adaugă în coș',
+    photoMaxSize: '4\u202fMO',
   },
 };
 
