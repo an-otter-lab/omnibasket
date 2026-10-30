@@ -280,8 +280,8 @@ def search(query: str, limit: int = 10, db_path: Path | str = DB, opener=None) -
                 from index import authors as _authors
                 qn = _authors._tnorm(query)
                 title_query = any(
-                    (tn := _authors._tnorm(r["title"])) == qn or tn.startswith(qn + " ") for r in rows
-                )  # a title query already found its book: no author lookup
+                    _authors._tnorm(r["title"]) == qn for r in rows
+                )  # an exact title match already found its book: no author lookup
                 if not title_query and not any(_authors.hint_matches(r["author_hint"], tokens) for r in rows):
                     if _authors.enrich(db, query, tokens, opener):
                         db.commit()

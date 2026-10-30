@@ -114,3 +114,22 @@ def test_two_authors_sharing_surname_picks_matching_one(tmp_path):
                 {"OL3A": ["Alpha Book"], "OL4A": ["Beta Book"]})
     search_module.search("anna smith", db_path=p, opener=op)
     assert authors_of(p) == [None, "Anna Smith"]
+
+
+def test_title_prefixed_by_author_name_still_enriches(tmp_path):
+    p = tmp_path / "b.sqlite3"
+    make_db(p, [
+        ("libris", "https://libris.ro/p/10", "roald dahl collected stories", None, None),
+        ("emag", "https://emag.ro/carte/11", "eric carle brown bear", None, None),
+    ])
+    op = Opener([{"key": "/authors/OL1A", "name": "Roald Dahl"}], {"OL1A": ["Roald Dahl Collected Stories"]})
+    search_module.search("roald dahl", db_path=p, opener=op)
+    assert [c for c in op.calls if "search/authors.json" in c]
+    assert authors_of(p)[0] == "Roald Dahl"
+    op2 = Opener([{"key": "/authors/OL1A", "name": "Roald Dahl"}], {"OL1A": ["Roald Dahl Collected Stories"]})
+    search_module.search("roald dahl", db_path=p, opener=op2)
+    assert [c for c in op2.calls if "authors" in c] == []
+    op3 = Opener([{"key": "/authors/OL2A", "name": "Eric Carle"}], {"OL2A": ["Eric Carle Brown Bear"]})
+    search_module.search("eric carle", db_path=p, opener=op3)
+    assert [c for c in op3.calls if "search/authors.json" in c]
+    assert authors_of(p)[1] == "Eric Carle"
