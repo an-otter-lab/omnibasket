@@ -1,6 +1,10 @@
-"""Plain-code search over the local book index with FTS5 and cached Open Library enrichment.
+"""Book search: the Open Library catalogue decides what a book is; the shops decide where it is sold.
 
-FTS retrieval is OR (any query token may match). Ranking, not the MATCH clause, decides order.
+Open Library (search.json) returns works with proper titles, authors, ISBNs and covers, in RO and EN.
+Shop availability is then added per ISBN: Books-Express from the local index ISBN lookup, Libris by an
+index title match confirmed once from the product page's schema.org JSON-LD (cached), Bookzone and eMAG
+as a link plus an honest "not checked here". Shop rows are never shown as books and shop images never
+used as covers. The local index keeps FTS only for the photo reader (api/photo_read.py).
 """
 from __future__ import annotations
 
@@ -8,10 +12,12 @@ import json
 import logging
 import re
 import sqlite3
+import threading
 import time
 import unicodedata
 import urllib.parse
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 log = logging.getLogger(__name__)
@@ -22,14 +28,27 @@ ROOT = Path(__file__).resolve().parents[1]
 DB = ROOT / "data" / "index" / "books.sqlite3"
 UA = "Omnibasket/1.0 (+https://omnibasket.anottersolution.com/contact)"
 TIMEOUT = 5
-SKIP_TTL = 600  # seconds an ISBN lookup cut off by the budget is not retried (throttle, not a cached result)
+OL_CACHE_TTL = 86400  # 24 h for Open Library answers and confirmed Libris reads
+ERROR_TTL = 600  # a failed Libris read is not retried for 10 min
+MIN_REQUEST_INTERVAL = 1.0  # polite: at most one Open Library request per second, process-wide
+LIBRIS_READS = 3  # product pages read per search (the top results only)
+LIBRIS_TIMEOUT = 4.0
+OL_FIELDS = "key,title,author_name,cover_i,isbn,first_publish_year"
+RO_PREFIXES = ("978606", "978973", "606", "973")  # Romanian ISBN registrant groups
+BOOST = 1.5  # a result with a known shop offer moves up one place; Open Library's top result stays first
 
-# Common stop words for Romanian and English
+_rate_lock = threading.Lock()
+_last_request_time = 0.0
+
 STOP_WORDS = {
     "si", "și", "de", "din", "la", "cu", "pe", "in", "un", "o", "le", "lui",
     "a", "ale", "ea", "ei", "eu", "tu", "el", "noi", "voi", "ele",
-    "the", "a", "an", "and", "or", "of", "for", "in", "on", "at", "to",
+    "the", "an", "and", "or", "of", "for", "on", "at", "to",
 }
+
+
+class SearchUnavailable(Exception):
+    """Open Library did not answer and nothing fresh is cached. Never turned into an empty list."""
 
 
 def normalize(value: str | None) -> str:
@@ -45,14 +64,14 @@ def validate_isbn(isbn: str) -> bool:
     """Validate ISBN-10 or ISBN-13 check digit."""
     if not isbn:
         return False
-    isbn_clean = isbn.replace("-", "").replace(" ", "").upper()
-    if len(isbn_clean) == 10:
+    s = isbn.replace("-", "").replace(" ", "").upper()
+    if len(s) == 10:
         total = 0
-        for i, ch in enumerate(isbn_clean[:-1]):
+        for i, ch in enumerate(s[:-1]):
             if not ch.isdigit():
                 return False
             total += (10 - i) * int(ch)
-        last = isbn_clean[-1]
+        last = s[-1]
         if last == "X":
             total += 10
         elif last.isdigit():
@@ -60,12 +79,23 @@ def validate_isbn(isbn: str) -> bool:
         else:
             return False
         return total % 11 == 0
-    elif len(isbn_clean) == 13:
-        if not isbn_clean.isdigit():
+    if len(s) == 13:
+        if not s.isdigit():
             return False
-        total = sum(int(ch) * (1 if i % 2 == 0 else 3) for i, ch in enumerate(isbn_clean))
-        return total % 10 == 0
+        return sum(int(ch) * (1 if i % 2 == 0 else 3) for i, ch in enumerate(s)) % 10 == 0
     return False
+
+
+def to_isbn13(isbn: str | None) -> str | None:
+    """A valid ISBN-10/13 (hyphens allowed) as ISBN-13, else None."""
+    s = (isbn or "").replace("-", "").replace(" ", "").upper()
+    if not validate_isbn(s):
+        return None
+    if len(s) == 13:
+        return s
+    body = "978" + s[:-1]
+    check = (10 - sum(int(ch) * (1 if i % 2 == 0 else 3) for i, ch in enumerate(body)) % 10) % 10
+    return body + str(check)
 
 
 def _filter_stop_words(tokens: list[str]) -> list[str]:
@@ -74,10 +104,293 @@ def _filter_stop_words(tokens: list[str]) -> list[str]:
     return filtered if filtered else tokens
 
 
+def _is_ro(isbn: str) -> bool:
+    return isbn.startswith(RO_PREFIXES)
+
+
+# ---------------------------------------------------------------- Open Library client
+
+
 def _cache_init(db: sqlite3.Connection) -> None:
-    """Initialize Open Library cache table."""
-    db.execute("""CREATE TABLE IF NOT EXISTS openlibrary_cache (
-        cache_key TEXT PRIMARY KEY, isbn TEXT, checked INTEGER NOT NULL DEFAULT 1)""")
+    db.execute("""CREATE TABLE IF NOT EXISTS ol_search_cache (
+        cache_key TEXT PRIMARY KEY, response_json TEXT, cached_at INTEGER NOT NULL)""")
+    db.execute("""CREATE TABLE IF NOT EXISTS libris_page_cache (
+        url TEXT PRIMARY KEY, isbn TEXT, status TEXT NOT NULL, cached_at INTEGER NOT NULL)""")
+
+
+def _rate_limit() -> None:
+    """Hold the caller until MIN_REQUEST_INTERVAL has passed since the last Open Library request."""
+    global _last_request_time
+    with _rate_lock:
+        wait = MIN_REQUEST_INTERVAL - (time.monotonic() - _last_request_time)
+        if wait > 0:
+            time.sleep(wait)
+        _last_request_time = time.monotonic()
+
+
+def _ol_get(db: sqlite3.Connection, key: str, url: str, opener, required: bool = True) -> dict | None:
+    """Cached JSON GET. A hit costs no request. A failure raises SearchUnavailable (required) or
+    returns None, and is never cached, so the next search tries again."""
+    row = db.execute("SELECT response_json, cached_at FROM ol_search_cache WHERE cache_key=?", (key,)).fetchone()
+    if row and time.time() - row[1] < OL_CACHE_TTL:
+        return json.loads(row[0])
+    _rate_limit()
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": UA, "Accept": "application/json"})
+        with opener(req, timeout=TIMEOUT) as response:
+            payload = json.loads(response.read(2_000_000).decode("utf-8"))
+        if not isinstance(payload, dict):
+            raise ValueError("unexpected Open Library payload")
+    except Exception as exc:
+        log.warning("open library request failed (%s): %s", key.split(":", 1)[0], exc)
+        if required:
+            raise SearchUnavailable(str(exc)) from exc
+        return None
+    db.execute("INSERT OR REPLACE INTO ol_search_cache(cache_key, response_json, cached_at) VALUES (?,?,?)",
+               (key, json.dumps(payload), int(time.time())))
+    return payload
+
+
+def _ol_search(db: sqlite3.Connection, query: str, opener) -> list[dict]:
+    params = urllib.parse.urlencode({"q": query, "limit": 10, "fields": OL_FIELDS})
+    key = "search:" + " ".join(normalize(query).split())
+    payload = _ol_get(db, key, "https://openlibrary.org/search.json?" + params, opener)
+    return [d for d in payload.get("docs", []) if isinstance(d, dict) and d.get("title")]
+
+
+def _edition(db: sqlite3.Connection, isbn: str, opener) -> dict | None:
+    """The edition record for one ISBN (its own title and cover). Best effort, never fatal."""
+    return _ol_get(db, "isbn:" + isbn, f"https://openlibrary.org/isbn/{isbn}.json", opener, required=False)
+
+
+def cover_url(cover_i: int | None, isbn: str | None) -> str | None:
+    """Open Library covers only, by cover id or ISBN. Shop images are never used."""
+    if cover_i:
+        return f"https://covers.openlibrary.org/b/id/{int(cover_i)}-M.jpg"
+    if isbn:
+        return f"https://covers.openlibrary.org/b/isbn/{urllib.parse.quote(isbn)}-M.jpg"
+    return None
+
+
+# ---------------------------------------------------------------- shop availability
+
+
+def _books_express(db: sqlite3.Connection, isbns: list[str]) -> dict[str, dict]:
+    """isbn -> {shop, url} for the ISBNs the Books-Express index carries."""
+    found: dict[str, dict] = {}
+    for i in range(0, len(isbns), 400):
+        chunk = isbns[i:i + 400]
+        marks = ",".join("?" * len(chunk))
+        for isbn, url in db.execute(
+            f"SELECT isbn, url FROM books WHERE shop='books-express' AND isbn IN ({marks})", chunk
+        ):
+            found.setdefault(isbn, {"shop": "books-express", "url": url})
+    return found
+
+
+def _fold(word: str) -> str:
+    """z and s are folded: Romanian spellings differ (filozofala / filosofala)."""
+    return word.replace("z", "s")
+
+
+def _words(text: str | None) -> list[str]:
+    return [w for w in re.findall(r"[a-z0-9]+", normalize(text)) if w not in STOP_WORDS]
+
+
+def _libris_candidate(db: sqlite3.Connection, titles: list[str]) -> str | None:
+    """URL of the Libris index row whose title holds every significant word of a work title."""
+    for title in titles:
+        words = _words(title)[:6]
+        if len(words) < 2:
+            continue
+        stems = [re.split(r"[sz]", w, maxsplit=1)[0] for w in words]
+        stems = [s for s in stems if s]
+        if not stems:
+            continue
+        try:
+            rows = db.execute(
+                """SELECT b.url, b.title FROM books_search s JOIN books b ON b.rowid = s.rowid
+                   WHERE books_search MATCH ? AND b.shop = 'libris' LIMIT 200""",
+                (" AND ".join(f'"{s}"*' for s in stems),),
+            ).fetchall()
+        except sqlite3.OperationalError as exc:
+            MATCH_ERRORS.append({"query": title, "error": str(exc)})
+            return None
+        want = {_fold(w) for w in words}
+        fits = [(len(normalize(t)), u) for u, t in rows if want <= {_fold(w) for w in _words(t)}]
+        if fits:
+            return min(fits)[1]
+    return None
+
+
+def _libris_cached(db: sqlite3.Connection, url: str):
+    row = db.execute("SELECT isbn, status, cached_at FROM libris_page_cache WHERE url=?", (url,)).fetchone()
+    if not row:
+        return None
+    isbn, status, at = row
+    if time.time() - at < (ERROR_TTL if status == "error" else OL_CACHE_TTL):
+        return isbn, status
+    return None
+
+
+def _libris_read(url: str, fetcher) -> tuple[str | None, str]:
+    """ONE product-page read through the fetch guard; the ISBN comes from schema.org JSON-LD only."""
+    try:
+        res = fetcher(url, timeout=LIBRIS_TIMEOUT)
+    except Exception as exc:
+        log.warning("libris page read failed: %s", exc)
+        return None, "error"
+    if res.status != 200:
+        return None, "error"
+    isbn = _jsonld_isbn(res.text)
+    return (isbn, "ok") if isbn else (None, "no_isbn")
+
+
+_LD_RE = re.compile(r'<script[^>]+type=["\']application/ld\+json["\'][^>]*>(.*?)</script>', re.I | re.S)
+
+
+def _jsonld_isbn(html: str) -> str | None:
+    """The ISBN-13 a Product/Book node of the page's schema.org JSON-LD declares (flat, list or @graph)."""
+    def nodes(obj):
+        if isinstance(obj, list):
+            for o in obj:
+                yield from nodes(o)
+        elif isinstance(obj, dict):
+            yield obj
+            yield from nodes(obj.get("@graph", []))
+
+    for m in _LD_RE.finditer(html):
+        try:
+            data = json.loads(m.group(1))
+        except ValueError:
+            continue
+        for node in nodes(data):
+            kinds = node.get("@type")
+            kinds = kinds if isinstance(kinds, list) else [kinds]
+            if not {"Product", "Book"} & {k for k in kinds if isinstance(k, str)}:
+                continue
+            for key in ("isbn", "gtin13", "gtin"):
+                value = node.get(key)
+                for v in value if isinstance(value, list) else [value]:
+                    i13 = to_isbn13(str(v)) if v else None
+                    if i13:
+                        return i13
+    return None
+
+
+def _other_shops(isbn: str | None, title: str) -> list[dict]:
+    needle = urllib.parse.quote(isbn or title)
+    return [
+        {"shop": "bookzone", "url": f"https://www.bookzone.ro/search?q={needle}",
+         "status": "not_checked", "reason": "Not checked here"},
+        {"shop": "emag", "url": f"https://www.emag.ro/search/{needle}",
+         "status": "not_checked", "reason": "Not checked here"},
+    ]
+
+
+# ---------------------------------------------------------------- the search
+
+
+def search(query: str, limit: int = 10, db_path: Path | str = DB, opener=None, fetcher=None) -> list[dict]:
+    """Books for a title, author or ISBN (RO or EN, diacritics ignored), ranked by Open Library
+    relevance and boosted when a shop is known to carry the ISBN. Raises SearchUnavailable when
+    Open Library cannot be reached and nothing fresh is cached."""
+    query = (query or "").strip()
+    if not query or not Path(db_path).is_file():
+        return []
+    opener = opener or urllib.request.urlopen
+    if fetcher is None:
+        from api import fetch_guard
+
+        def fetcher(url, timeout=LIBRIS_TIMEOUT):
+            return fetch_guard.fetch(url, timeout=timeout)
+
+    limit = max(1, min(int(limit), 100))
+    asked = to_isbn13(query) if re.fullmatch(r"[\d\-\sXx]{10,17}", query) else None
+
+    with sqlite3.connect(str(db_path)) as db:
+        db.row_factory = sqlite3.Row
+        _cache_init(db)
+        ensure_books_search(db)
+        docs = _ol_search(db, asked or query, opener)[:limit]
+
+        items = []
+        for pos, doc in enumerate(docs):
+            isbns = []
+            for raw in doc.get("isbn") or []:
+                i13 = to_isbn13(raw)
+                if i13 and i13 not in isbns:
+                    isbns.append(i13)
+            if asked and asked not in isbns:
+                isbns.insert(0, asked)
+            items.append({"doc": doc, "pos": pos, "isbns": isbns[:400]})
+
+        carried = _books_express(db, sorted({i for it in items for i in it["isbns"]}))
+        for it in items:
+            if asked and asked in it["isbns"]:
+                it["isbn"] = asked
+            else:
+                ro = [i for i in it["isbns"] if _is_ro(i)]
+                have = [i for i in it["isbns"] if i in carried]
+                it["isbn"] = (ro or have or it["isbns"] or [None])[0]
+            # Romanian edition: its own title and cover when Open Library has them.
+            it["edition_title"] = None
+            it["cover_i"] = it["doc"].get("cover_i")
+            if it["isbn"] and _is_ro(it["isbn"]) and it["pos"] < 3:
+                ed = _edition(db, it["isbn"], opener) or {}
+                if ed.get("title"):
+                    it["edition_title"] = ed["title"]
+                if ed.get("covers"):
+                    it["cover_i"] = next((c for c in ed["covers"] if isinstance(c, int) and c > 0), it["cover_i"])
+
+        # Libris: index title match, then ONE product-page read (cached) confirmed from schema.org.
+        pending = {}
+        for it in items[:LIBRIS_READS]:
+            titles = [t for t in (it["edition_title"], it["doc"]["title"]) if t]
+            url = _libris_candidate(db, titles)
+            it["libris_url"] = url
+            if url and _libris_cached(db, url) is None:
+                pending[url] = None
+        if pending:
+            with ThreadPoolExecutor(max_workers=len(pending)) as pool:
+                futures = {u: pool.submit(_libris_read, u, fetcher) for u in pending}
+                for u, fut in futures.items():
+                    isbn, status = fut.result()
+                    db.execute("INSERT OR REPLACE INTO libris_page_cache(url, isbn, status, cached_at) VALUES (?,?,?,?)",
+                               (u, isbn, status, int(time.time())))
+        db.commit()
+
+        results = []
+        for it in items:
+            isbn = it["isbn"]
+            url = it.get("libris_url")
+            libris_isbn = None
+            if url:
+                hit = _libris_cached(db, url)
+                if hit and hit[1] == "ok" and hit[0] in it["isbns"]:
+                    libris_isbn = hit[0]
+                    if not (asked and asked == isbn):
+                        isbn = libris_isbn  # the edition a shop is confirmed to hold
+            shops = []
+            if isbn in carried:
+                shops.append(dict(carried[isbn]))
+            if libris_isbn and libris_isbn == isbn:
+                shops.append({"shop": "libris", "url": url})
+            title = it["edition_title"] if (isbn == it["isbn"] and it["edition_title"]) else it["doc"]["title"]
+            authors = it["doc"].get("author_name") or []
+            results.append({
+                "title": title,
+                "author": authors[0] if authors else None,
+                "isbn": isbn,
+                "cover_url": cover_url(it["cover_i"], isbn),
+                "shops": shops,
+                "other_shops": _other_shops(isbn, title),
+                "_rank": -1 if it["pos"] == 0 else it["pos"] - (BOOST if shops else 0),
+            })
+        results.sort(key=lambda r: r["_rank"])
+        for r in results:
+            del r["_rank"]
+        return results[:limit]
 
 
 _FTS_TRIGGERS = (
@@ -157,308 +470,3 @@ def refresh_fts(db_path: Path | str = DB) -> None:
         db.commit()
 
 
-def _record_match_error(query: str, exc: sqlite3.OperationalError) -> None:
-    """Remember a MATCH failure. Callers still get a list; the endpoint stays up."""
-    MATCH_ERRORS.append({"query": query, "error": str(exc)})
-    log.warning("books_search MATCH failed for %r: %s", query, exc)
-
-
-def _rank_key(title: str | None, author: str | None, isbn: str | None, query: str, tokens: list[str]):
-    """Order hits: exact title, prefix, phrase, token coverage, extra tokens, position."""
-    title_n = normalize(title)
-    query_n = normalize(query)
-    combined = f"{title_n} {normalize(author)} {normalize(isbn)}"
-    matched = sum(1 for token in tokens if token in combined)
-    query_tokens = set(query_n.split())
-    extra = sum(1 for token in title_n.split() if token not in query_tokens)
-    first = float("inf")
-    for token in tokens:
-        pos = title_n.find(token)
-        if pos != -1:
-            first = min(first, pos)
-    return (
-        0 if query_n and title_n == query_n else 1,
-        0 if query_n and title_n.startswith(query_n) else 1,
-        0 if query_n and query_n in title_n else 1,
-        -matched,
-        extra,
-        len(title_n),
-        first,
-        title_n,
-    )
-
-
-def _budget() -> float:
-    try:
-        from index import authors as _a
-        return _a.BUDGET
-    except Exception:  # pragma: no cover
-        return 4.0
-
-
-def _fetch_isbn(title: str, author: str | None, opener, timeout: float) -> str | None:
-    """Network part of an ISBN lookup. Raises on any failure."""
-    params = {"title": title}
-    if author:
-        params["author"] = author
-    url = "https://openlibrary.org/search.json?" + urllib.parse.urlencode(params)
-    req = urllib.request.Request(url, headers={"User-Agent": UA, "Accept": "application/json"})
-    with opener(req, timeout=timeout) as response:
-        payload = json.loads(response.read(1_000_000).decode("utf-8"))
-    docs = payload.get("docs", [])
-    if docs and isinstance(docs[0].get("isbn"), list):
-        for candidate in docs[0]["isbn"]:
-            if re.fullmatch(r"(?:97[89])?\d{9}[\dXx]", candidate) and validate_isbn(candidate):
-                return candidate
-    return None
-
-
-def _prefetch_isbns(db: sqlite3.Connection, items: list, opener, deadline: float) -> None:
-    """Look up the uncached ISBNs in parallel inside the shared deadline. Lookups that finish in
-    time are cached (hit, or a genuine miss/failure as before); lookups cut off by the deadline
-    are left uncached so a later call retries them."""
-    db.execute("CREATE TABLE IF NOT EXISTS openlibrary_skip (cache_key TEXT PRIMARY KEY, until INTEGER NOT NULL)")
-    now = int(time.time())
-    todo = {}
-    for item in items:
-        key = normalize(item["title"]) + "|" + normalize(item["author"] or "")
-        if key in todo or db.execute("SELECT 1 FROM openlibrary_cache WHERE cache_key=?", (key,)).fetchone() is not None:
-            continue
-        if db.execute("SELECT 1 FROM openlibrary_skip WHERE cache_key=? AND until>?", (key, now)).fetchone() is None:
-            todo[key] = item
-    left = deadline - time.monotonic()
-    if not todo or left <= 0:
-        return
-    timeout = TIMEOUT if left >= TIMEOUT else left
-    from concurrent.futures import ThreadPoolExecutor, wait
-    pool = ThreadPoolExecutor(max_workers=min(len(todo), 8))
-    futures = {pool.submit(_fetch_isbn, it["title"], it["author"], opener, timeout): k for k, it in todo.items()}
-    done, _ = wait(futures, timeout=left)
-    pool.shutdown(wait=False, cancel_futures=True)
-    for fut in done:
-        try:
-            isbn = fut.result()
-        except Exception:
-            isbn = None
-        db.execute("INSERT OR IGNORE INTO openlibrary_cache(cache_key,isbn) VALUES(?,?)", (futures[fut], isbn))
-    for fut, key in futures.items():  # cut off by the budget: not cached as a result, only throttled for a while
-        if fut not in done:
-            db.execute("INSERT OR REPLACE INTO openlibrary_skip(cache_key,until) VALUES(?,?)", (key, now + SKIP_TTL))
-
-
-def _lookup_isbn(db: sqlite3.Connection, title: str, author: str | None, opener, cache_only: bool = False) -> str | None:
-    """Look up ISBN from Open Library, validate check digit, and cache result."""
-    key = normalize(title) + "|" + normalize(author or "")
-    found = db.execute("SELECT isbn FROM openlibrary_cache WHERE cache_key=?", (key,)).fetchone()
-    if found is not None:
-        return found[0]
-    if cache_only:
-        return None
-    params = {"title": title}
-    if author:
-        params["author"] = author
-    url = "https://openlibrary.org/search.json?" + urllib.parse.urlencode(params)
-    isbn = None
-    try:
-        req = urllib.request.Request(url, headers={"User-Agent": UA, "Accept": "application/json"})
-        with opener(req, timeout=TIMEOUT) as response:
-            payload = json.loads(response.read(1_000_000).decode("utf-8"))
-        docs = payload.get("docs", [])
-        if docs and isinstance(docs[0].get("isbn"), list):
-            # Find first valid ISBN with correct check digit
-            for candidate in docs[0]["isbn"]:
-                if re.fullmatch(r"(?:97[89])?\d{9}[\dXx]", candidate) and validate_isbn(candidate):
-                    isbn = candidate
-                    break
-    except Exception:
-        # Cache an unsuccessful single attempt as well; do not retry on later queries.
-        isbn = None
-    db.execute("INSERT OR IGNORE INTO openlibrary_cache(cache_key,isbn) VALUES(?,?)", (key, isbn))
-    return isbn
-
-
-def _group_key(row: dict) -> tuple:
-    """Compute grouping key for a row.
-    
-    Group by ISBN when present, otherwise by normalized title+author.
-    """
-    isbn = row["isbn"]
-    if isbn:
-        return ("isbn", isbn)
-    else:
-        title = normalize(row["title"])
-        author = normalize(row["author_hint"])
-        return ("title_author", title, author)
-
-
-def search(query: str, limit: int = 10, db_path: Path | str = DB, opener=None) -> list[dict]:
-    """Search books. FTS uses OR so partial hits stay candidates; ranking orders them."""
-    query = (query or "").strip()
-    if not query or not Path(db_path).is_file():
-        return []
-    opener = opener or urllib.request.urlopen
-    limit = max(1, min(int(limit), 100))
-    tokens = normalize(query).split()
-    if not tokens:
-        return []
-
-    # Filter stop words
-    tokens = _filter_stop_words(tokens)
-
-    deadline = time.monotonic() + _budget()  # one wall-clock budget: author calls, matching, ISBN lookups
-    with sqlite3.connect(str(db_path)) as db:
-        db.row_factory = sqlite3.Row
-        _cache_init(db)
-        ensure_books_search(db)
-
-        # Check if query is an exact ISBN match
-        isbn_query = query.replace("-", "").replace(" ", "").upper()
-        if re.fullmatch(r"(?:97[89])?\d{9}[\dXx]", isbn_query):
-            # Exact ISBN lookup path
-            try:
-                rows = db.execute(
-                    "SELECT shop, url, title, author_hint, isbn FROM books WHERE isbn = ?",
-                    (isbn_query,)
-                ).fetchall()
-            except sqlite3.OperationalError as exc:
-                _record_match_error(query, exc)
-                return []
-        else:
-            # FTS5 OR candidates, then rank in Python. A bad MATCH is logged, not swallowed.
-            try:
-                fts_query = " OR ".join(f'"{token}"*' for token in tokens)
-                rows = db.execute("""
-                    SELECT b.shop, b.url, b.title, b.author_hint, b.isbn
-                    FROM books_search s
-                    JOIN books b ON b.rowid = s.rowid
-                    WHERE books_search MATCH ?
-                """, (fts_query,)).fetchall()
-            except sqlite3.OperationalError as exc:
-                _record_match_error(query, exc)
-                rows = []
-
-        # Lazy author enrichment (Open Library, cached): only when no row's author already matches.
-        if not re.fullmatch(r"(?:97[89])?\d{9}[\dXx]", isbn_query) and 1 <= len(tokens) <= 4:
-            try:
-                from index import authors as _authors
-                qn = _authors._tnorm(query)
-                title_query = any(
-                    _authors._tnorm(r["title"]) == qn for r in rows
-                )  # an exact title match already found its book: no author lookup
-                if not title_query and not any(_authors.hint_matches(r["author_hint"], tokens) for r in rows):
-                    if _authors.enrich(db, query, tokens, opener, deadline=deadline):
-                        db.commit()
-                        rows = db.execute("""
-                            SELECT b.shop, b.url, b.title, b.author_hint, b.isbn
-                            FROM books_search s JOIN books b ON b.rowid = s.rowid
-                            WHERE books_search MATCH ?
-                        """, (" OR ".join(f'"{t}"*' for t in tokens),)).fetchall()
-            except Exception as exc:  # Open Library trouble never breaks search
-                log.warning("author enrichment failed for %r: %s", query, exc)
-
-        # Group results by ISBN (when present) or by title+author
-        # Strategy:
-        # 1. First pass: group by ISBN or by title+author
-        # 2. Second pass: merge title+author groups into ISBN groups if they match
-        groups = {}
-
-        # First pass: create initial groups
-        isbn_groups = {}  # isbn -> group
-        title_author_groups = {}  # (normalized_title, normalized_author) -> group
-        
-        for row in rows:
-            isbn = row["isbn"]
-            title_norm = normalize(row["title"])
-            author_norm = normalize(row["author_hint"])
-            
-            if isbn:
-                # Group by ISBN
-                if isbn not in isbn_groups:
-                    isbn_groups[isbn] = {
-                        "title": row["title"],
-                        "author": row["author_hint"],
-                        "isbn": isbn,
-                        "cover_url": None,
-                        "shops": [],
-                        "_tokens_matched": 0,
-                        "_is_exact_phrase": False,
-                        "_first_token_pos": float('inf'),
-                    }
-                item = isbn_groups[isbn]
-                item["_tokens_matched"] += 1
-                
-                # Choose longest/most informative title
-                if len(row["title"] or "") > len(item["title"] or ""):
-                    item["title"] = row["title"]
-                    if row["author_hint"]:
-                        item["author"] = row["author_hint"]
-                
-                # Add shop listing (dedupe by shop, url)
-                listing = {"shop": row["shop"], "url": row["url"]}
-                if listing not in item["shops"]:
-                    item["shops"].append(listing)
-            else:
-                # Group by title+author
-                key = (title_norm, author_norm)
-                if key not in title_author_groups:
-                    title_author_groups[key] = {
-                        "title": row["title"],
-                        "author": row["author_hint"],
-                        "isbn": None,
-                        "cover_url": None,
-                        "shops": [],
-                        "_tokens_matched": 0,
-                        "_is_exact_phrase": False,
-                        "_first_token_pos": float('inf'),
-                    }
-                item = title_author_groups[key]
-                item["_tokens_matched"] += 1
-                
-                # Add shop listing (dedupe by shop, url)
-                listing = {"shop": row["shop"], "url": row["url"]}
-                if listing not in item["shops"]:
-                    item["shops"].append(listing)
-        
-        # Second pass: merge title_author_groups into isbn_groups if they match
-        for (title_norm, author_norm), item in title_author_groups.items():
-            merged = False
-            for isbn, isbn_item in isbn_groups.items():
-                isbn_title_norm = normalize(isbn_item["title"])
-                isbn_author_norm = normalize(isbn_item["author"])
-                
-                if isbn_title_norm == title_norm and isbn_author_norm == author_norm:
-                    # Merge into ISBN group
-                    for shop_listing in item["shops"]:
-                        if shop_listing not in isbn_item["shops"]:
-                            isbn_item["shops"].append(shop_listing)
-                    isbn_item["_tokens_matched"] += item["_tokens_matched"]
-                    merged = True
-                    break
-            
-            if not merged:
-                # Keep as separate group
-                groups[("title_author", title_norm, author_norm)] = item
-        
-        # Add ISBN groups to final groups
-        for isbn, item in isbn_groups.items():
-            groups[("isbn", isbn)] = item
-        
-        ranked = sorted(
-            groups.values(),
-            key=lambda x: _rank_key(x["title"], x.get("author"), x.get("isbn"), query, tokens),
-        )
-
-        results = []
-        _prefetch_isbns(db, [i for i in ranked if not i["isbn"]][:limit], opener, deadline)
-        for item in ranked:
-            if not item["isbn"]:
-                item["isbn"] = _lookup_isbn(db, item["title"], item["author"], opener, cache_only=True)
-            if item["isbn"]:
-                item["cover_url"] = f"https://covers.openlibrary.org/b/isbn/{urllib.parse.quote(item['isbn'])}-M.jpg"
-            results.append({k: item[k] for k in ("title", "author", "isbn", "cover_url", "shops")})
-            if len(results) >= limit:
-                break
-
-        db.commit()
-
-    return results

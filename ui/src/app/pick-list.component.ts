@@ -1,5 +1,5 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
-import { Candidate, coverUrl, shopLabel } from './live';
+import { Candidate, coverUrl, initials, shopLabel } from './live';
 import { Lang, MESSAGES, fill } from './messages';
 
 export type PickState = 'searching' | 'results' | 'empty' | 'error' | 'link_failed';
@@ -31,18 +31,24 @@ export type PickState = 'searching' | 'results' | 'empty' | 'error' | 'link_fail
             <li>
               <button class="pick" type="button" [disabled]="!c.isbn" (click)="picked.emit(c)">
                 @if (cover(c); as src) {
-                  <img class="pcover" [src]="src" alt="" width="56" height="80" loading="lazy" referrerpolicy="no-referrer" (error)="broken($event)" />
+                  <img class="pcover" [src]="src" [attr.data-initials]="initialsOf(c)" alt="" width="56" height="80" loading="lazy" referrerpolicy="no-referrer" (error)="broken($event)" />
                 } @else {
-                  <span class="pcover ph" aria-hidden="true"></span>
+                  <span class="pcover ph" aria-hidden="true">{{ initialsOf(c) }}</span>
                 }
                 <span class="pmeta">
                   <span class="pt">{{ c.title }}</span>
                   @if (c.author) { <span class="s">{{ c.author }}</span> }
-                  @if (c.isbn) { <span class="s n">ISBN {{ c.isbn }}</span> } @else { <span class="s unk">{{ m.pickNoIsbn }}</span> }
+                  @if (!c.isbn) { <span class="s unk">{{ m.pickNoIsbn }}</span> }
                   @if (c.shops.length) { <span class="s">{{ listed(c) }}</span> }
                 </span>
                 @if (c.isbn) { <span class="pgo">{{ m.pickRead }} ›</span> }
               </button>
+              @for (x of unchecked(c); track x.shop) {
+                <p class="s other" [attr.data-other]="x.shop">
+                  {{ label(x.shop) }}: {{ m.readsNotChecked }}
+                  @if (x.url) { · <a class="store" [href]="x.url" target="_blank" rel="noopener">{{ m.pickOpenShop }}</a> }
+                </p>
+              }
             </li>
           }
         </ul>
@@ -60,8 +66,20 @@ export class PickListComponent {
     return MESSAGES[this.lang];
   }
 
+  initialsOf(c: Candidate): string {
+    return initials(c.title);
+  }
+
   cover(c: Candidate): string | null {
     return coverUrl(c);
+  }
+
+  unchecked(c: Candidate) {
+    return (c.other_shops || []).filter((x) => x.status === 'not_checked');
+  }
+
+  label(id: string): string {
+    return shopLabel(id);
   }
 
   listed(c: Candidate): string {
@@ -75,6 +93,7 @@ export class PickListComponent {
     const ph = document.createElement('span');
     ph.className = 'pcover ph';
     ph.setAttribute('aria-hidden', 'true');
+    ph.textContent = img.dataset['initials'] || '·';
     img.replaceWith(ph);
   }
 }

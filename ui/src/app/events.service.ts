@@ -19,8 +19,9 @@ export const EVENT_SOURCE = new InjectionToken<(url: string) => SourceLike>('EVE
   factory: () => (url: string) => new EventSource(url) as unknown as SourceLike,
 });
 
-export function liveUrl(isbn13: string, itemId: string, title: string): string {
+export function liveUrl(isbn13: string, itemId: string, title: string, author?: string | null): string {
   const q = new URLSearchParams({ source: 'live', isbn13, item_id: itemId, title });
+  if (author) q.set('author', author);
   return '/events?' + q.toString();
 }
 

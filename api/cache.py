@@ -32,6 +32,16 @@ CREATE TABLE IF NOT EXISTS pages (
 );
 """
 
+CONFIRMATION_TTL = 24 * 3600  # a shop confirmation (ISBN, price, title match) is reused for 24 h
+
+_CONFIRMATIONS = """
+CREATE TABLE IF NOT EXISTS confirmations (
+    key TEXT PRIMARY KEY,
+    payload TEXT NOT NULL,
+    stored_at REAL NOT NULL
+);
+"""
+
 _BUSY_TIMEOUT_MS = 5000
 
 
@@ -41,6 +51,7 @@ class PageCache:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self._connect() as db:
             db.executescript(_SCHEMA)
+            db.executescript(_CONFIRMATIONS)
 
     def close(self) -> None:
         """Nothing is held open. Kept so older callers can still call close()."""
@@ -85,6 +96,23 @@ class PageCache:
             if found is None:
                 return None
             return _row(found)
+
+    def get_confirmation(self, key: str, now: float | None = None) -> dict | None:
+        """A stored shop confirmation, or None when absent or older than CONFIRMATION_TTL."""
+        import time
+        with self._connect() as db:
+            found = db.execute("SELECT payload, stored_at FROM confirmations WHERE key = ?", (key,)).fetchone()
+        if found is None or (now or time.time()) - found["stored_at"] > CONFIRMATION_TTL:
+            return None
+        return json.loads(found["payload"])
+
+    def put_confirmation(self, key: str, payload: dict, now: float | None = None) -> None:
+        import time
+        with self._connect() as db:
+            db.execute(
+                "INSERT OR REPLACE INTO confirmations (key, payload, stored_at) VALUES (?, ?, ?)",
+                (key, json.dumps(payload, ensure_ascii=False), now or time.time()),
+            )
 
     def count(self) -> int:
         with self._connect() as db:

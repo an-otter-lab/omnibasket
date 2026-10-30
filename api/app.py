@@ -152,10 +152,14 @@ def create_app(db_path: Path | None = None) -> FastAPI:
         return JSONResponse(payload)
 
     @app.get("/search")
-    def search_route(q: str = Query(default=""), limit: int = Query(default=10, ge=1, le=100)) -> dict:
-        from index.search import search
+    def search_route(q: str = Query(default=""), limit: int = Query(default=10, ge=1, le=100)):
+        from index.search import SearchUnavailable, search
 
-        return {"query": q, "results": search(q, limit=limit, db_path=app.state.index_db_path)}
+        try:
+            results = search(q, limit=limit, db_path=app.state.index_db_path)
+        except SearchUnavailable:
+            return JSONResponse({"query": q, "results": [], "error": "search_unavailable"}, status_code=503)
+        return {"query": q, "results": results}
 
     @app.post("/photo")
     async def photo_route(request: Request) -> JSONResponse:
@@ -238,6 +242,7 @@ def create_app(db_path: Path | None = None) -> FastAPI:
         isbn13: str | None = Query(default=None),
         item_id: str | None = Query(default=None),
         title: str | None = Query(default=None),
+        author: str | None = Query(default=None),
         stores: str | None = Query(default=None, description="comma list of shop ids; default is every indexed shop"),
     ):
         if source == "live":
@@ -269,7 +274,8 @@ def create_app(db_path: Path | None = None) -> FastAPI:
                 async def _run():
                     try:
                         return await read_offers_parallel(
-                            chosen, isbn, book_id, _cache(app), progress_callback
+                            chosen, isbn, book_id, _cache(app), progress_callback,
+                            title=(title or None), author=(author or None),
                         )
                     finally:
                         await progress_queue.put(None)
