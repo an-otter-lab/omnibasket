@@ -255,3 +255,22 @@ def test_match_error_is_recorded_and_endpoint_stays_up(tmp_path, monkeypatch):
     response = client.get("/search", params={"q": 'hello"'})
     assert response.status_code == 200
     assert response.json()["results"] == []
+
+
+def test_drifted_fts_is_rebuilt_on_next_call(tmp_path):
+    """Rows written while the triggers were absent must not stay invisible for ever."""
+    path = tmp_path / "books.sqlite3"
+    with sqlite3.connect(path) as db:
+        db.execute(
+            "CREATE TABLE books(shop TEXT NOT NULL,url TEXT NOT NULL,title TEXT,"
+            "author_hint TEXT,isbn TEXT,last_seen TEXT NOT NULL,PRIMARY KEY(shop,url))"
+        )
+        db.execute(
+            "INSERT INTO books VALUES('libris','https://libris.ro/p/a','Orphaned Title',NULL,NULL,'2026-10-30')"
+        )
+        db.commit()
+    # The very first call must heal the drifted index instead of returning nothing.
+    first = search_module.search("orphaned", db_path=path, opener=lambda *a, **k: Response({"docs": []}))
+    assert first and first[0]["title"] == "Orphaned Title"
+    second = search_module.search("orphaned", db_path=path, opener=lambda *a, **k: Response({"docs": []}))
+    assert second and second[0]["title"] == "Orphaned Title"
