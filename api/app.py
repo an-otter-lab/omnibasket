@@ -90,33 +90,80 @@ def create_app(db_path: Path | None = None) -> FastAPI:
         return JSONResponse(payload)
 
     @app.get("/events")
-    def events(source: str = Query(default="cache")) -> StreamingResponse:
-        def generate():
-            # Finish every cache read before the first yield. The connection
-            # opened for this request is closed inside PageCache before we get here.
-            try:
-                pages, payload = _cached_solution(app, source)
-            except SolverError as exc:
-                payload: dict = {"error": str(exc)}
-                misses = getattr(exc, "misses", None)
-                if misses:
-                    payload["misses"] = misses
-                yield _sse("error", payload)
-                return
-            for page in pages:
-                yield _sse(
-                    "page",
-                    {
-                        "store_id": page["store_id"],
-                        "isbn13": page["isbn13"] or None,
-                        "item_id": page["item_id"],
-                        "cache": page["cache"],
-                        "status": page["status"],
-                    },
+    async def events(source: str = Query(default="cache")) -> StreamingResponse:
+        if source == "live":
+            # Live read mode: stream progress events during parallel reads
+            async def generate_live():
+                from api.offers import read_offers_parallel, ReadProgress
+                import asyncio
+                
+                # For now, use a hardcoded test case
+                # In production, this would come from the request parameters
+                store_ids = ["libris", "bookzone", "emag", "amazon_de"]
+                isbn13 = "9786068996011"  # Ghici
+                item_id = "ghici"
+                
+                progress_queue: asyncio.Queue[ReadProgress | None] = asyncio.Queue()
+                
+                async def progress_callback(progress: ReadProgress):
+                    await progress_queue.put(progress)
+                
+                # Start parallel reads in background
+                read_task = asyncio.create_task(
+                    read_offers_parallel(store_ids, isbn13, item_id, _cache(app), progress_callback)
                 )
-            yield _sse("solution", payload)
-
-        return StreamingResponse(generate(), media_type="text/event-stream")
+                
+                # Stream progress events
+                while True:
+                    progress = await progress_queue.get()
+                    if progress is None:
+                        break
+                    yield _sse(
+                        "read_progress",
+                        {
+                            "store_id": progress.store_id,
+                            "isbn13": progress.isbn13,
+                            "status": progress.status,
+                            "message": progress.message,
+                        },
+                    )
+                
+                # Wait for reads to complete
+                offers = await read_task
+                
+                # TODO: Convert offers to solver format and run solve
+                # For now, just emit a placeholder solution
+                yield _sse("solution", {"status": "complete", "offers_count": len(offers)})
+            
+            return StreamingResponse(generate_live(), media_type="text/event-stream")
+        else:
+            # Cache mode: existing behavior
+            def generate():
+                # Finish every cache read before the first yield. The connection
+                # opened for this request is closed inside PageCache before we get here.
+                try:
+                    pages, payload = _cached_solution(app, source)
+                except SolverError as exc:
+                    payload: dict = {"error": str(exc)}
+                    misses = getattr(exc, "misses", None)
+                    if misses:
+                        payload["misses"] = misses
+                    yield _sse("error", payload)
+                    return
+                for page in pages:
+                    yield _sse(
+                        "page",
+                        {
+                            "store_id": page["store_id"],
+                            "isbn13": page["isbn13"] or None,
+                            "item_id": page["item_id"],
+                            "cache": page["cache"],
+                            "status": page["status"],
+                        },
+                    )
+                yield _sse("solution", payload)
+            
+            return StreamingResponse(generate(), media_type="text/event-stream")
 
     # API routes above take precedence. The built Angular app is the demo UI.
     if UI_DIST.is_dir():
