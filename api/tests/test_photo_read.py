@@ -129,6 +129,30 @@ def test_spinoff_is_not_a_candidate(client, monkeypatch):
     assert out["status"] == "not_found"
 
 
+def test_non_format_qualifier_is_ambiguous_and_labeled(client, monkeypatch):
+    mock_model(monkeypatch, json.dumps({"lines": [{"title": "Guess How Much I Love You", "author": None}]}))
+    with sqlite3.connect(client.app.state.index_db_path) as c:
+        c.execute("INSERT INTO books VALUES(?,?,?,?,?,?)",
+                  ("libris", "https://libris.ro/p/guess", "Guess How Much I Love You Padded Board Book", "", "9780000000100", "2026-10-30"))
+        c.execute("DROP TABLE IF EXISTS books_search")
+    out = post(client).json()["lines"][0]
+    assert out["status"] == "ambiguous"
+    assert out["candidates"][0]["edition"] == "padded"
+
+
+def test_qualifier_tier_caps_and_orders_candidates(client, monkeypatch):
+    mock_model(monkeypatch, json.dumps({"lines": [{"title": "Guess How Much I Love You", "author": None}]}))
+    with sqlite3.connect(client.app.state.index_db_path) as c:
+        rows = [("libris", "https://libris.ro/p/q%d" % i, "Guess How Much I Love You" + suffix, "", "97800000001%02d" % i, "2026-10-30")
+                for i, suffix in enumerate([" Gift Set", " Sticker Book", " Deluxe", " Padded Board Book", " Anniversary Edition", " Big Book"], 0)]
+        c.executemany("INSERT INTO books VALUES(?,?,?,?,?,?)", rows)
+        c.execute("DROP TABLE IF EXISTS books_search")
+    out = post(client).json()["lines"][0]
+    assert out["status"] == "ambiguous"
+    assert len(out["candidates"]) <= 5
+    assert [len(c["edition"].split()) for c in out["candidates"]] == sorted(len(c["edition"].split()) for c in out["candidates"])
+
+
 def test_common_word_title_stays_fast(tmp_path):
     """A title made of common words must not scan the table: one AND query, well under a second."""
     db = tmp_path / "books.sqlite3"

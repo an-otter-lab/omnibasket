@@ -185,10 +185,24 @@ def match_line(line: dict, db_path, opener=None) -> dict:
     base = {"read_title": line["title"], "read_author": line.get("author")}
     exact: dict[str, dict] = {}
     editions: dict[str, dict] = {}
+    qualifiers: dict[str, tuple[int, dict]] = {}
     for row in query_line(want, db_path):
-        label = _edition_label(want, title_words(row["title"]))
+        have = title_words(row["title"])
+        label = _edition_label(want, have)
+        fallback = None
         if label is None:
-            continue
+            remaining = list(want)
+            extras = []
+            for w in have:
+                if w in remaining:
+                    remaining.remove(w)
+                else:
+                    extras.append(w)
+            nonformat = [w for w in extras if w not in FORMAT_WORDS]
+            if (want and have and have[0] == want[0] and not remaining and len(nonformat) <= 2
+                    and (len(have) == len(want) or any(w in FORMAT_WORDS for w in have[len(want):]))
+                    and all(w in FORMAT_WORDS for w in have[len(want) + len(nonformat):])):
+                fallback = (len(nonformat), " ".join(nonformat) or "format variant")
         isbn = row["isbn"]
         item = {
             "title": row["title"],
@@ -198,9 +212,13 @@ def match_line(line: dict, db_path, opener=None) -> dict:
         }
         if label == "":
             exact.setdefault(isbn, item)
-        else:
+        elif label is not None:
             item["edition"] = label
             editions.setdefault(isbn, item)
+        else:
+            if fallback is not None:
+                item["edition"] = fallback[1]
+                qualifiers[isbn] = (fallback[0], item)
 
     if len(exact) == 1:
         return {**base, "status": "matched", "candidate": next(iter(exact.values()))}
@@ -211,6 +229,9 @@ def match_line(line: dict, db_path, opener=None) -> dict:
         return {**base, "status": "matched", "candidate": next(iter(editions.values()))}
     if len(editions) > 1:
         picks = [editions[k] for k in sorted(editions)][:MAX_CANDIDATES]
+        return {**base, "status": "ambiguous", "candidates": picks}
+    if qualifiers:
+        picks = [qualifiers[k][1] for k in sorted(qualifiers, key=lambda k: (qualifiers[k][0], k))][:MAX_CANDIDATES]
         return {**base, "status": "ambiguous", "candidates": picks}
     return {**base, "status": "not_found"}
 
