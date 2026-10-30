@@ -343,3 +343,39 @@ def test_shares_per_ip_bucket_with_why():
 def test_ro_v1_totals_unchanged():
     sol = TestClient(create_app()).post("/solve").json()
     assert sol["total_cents"] == 51516
+
+
+# ---------------------------------------------------------------- typed placeholder phrase (== chips)
+
+
+def _fast_actions(client, model, text, lang="en"):
+    model.reply = {"actions": []}
+    body = _ask(client, text, lang=lang).json()
+    assert len(model.calls) == 0  # plain code, never the model
+    return body
+
+
+def test_typed_placeholder_phrase_equals_the_two_chips(client, model):
+    chips = []
+    for chip in ("No Amazon", "Keep it to one order"):
+        chips += _fast_actions(client, model, chip)["actions"]
+    for typed in ("no Amazon, and keep it to one order", "Try: no Amazon, and keep it to one order",
+                  "no Amazon and just keep it to one order", "No Amazon, and keep it to one order."):
+        body = _fast_actions(client, model, typed)
+        assert body["status"] == "ok" and body["actions"] == chips, typed
+        assert [r["reply_key"] for r in body["replies"]] == ["askDoneExclude", "askDoneTab"]
+    ro = _fast_actions(client, model, "Încearcă: fără Amazon, într-o singură comandă", lang="ro")
+    assert ro["actions"] == chips
+
+
+def test_typed_single_constraints(client, model):
+    assert _fast_actions(client, model, "try: no Amazon")["actions"] == [EXC]
+    assert _fast_actions(client, model, "just the cheapest")["actions"] == [A("set_tab", tab="cheapest")]
+    assert _fast_actions(client, model, "no Amazon, and the cheapest")["actions"] == [EXC, A("set_tab", tab="cheapest")]
+
+
+def test_typed_nonsense_stays_unsupported(client, model):
+    for text in ("try: sing me a song", "no Amazon, and tell me a joke", "and", "try"):
+        model.reply = {"actions": []}
+        body = _ask(client, text).json()
+        assert body["status"] == "unsupported" and body["actions"] == [] and body["reply_key"] == "askUnsupported", text

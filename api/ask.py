@@ -232,7 +232,7 @@ def _aliases(ids: list, names: dict, strip_first: bool) -> dict:
 
 
 _FILLER = re.compile(
-    r"^(?:(?:please|te rog|hey|hi|omnibasket|vreau|i want|i d like|id like|give me|make it|keep it to|keep it|keep|"
+    r"^(?:(?:please|te rog|hey|hi|omnibasket|try|incearca|can you|could you|just|doar|also|and|si|vreau|i want|i d like|id like|give me|make it|keep it to|keep it|keep|"
     r"put it in|show me|show|arata mi|arata|go back to|go to|back to|switch to|mergi la|treci la|fa|tine|pastreaza)\s+)+"
 )
 _POLITE = re.compile(r"\s+(?:please|pls|te rog|thanks|multumesc)$")
