@@ -5,7 +5,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, Query, Request
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -82,6 +83,31 @@ def create_app(db_path: Path | None = None) -> FastAPI:
         from index.search import search
 
         return {"query": q, "results": search(q, limit=limit, db_path=app.state.index_db_path)}
+
+    @app.post("/photo")
+    async def photo_route(request: Request) -> JSONResponse:
+        """Raw image body (png/jpeg/webp). Read in memory, never stored or logged."""
+        from api import photo_read
+
+        ctype = (request.headers.get("content-type") or "").split(";")[0].strip().lower()
+        if ctype not in photo_read.ALLOWED_TYPES:
+            return JSONResponse(status_code=415, content={"error": "unsupported_type", "allowed": sorted(photo_read.ALLOWED_TYPES)})
+        declared = request.headers.get("content-length")
+        if declared and declared.isdigit() and int(declared) > photo_read.MAX_IMAGE_BYTES:
+            return JSONResponse(status_code=413, content={"error": "too_large", "max_bytes": photo_read.MAX_IMAGE_BYTES})
+        chunks, size = [], 0
+        async for chunk in request.stream():
+            size += len(chunk)
+            if size > photo_read.MAX_IMAGE_BYTES:
+                return JSONResponse(status_code=413, content={"error": "too_large", "max_bytes": photo_read.MAX_IMAGE_BYTES})
+            chunks.append(chunk)
+        data = b"".join(chunks)
+        if not data:
+            return JSONResponse(status_code=400, content={"error": "empty_body"})
+        if photo_read.sniff_type(data) != ctype:
+            return JSONResponse(status_code=415, content={"error": "unsupported_type", "allowed": sorted(photo_read.ALLOWED_TYPES)})
+        result = await run_in_threadpool(photo_read.read_and_match, data, ctype, app.state.index_db_path)
+        return JSONResponse(result)
 
     @app.post("/solve")
     def solve_route(
