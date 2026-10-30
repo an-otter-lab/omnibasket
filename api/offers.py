@@ -505,7 +505,7 @@ async def _fetch_and_extract(
     """Fetch one indexed product page and extract offer data."""
     url = _get_product_url(store_id, isbn13, index_lookup)
     if not url and title and author and store_id != "amazon_de":
-        return await _read_other_printing(store_id, isbn13, item_id, profile, day, title, author, title_lookup)
+        return await _read_other_printing(store_id, isbn13, item_id, profile, day, title, author, title_lookup, cache)
     if not url:
         return OfferRead(
             store_id=store_id,
@@ -618,14 +618,22 @@ async def _read_other_printing(
     title: str,
     author: str,
     title_lookup=None,
+    cache: PageCache | None = None,
 ) -> OfferRead:
     """The shop has the work but not under this ISBN. Attach it only on a strong match.
 
     The offer keeps the page's own ISBN and is flagged other_printing. If the page
     does carry the asked-for ISBN it is the same edition and the flag stays off.
-    No Muse call and no cache write: schema.org is the only source here.
+    No Muse call: schema.org is the only source here. The confirmation (match result,
+    ISBN, price, availability) is kept for CONFIRMATION_TTL (24 h) under
+    store|asked ISBN|title|author, so a repeat pick of the same work fetches nothing.
     """
     from api.title_match import strong_match
+
+    key = "|".join(["printing", store_id, isbn13 or "", title.strip().lower(), author.strip().lower()])
+    kept = cache.get_confirmation(key) if cache is not None else None
+    if kept is not None:
+        return _offer_from_confirmation(kept, store_id, isbn13, item_id, profile, day)
 
     skipped = OfferRead(
         store_id=store_id, isbn13=isbn13, item_id=item_id, status="skipped",
@@ -643,12 +651,20 @@ async def _read_other_printing(
         )
     data = extract_schema_org(result.text)
     if not strong_match(title, author, data.name, data.authors or []):
+        if cache is not None:
+            cache.put_confirmation(key, {"matched": False})
         return skipped
     if data.price_cents is None or not data.isbn13:
         return OfferRead(
             store_id=store_id, isbn13=isbn13, item_id=item_id, listing_url=url,
             status="failed", reason="no_price_extracted", cache="miss", day=day,
         )
+    if cache is not None:
+        cache.put_confirmation(key, {
+            "matched": True, "url": url, "isbn13": data.isbn13, "price_cents": data.price_cents,
+            "currency": data.currency, "availability": data.availability,
+            "name": data.name, "authors": data.authors or [],
+        })
     return OfferRead(
         store_id=store_id,
         isbn13=data.isbn13,
@@ -664,6 +680,24 @@ async def _read_other_printing(
         cache="live",
         day=day,
         other_printing=data.isbn13 != isbn13,
+    )
+
+
+def _offer_from_confirmation(kept, store_id, isbn13, item_id, profile, day) -> OfferRead:
+    if not kept.get("matched"):
+        return OfferRead(store_id=store_id, isbn13=isbn13, item_id=item_id, status="skipped",
+                         reason="no_match_in_index", cache="miss", day=day)
+    avail = kept.get("availability")
+    data = SchemaOrgData(
+        price_cents=kept["price_cents"], currency=kept.get("currency"), availability=avail,
+        isbn13=kept["isbn13"], name=kept.get("name"), authors=kept.get("authors"),
+    )
+    return OfferRead(
+        store_id=store_id, isbn13=kept["isbn13"], item_id=item_id, price_cents=kept["price_cents"],
+        currency=kept.get("currency") or profile.currency, availability=avail,
+        listing_url=kept["url"], read_at=datetime.now(TZ).isoformat(timespec="seconds"),
+        in_stock=("instock" in avail.lower()) if avail else None, schema_org=data,
+        status="ok", cache="hit", day=day, other_printing=kept["isbn13"] != isbn13,
     )
 
 
