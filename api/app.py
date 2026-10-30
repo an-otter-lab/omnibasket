@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 
 from api.basket import excluded_for_unresolved_fees, load_locked, locked_shop_rows
 from api.cache import PageCache, open_seeded
+from api.memberships import apply_memberships, check_declared, load_profiles, memberships_payload
 from api.rate_limit import DailyPasteLimiter, PerIPRateLimitMiddleware
 from api.solve_service import (
     context_from_body,
@@ -67,6 +68,8 @@ class SolveIn(BaseModel):
     selected_store_ids: list[str] | None = None
     # Exact edition: {item_id: edition}. A missing book or "any" means any edition.
     edition_pins: dict[str, str] | None = None
+    # Feature 5: memberships the shopper declares, by id from data/shops.
+    memberships: list[str] | None = None
 
 
 def create_app(db_path: Path | None = None) -> FastAPI:
@@ -250,6 +253,8 @@ def _solve(
     *,
     require_romanian_store: bool = False,
 ) -> dict:
+    profiles = load_profiles()
+    declared = check_declared(body.memberships if body else None, profiles)
     if body and body.stores and body.items:
         _refuse_live(source)
         if source not in {"given", "cache"}:
@@ -257,10 +262,10 @@ def _solve(
         # A caller-supplied basket is arithmetic only. It does not fetch pages.
         store_rows = [row.model_dump() for row in body.stores]
         item_rows = [row.model_dump() for row in body.items]
-        stores = stores_from_body(store_rows)
+        stores = apply_memberships(stores_from_body(store_rows), declared, profiles)
         items = items_from_body(item_rows)
         excluded = _excluded_for_posted_stores(stores)
-        return solution_payload(
+        payload = solution_payload(
             stores,
             items,
             require_romanian_store=require_romanian_store,
@@ -269,12 +274,15 @@ def _solve(
             selected_store_ids=body.selected_store_ids,
             edition_pins=body.edition_pins,
         )
+        payload["memberships"] = memberships_payload(stores, declared, profiles)
+        return payload
     _, payload = _cached_solution(
         app,
         source,
         require_romanian_store=require_romanian_store,
         selected_store_ids=body.selected_store_ids if body else None,
         edition_pins=body.edition_pins if body else None,
+        memberships=declared,
     )
     return payload
 
@@ -286,10 +294,14 @@ def _cached_solution(
     require_romanian_store: bool = False,
     selected_store_ids: list[str] | None = None,
     edition_pins: dict[str, str] | None = None,
+    memberships: list[str] | None = None,
 ) -> tuple[list[dict], dict]:
     from api.solve_service import offers_from_cache
 
+    profiles = load_profiles()
+    declared = check_declared(memberships, profiles)
     _day, _currency, stores, _items, pages = load_locked()
+    stores = apply_memberships(stores, declared, profiles)
     if source != "cache":
         _refuse_live(source)
         raise SolverError(f"unsupported solve source {source!r}")
@@ -304,6 +316,7 @@ def _cached_solution(
         selected_store_ids=selected_store_ids,
         edition_pins=edition_pins,
     )
+    payload["memberships"] = memberships_payload(stores, declared, profiles)
     payload["source"] = "cache"
     payload["pages"] = events
     return events, payload
