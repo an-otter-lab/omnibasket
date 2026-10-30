@@ -175,7 +175,10 @@ describe('memberships in the result controls', () => {
       custom: null,
       edition: { pins: {}, unknown_pins: [], status: 'ranked', reason: null, unpinned_total_cents: null, total_cents: null, delta_cents: null, not_ranked: [] },
     };
-    spyOn(window, 'fetch').and.callFake(async (_url: RequestInfo | URL, init?: RequestInit) => {
+    spyOn(window, 'fetch').and.callFake(async (url: RequestInfo | URL, init?: RequestInit) => {
+      if (String(url).endsWith('/why')) {
+        return new Response(JSON.stringify({ text: 'Fallback explanation.', source: 'template' }), { status: 200 });
+      }
       bodies.push(JSON.parse(String(init?.body || '{}')));
       return new Response(JSON.stringify(payload), { status: 200 });
     });

@@ -119,8 +119,8 @@ def _ask(payload: dict, lang: str) -> dict:
     }
     try:
         estimate = meta_budget.compute_cost(len(prompt) // 3 + 200, MAX_OUTPUT_TOKENS)
-        response, _row = meta_budget.guarded_post(body, estimate, note="why-this-split")
-    except Exception as exc:  # budget refusal, HTTP, network, missing key
+        response, _row = meta_budget.guarded_post(body, estimate, note="why-this-split", timeout=8)
+    except Exception as exc:  # budget refusal, HTTP, network, missing key, timeout
         return _template(payload, lang, f"model call failed: {type(exc).__name__}")
     text = _text_of(response).strip()
     if not text:

@@ -9,6 +9,8 @@ export interface Messages {
   /** {amount} is already formatted as the app formats lei (e.g. 153,50). */
   deliveryGapShort: string;
   deliveryGapReached: string;
+  whySplitTemplate: string;
+  writtenByMuse: string;
 
   // Feature 6: buy list per shop.
   buyListEntry: string;
@@ -118,6 +120,8 @@ export const MESSAGES: Record<Lang, Messages> = {
   en: {
     deliveryGapShort: '{amount} lei short of free delivery at {shop}',
     deliveryGapReached: 'Free delivery reached',
+    whySplitTemplate: 'The cheapest split explains this basket’s lowest priced total.',
+    writtenByMuse: 'Written by Muse',
     buyListEntry: 'Buy list for these orders',
     buyListTitle: 'Buy list',
     buyListIntro: 'One order per shop. Tick each book once it is in that shop’s cart.',
@@ -195,6 +199,8 @@ export const MESSAGES: Record<Lang, Messages> = {
   ro: {
     deliveryGapShort: 'Mai ai {amount} lei până la livrarea gratuită la {shop}',
     deliveryGapReached: 'Comanda are livrare gratuită',
+    whySplitTemplate: 'Cea mai ieftină împărțire explică cel mai mic total cu preț pentru acest coș.',
+    writtenByMuse: 'Scris de Muse',
     buyListEntry: 'Lista de cumpărături pentru aceste comenzi',
     buyListTitle: 'Lista de cumpărături',
     buyListIntro: 'O comandă pentru fiecare magazin. Bifează fiecare carte după ce e în coșul magazinului.',

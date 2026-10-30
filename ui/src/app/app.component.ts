@@ -275,6 +275,10 @@ export class AppComponent implements OnDestroy {
   selected: string[] | null = null;
   lastOrderTab: Tab = 'cheapest';
   lang: Lang = 'en';
+  whyText = '';
+  whyMuse = false;
+  private whyRequest = 0;
+  get museLabel(): string { return MESSAGES[this.lang].writtenByMuse; }
   // Feature 5: memberships the shopper declared, kept in localStorage.
   declaredMemberships: string[] = [];
 
@@ -460,6 +464,7 @@ export class AppComponent implements OnDestroy {
       if (!res.ok || body.error) throw new Error(body.error || 'solve failed');
       this.snapshot = body;
       this.data = body;
+      void this.loadWhy(body);
       this.basket = new Set(body.books.map((b) => b.item_id));
       const known = new Set((body.memberships || []).map((row) => row.id));
       this.declaredMemberships = loadDeclared().filter((id) => known.has(id));
@@ -481,6 +486,33 @@ export class AppComponent implements OnDestroy {
 
   private fullBasket(): boolean {
     return !!this.snapshot && this.basket.size === this.snapshot.books.length;
+  }
+
+  private hasDescribableResult(payload: unknown): boolean {
+    if (!payload || typeof payload !== 'object') return false;
+    const p = payload as Record<string, unknown>;
+    const books = p['books'];
+    if (!Array.isArray(books) || books.length === 0) return false;
+    const cheapest = p['cheapest'];
+    if (!cheapest || typeof cheapest !== 'object') return false;
+    const orders = (cheapest as Record<string, unknown>)['orders'];
+    if (!Array.isArray(orders) || orders.length === 0) return false;
+    return true;
+  }
+
+  private async loadWhy(payload: unknown): Promise<void> {
+    const request = ++this.whyRequest;
+    this.whyMuse = false;
+    this.whyText = MESSAGES[this.lang].whySplitTemplate;
+    if (!this.hasDescribableResult(payload)) return;
+    try {
+      const res = await fetch('/why', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ payload, lang: this.lang }) });
+      if (!res.ok) return;
+      const result = await res.json() as { text?: string; source?: string };
+      if (request !== this.whyRequest || !result.text || result.source !== 'muse') return;
+      this.whyText = result.text;
+      this.whyMuse = true;
+    } catch { /* Safe template remains visible. */ }
   }
 
   private givenBody(): Record<string, unknown> {
@@ -518,15 +550,17 @@ export class AppComponent implements OnDestroy {
     };
   }
 
-  private async post(pins: Record<string, string>, selected: string[] | null): Promise<Payload | null> {
+  private async post(pins: Record<string, string>, selected: string[] | null, requestBody?: Record<string, unknown>): Promise<Payload | null> {
     if (this.fixture) {
       this.note = 'This is a recorded example. Changes are not re-solved.';
       return null;
     }
-    const body: Record<string, unknown> = this.fullBasket() ? {} : this.givenBody();
-    if (Object.keys(pins).length) body['edition_pins'] = pins;
-    if (selected) body['selected_store_ids'] = selected;
-    if (this.declaredMemberships.length) body['memberships'] = this.declaredMemberships;
+    const body: Record<string, unknown> = requestBody ?? (this.fullBasket() ? {} : this.givenBody());
+    if (!requestBody) {
+      if (Object.keys(pins).length) body['edition_pins'] = pins;
+      if (selected) body['selected_store_ids'] = selected;
+      if (this.declaredMemberships.length) body['memberships'] = this.declaredMemberships;
+    }
     const res = await fetch('/solve', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
     const payload = adapt((await res.json()) as Payload);
     if (!res.ok || payload.error) {
@@ -544,9 +578,14 @@ export class AppComponent implements OnDestroy {
   async solve(): Promise<void> {
     this.busy = true;
     this.note = '';
-    const next = await this.post(this.pins, this.selected);
+    const body: Record<string, unknown> = this.fullBasket() ? {} : this.givenBody();
+    if (Object.keys(this.pins).length) body['edition_pins'] = this.pins;
+    if (this.selected) body['selected_store_ids'] = this.selected;
+    if (this.declaredMemberships.length) body['memberships'] = this.declaredMemberships;
+    const next = await this.post(this.pins, this.selected, body);
     if (next) {
       this.data = next;
+      void this.loadWhy(next);
       this.dirty = false;
       if (next.degraded?.kind === 'one_shop' && this.route.name === 'result') this.tab = 'one';
     }
