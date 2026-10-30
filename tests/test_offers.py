@@ -96,7 +96,7 @@ def _product_index(store_id, isbn):
     return pages.get(store_id)
 
 
-def test_never_requests_a_shop_search_url(cache):
+def test_never_requests_a_shop_search_url(cache, indexed_shops_db):
     """A missing index row is a skip. A hit is the product page, never /cauta or /search."""
     from api.fetch_guard import GuardedFetch
 
