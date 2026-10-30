@@ -13,17 +13,17 @@ const order = (store: string, ids: string[]) => ({
 });
 const ans = (orders: ReturnType<typeof order>[]) => ({ status: 'ranked', reason: null, total_cents: 2000, books_subtotal_cents: 2000, order_count: orders.length, orders, delta_vs_cheapest_cents: 0, not_ranked: [] });
 
-function payload(notPossible: boolean) {
+function payload(notPossible: boolean, selected: string[] | null = null) {
   const o = [order('libris', ['b1']), order('emag', ['b2'])];
   return {
     currency: 'RON', cached: true, read_at_range: { oldest: null, newest: null }, degraded: null,
-    shops: ['libris', 'emag', 'amazon_de'].map((s) => ({ store_id: s, priced: true, excluded: false, selectable: true, not_selectable_code: null, not_selectable_reason: null, read_at: null, books_listed: 2, failed_reads: [], free_delivery_threshold_cents: null, delivery_cents: 0, delivery_known: true, order_fee_cents: 0 })),
+    shops: ['libris', 'emag', 'amazon_de'].map((s) => ({ store_id: s, priced: true, excluded: false, selectable: !((window as unknown as { __unsel?: string }).__unsel === s), not_selectable_code: null, not_selectable_reason: null, read_at: null, books_listed: 2, failed_reads: [], free_delivery_threshold_cents: null, delivery_cents: 0, delivery_known: true, order_fee_cents: 0 })),
     books: ['b1', 'b2'].map((id) => ({ item_id: id, title: id, isbn13: null, edition_pin: null, editions: [{ edition: id === 'b1' ? 'paperback' : 'hardcover', cheapest_price_cents: 1000, store_ids: ['libris'] }], assigned_store_id: 'libris', shops: [] })),
     failed_reads: [],
     memberships: [{ id: 'emag_genius', store_id: 'emag', store_name: 'eMAG', name: 'Genius', effect: 'unknown' }, { id: 'amazon_prime', store_id: 'amazon_de', store_name: 'Amazon.de', name: 'Prime', effect: 'none' }],
     cheapest: ans(o),
     ['one_' + 'par' + 'cel']: { status: 'ranked', reason: null, best_store_id: 'libris', answer: ans([order('libris', ['b1', 'b2'])]), per_book_delta: [], shops: [] },
-    custom: null,
+    custom: selected ? { ...ans(o), selected_store_ids: selected, unselectable: [], moves: [] } : null,
     edition: { pins: {}, unknown_pins: [], status: notPossible ? 'not_possible' : 'ranked', reason: null, unpinned_total_cents: null, total_cents: null, delta_cents: null, not_ranked: [] },
   };
 }
@@ -47,6 +47,8 @@ describe('Ask box', () => {
     return { fixture, app, el: fixture.nativeElement as HTMLElement };
   }
   async function ask(f: Awaited<ReturnType<typeof setup>>, text: string) {
+    const host = f.fixture.debugElement.query(By.directive(AskBoxComponent)).componentInstance as AskBoxComponent;
+    for (let i = 0; i < 200 && (host.busy || host.working); i++) { await new Promise((r) => setTimeout(r, 10)); f.fixture.detectChanges(); }
     const input = f.el.querySelector<HTMLInputElement>('app-ask-box input')!;
     input.value = text;
     input.dispatchEvent(new Event('input'));
@@ -60,6 +62,7 @@ describe('Ask box', () => {
 
   beforeEach(() => {
     localStorage.removeItem(MEMBERSHIPS_KEY);
+    window.location.hash = '';
     solves = []; asks = [];
     askReply = () => ok([act('set_tab', { tab: 'one' })]);
     spyOn(window, 'fetch').and.callFake(async (url: RequestInfo | URL, init?: RequestInit) => {
@@ -68,10 +71,10 @@ describe('Ask box', () => {
       const body = JSON.parse(String(init?.body || '{}'));
       if (u.endsWith('/ask')) { asks.push(body); return askReply(); }
       solves.push(body);
-      return new Response(JSON.stringify(payload(Object.keys(body['edition_pins'] || {}).length > 0 && (window as unknown as { __np?: boolean }).__np === true)), { status: 200 });
+      return new Response(JSON.stringify(payload(Object.keys(body['edition_pins'] || {}).length > 0 && (window as unknown as { __np?: boolean }).__np === true, (body['selected_store_ids'] as string[] | undefined) ?? null)), { status: 200 });
     });
   });
-  afterEach(() => { localStorage.removeItem(MEMBERSHIPS_KEY); delete (window as unknown as { __np?: boolean }).__np; });
+  afterEach(() => { localStorage.removeItem(MEMBERSHIPS_KEY); window.location.hash = ''; delete (window as unknown as { __np?: boolean }).__np; delete (window as unknown as { __unsel?: string }).__unsel; });
 
   it('is present with data, sends the state, and set_tab one routes to result/one', async () => {
     const f = await setup();
@@ -143,6 +146,46 @@ describe('Ask box', () => {
     await ask(f, 'delete it');
     expect(reply(f)).toBe(MESSAGES.en.askUnsupported);
     expect(solves.length).toBe(before);
+  });
+
+  it('include_store of an unselectable shop puts it back in selected and the request', async () => {
+    (window as unknown as { __unsel?: string }).__unsel = 'amazon_de';
+    askReply = () => ok([act('include_store', { store_id: 'amazon_de' })]);
+    const f = await setup();
+    await ask(f, 'include Amazon');
+    expect(f.app.selected).toEqual(['libris', 'emag', 'amazon_de']);
+    expect(solves[solves.length - 1]['selected_store_ids']).toEqual(['libris', 'emag', 'amazon_de']);
+    expect(f.app.tab).toBe('custom');
+  });
+
+  it('compound no Amazon and exact editions: not_possible keeps the exclude, rolls the pins back, shows askPinsNotPossible', async () => {
+    (window as unknown as { __np?: boolean }).__np = true;
+    askReply = () => ok(
+      [act('exclude_store', { store_id: 'amazon_de' }), act('pin_editions', { mode: 'current' })],
+      [{ reply_key: 'askDoneExclude', reply_args: { shop: 'Amazon.de' } }, { reply_key: 'askDonePinned', reply_args: {} }],
+    );
+    const f = await setup();
+    await ask(f, 'no Amazon and exact editions');
+    expect(f.app.selected).toEqual(['libris', 'emag']);
+    expect(f.app.tab).toBe('custom');
+    expect(f.app.pins).toEqual({});
+    expect(solves[solves.length - 1]['selected_store_ids']).toEqual(['libris', 'emag']);
+    expect(solves[solves.length - 1]['edition_pins']).toBeUndefined();
+    expect(reply(f)).toContain(MESSAGES.en.askPinsNotPossible);
+    expect(reply(f)).toContain('Left out Amazon.de.');
+  });
+
+  it('a reply where every action is ignored applies nothing and shows askUnsupported', async () => {
+    askReply = () => ok([act('delete_basket', {}), act('set_tab', { tab: 'bogus' }), act('exclude_store', { store_id: 'nowhere' })]);
+    const f = await setup();
+    const before = solves.length;
+    const tab = f.app.tab;
+    await ask(f, 'nonsense');
+    expect(solves.length).toBe(before);
+    expect(f.app.tab).toBe(tab);
+    expect(f.app.selected).toBeNull();
+    expect(f.app.pins).toEqual({});
+    expect(reply(f)).toBe(MESSAGES.en.askUnsupported);
   });
 
   it('server unsupported -> askUnsupported; 422 -> askUnsupported', async () => {
