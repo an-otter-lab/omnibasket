@@ -200,6 +200,19 @@ describe('Ask box', () => {
     expect(reply(f)).toBe(MESSAGES.en.askUnsupported);
   });
 
+  it('not-in-basket reply interpolates the shop name in EN and RO, no braces', async () => {
+    askReply = () => new Response(JSON.stringify({ status: 'unsupported', actions: [], reply_key: 'askNotInBasket', reply_args: { shop: 'Amazon.de' } }), { status: 200 });
+    const f = await setup();
+    await ask(f, 'no Amazon, and keep it to one order');
+    expect(reply(f)).toBe('Amazon.de isn’t part of this basket.');
+    expect(reply(f)).not.toMatch(/[{}]/);
+    f.app.lang = 'ro';
+    f.fixture.detectChanges();
+    await ask(f, 'fără Amazon, și într-o singură comandă');
+    expect(reply(f)).toBe('Amazon.de nu face parte din acest coș.');
+    expect(reply(f)).not.toMatch(/[{}]/);
+  });
+
   it('429 -> askBusy; budget refusal -> askUnavailable', async () => {
     askReply = () => new Response('{}', { status: 429 });
     const f = await setup();
