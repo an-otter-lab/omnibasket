@@ -4,6 +4,7 @@ import { Subject } from 'rxjs';
 import { AppComponent } from './app.component';
 import { PhotoReadResponse } from './photo';
 import { EventsService, LiveEvent } from './events.service';
+import { BasketService } from './basket.service';
 
 describe('Photo flow (Feature 2)', () => {
   let component: AppComponent;
@@ -438,6 +439,69 @@ describe('Photo flow (Feature 2)', () => {
       expect(component.basket.has('book-9781035028399')).toBeTrue();
 
       expect(solveSpy).toHaveBeenCalledTimes(1);
+    }));
+  });
+
+  describe('photo add reads each book by its own ISBN', () => {
+    const line = (title: string, author: string, isbn: string) => ({
+      read_title: title, read_author: author, status: 'matched' as const,
+      candidate: { title, author, isbn, cover_url: null },
+    });
+    const priced = (isbn: string, cents: number) => ({
+      books: [{ item_id: 'book-' + isbn, isbn13: isbn, title: 't', shops: [{ store_id: 'libris', price_cents: cents, seller_certainty: 'known', edition: null, listing_url: null, read_at: null, status: 'ok' }] }],
+      shops: [{ store_id: 'libris', priced: true, free_delivery_threshold_cents: 20000, delivery_cents: 1290, currency: 'RON', read_at: null }],
+      live_offers: [{ store_id: 'libris', price_cents: cents, listing_url: null }],
+      joined_item_id: 'book-' + isbn,
+    });
+    const three = [
+      line('Harry Potter si piatra filozofala', 'J. K. Rowling', '9789735832940'),
+      line('Micul print', 'Antoine de Saint-Exupery', '9786060339229'),
+      line('The clean coder', 'Robert C. Martin', '9780137081073'),
+    ];
+
+    it('requests every line with its real ISBN, title and author, never the word photo', fakeAsync(() => {
+      component.onPhotoEvent({ kind: 'read', response: { lines: three } });
+      tick();
+      const subjects = three.map(() => new Subject<LiveEvent>());
+      eventsService.open.and.returnValues(...subjects.map((s) => s.asObservable()));
+      spyOn(component, 'refresh').and.returnValue(Promise.resolve());
+      component.onPhotoContinue();
+      tick();
+      window.dispatchEvent(new HashChangeEvent('hashchange'));
+      tick();
+      const urls = eventsService.open.calls.allArgs().map((a) => new URL(a[0], 'http://x'));
+      expect(urls.length).toBe(3);  // no stray read for the progress route
+      expect(urls.map((u) => u.searchParams.get('isbn13'))).toEqual(['9789735832940', '9786060339229', '9780137081073']);
+      expect(urls.map((u) => u.searchParams.get('item_id'))).toEqual(['book-9789735832940', 'book-9786060339229', 'book-9780137081073']);
+      expect(urls.map((u) => u.searchParams.get('title'))).toEqual(three.map((l) => l.candidate.title));
+      expect(urls.map((u) => u.searchParams.get('author'))).toEqual(three.map((l) => l.candidate.author));
+      expect(urls.every((u) => u.searchParams.get('source') === 'live' && u.searchParams.get('isbn13') !== 'photo')).toBeTrue();
+    }));
+
+    it('keeps the prices of a book already in the basket when the same ISBN comes back with no offer, and lists a book with no offer unpriced', fakeAsync(() => {
+      const svc = TestBed.inject(BasketService);
+      svc.addFromLive(priced('9789735832940', 5662), '9789735832940', 'Harry Potter si piatra filozofala');
+      svc.addFromLive(priced('9780137081073', 27902), '9780137081073', 'The clean coder');
+      component.onPhotoEvent({ kind: 'read', response: { lines: three } });
+      tick();
+      const subjects = three.map(() => new Subject<LiveEvent>());
+      eventsService.open.and.returnValues(...subjects.map((s) => s.asObservable()));
+      const refresh = spyOn(component, 'refresh').and.returnValue(Promise.resolve());
+      component.onPhotoContinue();
+      tick();
+      subjects[0].next({ type: 'solution', payload: { books: [], shops: [], live_offers: [] } });  // already priced, nothing new
+      subjects[1].next({ type: 'solution', payload: { books: [], shops: [], live_offers: [] } });  // new, no offer anywhere
+      subjects[2].next({ type: 'error', message: 'read failed' });  // its read breaks
+      tick();
+      const byIsbn = (i: string) => svc.items.find((x) => x.isbn === i)!;
+      expect(svc.items.length).toBe(3);
+      expect(byIsbn('9789735832940').offers.map((o) => o.price_cents)).toEqual([5662]);
+      expect(byIsbn('9780137081073').offers.map((o) => o.price_cents)).toEqual([27902]);
+      expect(byIsbn('9789735832940').author).toBe('J. K. Rowling');
+      expect(byIsbn('9786060339229').offers).toEqual([]);
+      expect(svc.unplaced().map((i) => i.isbn)).toEqual(['9786060339229']);
+      expect(svc.givenBody()!.items.map((i) => i.isbn13).sort()).toEqual(['9780137081073', '9789735832940']);
+      expect(refresh).toHaveBeenCalledTimes(1);
     }));
   });
 });

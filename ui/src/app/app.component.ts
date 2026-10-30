@@ -1,9 +1,12 @@
 import { NgTemplateOutlet } from '@angular/common';
 import { Component, HostListener, OnDestroy, effect, inject, untracked } from '@angular/core';
 import { Subscription, firstValueFrom } from 'rxjs';
-import { BasketItem, BasketService } from './basket.service';
+import { BasketItem, BasketService, itemId } from './basket.service';
 import { BuyListComponent } from './buy-list.component';
 import { EventsService, liveUrl } from './events.service';
+
+/** The route argument of the photo read's progress screen. It is not an ISBN and starts no read. */
+const PHOTO_ROUTE_ARG = 'photo';
 import { InputBoxComponent } from './input-box.component';
 import { LiveProgressComponent } from './live-progress.component';
 import { Candidate, LiveOffer, Progress, parseInput } from './live';
@@ -355,7 +358,7 @@ export class AppComponent implements OnDestroy {
     } else if (name === 'find') {
       void this.runSearch(this.route.arg);
     } else if (name === 'live') {
-      if (this.liveIsbn !== this.route.arg) this.startLive(this.route.arg, this.picked?.isbn === this.route.arg ? this.picked.title : '');
+      if (this.route.arg !== PHOTO_ROUTE_ARG && this.liveIsbn !== this.route.arg) this.startLive(this.route.arg, this.picked?.isbn === this.route.arg ? this.picked.title : '');
     } else if (!this.loaded && !this.loading) {
       void this.load();
     } else {
@@ -733,43 +736,48 @@ export class AppComponent implements OnDestroy {
     }
     if (resolved.length === 0) return;
     
-    // Reset photo state and start parallel live reads for ALL resolved ISBNs
+    // Reset photo state and read every resolved book live, each by its own ISBN, title and author:
+    // the same request a hand-picked book makes. 'live/photo' is only the progress screen, not an ISBN.
     this.photoState = { kind: 'idle' };
-    this.go('live/photo');
-    
-    // Open parallel SSE streams for all resolved ISBNs
+    this.go('live/' + PHOTO_ROUTE_ARG);
+
     this.progress = [];
     this.liveFailed = false;
     this.liveOffers = [];
     this.liveIsbn = '';
     this.liveTitle = count(this.lang, resolved.length, 'photoBooks');
-    
-    let completed = 0;
-    const total = resolved.length;
 
+    let settled = 0;
+    const total = resolved.length;
     this.leaveSample();
-    resolved.forEach((line, idx) => {
-      const sub = this.events.open(liveUrl(line.candidate.isbn, `photo-${idx}`, line.candidate.title)).subscribe({
+    const finishOne = (): void => {
+      settled++;
+      if (settled !== total) return;
+      this.picked = null;
+      this.resetPlan();
+      void this.refresh().then(() => this.go('result/cheapest'));
+    };
+    resolved.forEach((line) => {
+      const isbn = line.candidate.isbn;
+      const title = line.candidate.title || line.read_title;
+      const author = line.candidate.author || line.read_author || null;
+      let done = false;
+      // One book's failure lists it unpriced; it never stops the others.
+      const settle = (payload: Payload | null): void => {
+        if (done) return;
+        done = true;
+        if (payload) this.basketSvc.addFromLive(adapt(payload), isbn, title, author);
+        else this.basketSvc.addUnpriced(isbn, title, author);
+        finishOne();
+      };
+      this.events.open(liveUrl(isbn, itemId(isbn), title, author)).subscribe({
         next: (ev) => {
-          if (ev.type === 'progress') {
-            this.progress = [...this.progress, ev.progress];
-          } else if (ev.type === 'solution') {
-            // Each photo book joins the same basket as a book picked by hand.
-            this.basketSvc.addFromLive(adapt(ev.payload as Payload), line.candidate.isbn, line.candidate.title);
-            completed++;
-            sub.unsubscribe();
-            if (completed === total) {
-              this.picked = null;
-              this.resetPlan();
-              void this.refresh().then(() => this.go('result/cheapest'));
-            }
-          } else {
-            this.liveFailed = true;
-          }
+          if (ev.type === 'progress') this.progress = [...this.progress, ev.progress];
+          else if (ev.type === 'solution') settle(ev.payload as Payload);
+          else settle(null);
         },
-        error: () => {
-          this.liveFailed = true;
-        },
+        error: () => settle(null),
+        complete: () => settle(null),
       });
     });
   }
