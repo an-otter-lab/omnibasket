@@ -3,6 +3,14 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+# Normal mode is the default. --demo (or OMNIBASKET_DEMO=1 already set) turns on the sample basket.
+for arg in "$@"; do
+  case "$arg" in
+    --demo) export OMNIBASKET_DEMO=1 ;;
+    *) echo "unknown option: $arg (only --demo is accepted)" >&2; exit 2 ;;
+  esac
+done
+
 if ! command -v uv >/dev/null 2>&1; then
   echo "uv is required (https://docs.astral.sh/uv/)." >&2
   exit 1
