@@ -1,4 +1,6 @@
 {
   "requests": 60,
-  "window_seconds": 60
+  "window_seconds": 60,
+  "pastes_per_day": 20,
+  "new_domains_per_day": 5
 }

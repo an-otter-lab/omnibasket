@@ -10,6 +10,8 @@ import { PickListComponent, PickState } from './pick-list.component';
 import { ShopReadsComponent } from './shop-reads.component';
 import { buyListFromOrders, encodeBuyList } from './buy-list';
 import { Lang, MESSAGES, fill } from './messages';
+import { MembershipsComponent } from './memberships.component';
+import { MembershipRow, loadDeclared } from './memberships';
 
 type Tab = 'cheapest' | 'one' | 'custom';
 
@@ -192,6 +194,7 @@ interface Payload {
   joined_item_id?: string;
   joined_title?: string;
   joined_isbn13?: string;
+  memberships?: MembershipRow[];
   error?: string;
 }
 
@@ -235,7 +238,7 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 
 @Component({
   selector: 'app-root',
-  imports: [NgTemplateOutlet, BuyListComponent, InputBoxComponent, PickListComponent, LiveProgressComponent, ShopReadsComponent],
+  imports: [NgTemplateOutlet, BuyListComponent, InputBoxComponent, PickListComponent, LiveProgressComponent, ShopReadsComponent, MembershipsComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.css',
 })
@@ -272,6 +275,8 @@ export class AppComponent implements OnDestroy {
   selected: string[] | null = null;
   lastOrderTab: Tab = 'cheapest';
   lang: Lang = 'en';
+  // Feature 5: memberships the shopper declared, kept in localStorage.
+  declaredMemberships: string[] = [];
 
   constructor() {
     const sample = new URLSearchParams(window.location.search).get('sample');
@@ -456,6 +461,9 @@ export class AppComponent implements OnDestroy {
       this.snapshot = body;
       this.data = body;
       this.basket = new Set(body.books.map((b) => b.item_id));
+      const known = new Set((body.memberships || []).map((row) => row.id));
+      this.declaredMemberships = loadDeclared().filter((id) => known.has(id));
+      if (this.declaredMemberships.length && !this.fixture) await this.solve();
       const wanted = params.get('books');
       if (wanted && !this.fixture) {
         const ids = wanted.split(',').filter((id) => this.basket.has(id));
@@ -518,6 +526,7 @@ export class AppComponent implements OnDestroy {
     const body: Record<string, unknown> = this.fullBasket() ? {} : this.givenBody();
     if (Object.keys(pins).length) body['edition_pins'] = pins;
     if (selected) body['selected_store_ids'] = selected;
+    if (this.declaredMemberships.length) body['memberships'] = this.declaredMemberships;
     const res = await fetch('/solve', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
     const payload = adapt((await res.json()) as Payload);
     if (!res.ok || payload.error) {
@@ -525,6 +534,11 @@ export class AppComponent implements OnDestroy {
       return null;
     }
     return payload;
+  }
+
+  setMemberships(ids: string[]): void {
+    this.declaredMemberships = ids;
+    void this.solve();
   }
 
   async solve(): Promise<void> {

@@ -5,14 +5,15 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, Query, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from api.basket import excluded_for_unresolved_fees, load_locked, locked_shop_rows
 from api.cache import PageCache, open_seeded
-from api.rate_limit import PerIPRateLimitMiddleware
+from api.memberships import apply_memberships, check_declared, load_profiles, memberships_payload
+from api.rate_limit import DailyPasteLimiter, PerIPRateLimitMiddleware
 from api.solve_service import (
     context_from_body,
     context_from_locked,
@@ -54,6 +55,17 @@ class StoreIn(BaseModel):
     read_at: str | None = None
 
 
+class InputIn(BaseModel):
+    raw_input: str = Field(default="", max_length=2000)
+
+
+class WhyIn(BaseModel):
+    """The /solve payload and the shopper's language (ro or en)."""
+
+    payload: dict
+    lang: str = Field(default="en")
+
+
 class SolveIn(BaseModel):
     stores: list[StoreIn] | None = None
     items: list[ItemIn] | None = None
@@ -63,6 +75,8 @@ class SolveIn(BaseModel):
     selected_store_ids: list[str] | None = None
     # Exact edition: {item_id: edition}. A missing book or "any" means any edition.
     edition_pins: dict[str, str] | None = None
+    # Feature 5: memberships the shopper declares, by id from data/shops.
+    memberships: list[str] | None = None
 
 
 def create_app(db_path: Path | None = None) -> FastAPI:
@@ -72,6 +86,7 @@ def create_app(db_path: Path | None = None) -> FastAPI:
     app.state.db_path = path
     from index.search import DB as INDEX_DB
     app.state.index_db_path = INDEX_DB
+    app.state.paste_limiter = DailyPasteLimiter()
 
     @app.get("/health")
     def health() -> dict:
@@ -82,6 +97,26 @@ def create_app(db_path: Path | None = None) -> FastAPI:
         from index.search import search
 
         return {"query": q, "results": search(q, limit=limit, db_path=app.state.index_db_path)}
+
+    @app.post("/input")
+    def input_route(body: InputIn, request: Request) -> JSONResponse:
+        from api import input_understanding as iu
+
+        ip = request.client.host if request.client else "unknown"
+        try:
+            result = iu.understand(
+                body.raw_input,
+                ip=ip,
+                limiter=app.state.paste_limiter,
+                index_db=app.state.index_db_path,
+            )
+        except iu.LimitTripped as exc:
+            return JSONResponse(
+                status_code=429,
+                content={"error": exc.reason, "message": "Too many pasted links today. Try again tomorrow."},
+                headers={"Retry-After": "86400"},
+            )
+        return JSONResponse(result)
 
     @app.post("/solve")
     def solve_route(
@@ -96,6 +131,14 @@ def create_app(db_path: Path | None = None) -> FastAPI:
         except SolverError as exc:
             return JSONResponse(status_code=400, content={"error": str(exc)})
         return JSONResponse(payload)
+
+    @app.post("/why")
+    def why_route(body: WhyIn) -> JSONResponse:
+        from api.why import explain
+
+        public = explain(body.payload, body.lang)
+        public.pop("reason", None)
+        return JSONResponse(public)
 
     @app.get("/events")
     async def events(
@@ -225,6 +268,8 @@ def _solve(
     *,
     require_romanian_store: bool = False,
 ) -> dict:
+    profiles = load_profiles()
+    declared = check_declared(body.memberships if body else None, profiles)
     if body and body.stores and body.items:
         _refuse_live(source)
         if source not in {"given", "cache"}:
@@ -232,10 +277,10 @@ def _solve(
         # A caller-supplied basket is arithmetic only. It does not fetch pages.
         store_rows = [row.model_dump() for row in body.stores]
         item_rows = [row.model_dump() for row in body.items]
-        stores = stores_from_body(store_rows)
+        stores = apply_memberships(stores_from_body(store_rows), declared, profiles)
         items = items_from_body(item_rows)
         excluded = _excluded_for_posted_stores(stores)
-        return solution_payload(
+        payload = solution_payload(
             stores,
             items,
             require_romanian_store=require_romanian_store,
@@ -244,12 +289,15 @@ def _solve(
             selected_store_ids=body.selected_store_ids,
             edition_pins=body.edition_pins,
         )
+        payload["memberships"] = memberships_payload(stores, declared, profiles)
+        return payload
     _, payload = _cached_solution(
         app,
         source,
         require_romanian_store=require_romanian_store,
         selected_store_ids=body.selected_store_ids if body else None,
         edition_pins=body.edition_pins if body else None,
+        memberships=declared,
     )
     return payload
 
@@ -261,10 +309,14 @@ def _cached_solution(
     require_romanian_store: bool = False,
     selected_store_ids: list[str] | None = None,
     edition_pins: dict[str, str] | None = None,
+    memberships: list[str] | None = None,
 ) -> tuple[list[dict], dict]:
     from api.solve_service import offers_from_cache
 
+    profiles = load_profiles()
+    declared = check_declared(memberships, profiles)
     _day, _currency, stores, _items, pages = load_locked()
+    stores = apply_memberships(stores, declared, profiles)
     if source != "cache":
         _refuse_live(source)
         raise SolverError(f"unsupported solve source {source!r}")
@@ -279,6 +331,7 @@ def _cached_solution(
         selected_store_ids=selected_store_ids,
         edition_pins=edition_pins,
     )
+    payload["memberships"] = memberships_payload(stores, declared, profiles)
     payload["source"] = "cache"
     payload["pages"] = events
     return events, payload

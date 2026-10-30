@@ -92,6 +92,26 @@ export interface Messages {
   readsOther: string;
   sampleTitle: string;
   sampleNote: string;
+  // Feature 5: declared memberships. {name} is the membership, {shop} the shop.
+  membershipsTitle: string;
+  membershipsIntro: string;
+  /** {name} */
+  membershipDeclare: string;
+  /** {name} {rule} {threshold}: rule is the shop's printed amount (e.g. 49 €), threshold the lei the solver uses. */
+  membershipNone: string;
+  /** {name} */
+  membershipNoneNoRule: string;
+  /** {name} {shop} */
+  membershipUnknown: string;
+  /** {name} {shop} {threshold} */
+  membershipThreshold: string;
+  membershipTotalsSame: string;
+  /** {url} {date} */
+  membershipSourceRead: string;
+  /** {url} {date} */
+  membershipSourceTried: string;
+  /** Twelve short month names, space-separated. */
+  monthsShort: string;
 }
 
 export const MESSAGES: Record<Lang, Messages> = {
@@ -160,6 +180,17 @@ export const MESSAGES: Record<Lang, Messages> = {
     readsOther: 'Not read',
     sampleTitle: 'Your sample basket',
     sampleNote: 'A demo basket of books. Its totals are for the whole basket, not the price of the book you picked. That is in the shop rows above.',
+    membershipsTitle: 'Memberships',
+    membershipsIntro: 'Tick the memberships you have. A membership changes your total only when the shop\'s own rules page says so.',
+    membershipDeclare: 'I have {name}',
+    membershipNone: '{name} does not change delivery to Romania. Free delivery to Romania starts at {rule} ({threshold} lei) for everyone, {name} members included.',
+    membershipNoneNoRule: '{name} does not change delivery to Romania.',
+    membershipUnknown: '{name}: rules not printed. The {shop} rules page could not be read, so nothing is assumed.',
+    membershipThreshold: 'With {name}, free delivery at {shop} starts at {threshold} lei.',
+    membershipTotalsSame: 'Your totals do not change.',
+    membershipSourceRead: 'Source: {url}, read {date}',
+    membershipSourceTried: 'Read tried: {url}, {date}',
+    monthsShort: 'Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec',
   },
   ro: {
     deliveryGapShort: 'Mai ai {amount} lei până la livrarea gratuită la {shop}',
@@ -226,6 +257,17 @@ export const MESSAGES: Record<Lang, Messages> = {
     readsOther: 'Necitit',
     sampleTitle: 'Coșul demo',
     sampleNote: 'Un coș demo de cărți. Totalurile sunt pentru tot coșul, nu prețul cărții alese. Acela e în rândurile magazinelor de mai sus.',
+    membershipsTitle: 'Abonamente',
+    membershipsIntro: 'Bifează abonamentele pe care le ai. Un abonament schimbă totalul doar când pagina de reguli a magazinului spune asta.',
+    membershipDeclare: 'Am {name}',
+    membershipNone: '{name} nu schimbă livrarea în România. Livrarea gratuită în România începe de la {rule} ({threshold} lei) pentru toată lumea, inclusiv pentru membrii {name}.',
+    membershipNoneNoRule: '{name} nu schimbă livrarea în România.',
+    membershipUnknown: '{name}: regulile nu sunt afișate. Pagina de reguli {shop} nu a putut fi citită, așa că nu presupunem nimic.',
+    membershipThreshold: 'Cu {name}, livrarea gratuită la {shop} începe de la {threshold} lei.',
+    membershipTotalsSame: 'Totalurile nu se schimbă.',
+    membershipSourceRead: 'Sursa: {url}, citită pe {date}',
+    membershipSourceTried: 'Citire încercată: {url}, pe {date}',
+    monthsShort: 'ian. feb. mar. apr. mai iun. iul. aug. sept. oct. nov. dec.',
   },
 };
 

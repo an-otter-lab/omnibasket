@@ -324,6 +324,10 @@ def load_dotenv():
 def _post(path, body, provider="meta"):
     cfg = provider_config(provider)
     base = os.environ.get(cfg["base_env"], cfg["default_base"]).rstrip("/")
+    if not os.environ.get(cfg["key_env"]):
+        # The app process does not inherit the CLI's environment; load the
+        # configured values once, here, so every caller behaves the same.
+        load_dotenv()
     key = os.environ.get(cfg["key_env"])
     if not key:
         raise RuntimeError("%s is not set" % cfg["key_env"])

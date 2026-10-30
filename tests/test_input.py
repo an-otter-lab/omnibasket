@@ -1,0 +1,309 @@
+"""POST /input and api.input_understanding. Fixtures and mocks only; the autouse
+conftest guard fails any test that opens a socket."""
+
+import json
+import sqlite3
+from datetime import date
+from decimal import Decimal
+from unittest.mock import patch
+
+import pytest
+from fastapi.testclient import TestClient
+
+from api import input_understanding as iu
+from api.app import create_app
+from api.fetch_guard import GuardedFetch
+from api.rate_limit import DailyPasteLimiter
+from matching.fx import BnrRate, RateTable
+
+HUNGRY = "9780141367941"
+HUNGRY_10 = "0141367946"
+MUSE = "api.muse_integration.meta_budget.guarded_post"
+TODAY = date(2026, 10, 30)
+
+
+@pytest.fixture
+def index_db(tmp_path):
+    path = tmp_path / "books.sqlite3"
+    with sqlite3.connect(path) as db:
+        db.execute("CREATE TABLE books(shop TEXT NOT NULL,url TEXT NOT NULL,title TEXT,author_hint TEXT,isbn TEXT,last_seen TEXT NOT NULL,PRIMARY KEY(shop,url))")
+        db.executemany(
+            "INSERT INTO books VALUES(?,?,?,?,?,?)",
+            [
+                ("libris", "https://www.libris.ro/carte/hungry-caterpillar", "The Very Hungry Caterpillar", "Eric Carle", HUNGRY, "2026-10-30"),
+                ("books-express", "https://www.books-express.ro/x/p/y," + HUNGRY, "The Very Hungry Caterpillar", "Eric Carle", HUNGRY, "2026-10-30"),
+            ],
+        )
+    return path
+
+
+def _payload(text):
+    return {"output_text": text, "usage": {"input_tokens": 50, "output_tokens": 40}}
+
+
+def _muse(reply):
+    calls = []
+
+    def fake(body, estimate, note, provider="meta"):
+        calls.append({"body": body, "note": note})
+        return _payload(reply), {"tokens_in": 50, "tokens_out": 40}
+
+    return fake, calls
+
+
+def _no_muse(*a, **k):
+    raise AssertionError("no model call expected")
+
+
+def _page(html, url="https://shop.example/p/1"):
+    return GuardedFetch(final_url=url, status=200, content_type="text/html", body=html.encode(), text=html, hops=0)
+
+
+def _product_html(isbn=HUNGRY, price="12.50", cur="EUR"):
+    ld = {"@type": "Product", "name": "Some Book", "isbn": isbn, "offers": {"price": price, "priceCurrency": cur}}
+    return '<html><script type="application/ld+json">' + json.dumps(ld) + "</script><body>buy</body></html>"
+
+
+def _rates(cur="EUR", rate="5.0000"):
+    return RateTable(rates=(BnrRate(cur, Decimal(rate), 1, TODAY),), publishing_date=TODAY)
+
+
+def _count(db):
+    with sqlite3.connect(db) as con:
+        return con.execute("SELECT count(*) FROM books").fetchone()[0]
+
+
+# ---- ISBN short-circuit
+
+@pytest.mark.parametrize("raw", [HUNGRY, "978-0-14-136794-1", "ISBN " + HUNGRY_10, HUNGRY_10])
+def test_isbn10_and_13_short_circuit_without_model(raw, index_db):
+    with patch(MUSE, _no_muse), patch.object(iu, "fetch", _no_muse):
+        out = iu.understand(raw, index_db=index_db)
+    assert out["type"] == "isbn" and out["status"] == "resolved"
+    assert out["isbn13"] == HUNGRY
+    assert out["structured_query"]["title"] == "The Very Hungry Caterpillar"
+    assert out["events_url"].startswith("/events?source=live&isbn13=" + HUNGRY)
+
+
+def test_bad_check_digit_is_not_an_isbn(index_db):
+    assert iu.to_isbn13("9780141367942") is None
+    assert iu.to_isbn13("0141367947") is None
+
+
+# ---- indexed-shop links
+
+def test_indexed_shop_link_resolves_to_its_product_page_from_index(index_db):
+    url = "https://www.libris.ro/carte/hungry-caterpillar"
+    with patch(MUSE, _no_muse), patch.object(iu, "fetch", _no_muse):
+        out = iu.understand(url, index_db=index_db)
+    assert out["type"] == "link"
+    assert out["isbn13"] == HUNGRY
+    assert out["shop_context"] == {"shop_id": "libris", "product_url": url}
+    assert out["paste_offer"] is None
+
+
+def test_indexed_shop_link_with_isbn_in_url_needs_no_read(index_db):
+    url = "https://www.books-express.ro/carte/z/p/q," + HUNGRY + "?x=1"
+    with patch(MUSE, _no_muse), patch.object(iu, "fetch", _no_muse):
+        out = iu.understand(url, index_db=index_db)
+    assert out["shop_context"]["shop_id"] == "books_express"
+    assert out["isbn13"] == HUNGRY
+
+
+def test_amazon_link_uses_asin_and_is_never_fetched(index_db):
+    with patch(MUSE, _no_muse), patch.object(iu, "fetch", _no_muse):
+        out = iu.understand("https://www.amazon.de/Some-Title/dp/" + HUNGRY_10 + "/ref=x", index_db=index_db)
+    assert out["isbn13"] == HUNGRY and out["shop_context"]["shop_id"] == "amazon_de"
+    with patch(MUSE, _no_muse), patch.object(iu, "fetch", _no_muse):
+        out = iu.understand("https://www.amazon.de/gp/help", index_db=index_db)
+    assert out["status"] == "not_found"
+
+
+def test_indexed_shop_page_read_once_when_url_has_no_isbn(index_db):
+    seen = []
+
+    def one_read(url, **k):
+        seen.append(url)
+        return _page(_product_html(price="30.00", cur="RON"), url)
+
+    with patch(MUSE, _no_muse), patch.object(iu, "fetch", one_read):
+        out = iu.understand("https://bookzone.ro/produs/abc", index_db=index_db)
+    assert seen == ["https://bookzone.ro/produs/abc"]
+    assert out["isbn13"] == HUNGRY and out["shop_context"]["shop_id"] == "bookzone"
+
+
+# ---- foreign links
+
+def test_refused_fetch_is_refused_not_bypassed(index_db):
+    # The real fetch_guard refuses a loopback target before any connect.
+    with patch(MUSE, _no_muse):
+        out = iu.understand("http://127.0.0.1/secret", index_db=index_db)
+    assert out["status"] == "refused" and "loopback" in out["message"]
+    assert out["isbn13"] is None
+
+
+def test_foreign_link_goes_through_fetch_guard(index_db):
+    seen = []
+
+    def guarded(url, **k):
+        seen.append(url)
+        return _page(_product_html(), url)
+
+    with patch(MUSE, _no_muse), patch.object(iu, "fetch", guarded):
+        iu.understand("https://other-shop.example/p/1", index_db=index_db, rates_loader=lambda d: _rates(), today=TODAY)
+    assert seen == ["https://other-shop.example/p/1"]
+
+
+def test_schema_org_book_on_sale_recognised_without_a_model(index_db):
+    with patch(MUSE, _no_muse), patch.object(iu, "fetch", lambda url, **k: _page(_product_html(), url)):
+        out = iu.understand("https://other-shop.example/p/1", index_db=index_db, rates_loader=lambda d: _rates(), today=TODAY)
+    assert out["status"] == "resolved" and out["isbn13"] == HUNGRY
+    assert out["paste_offer"]["badge"] == "new shop, not checked"
+    assert out["shop_context"]["shop_id"] is None
+
+
+def test_page_without_schema_gets_exactly_one_muse_call(index_db):
+    fake, calls = _muse('{"title": "The Very Hungry Caterpillar", "author": "Eric Carle", "language": "en"}')
+    html = "<html><body><h1>Our favourite reads</h1><p>Try The Very Hungry Caterpillar by Eric Carle.</p></body></html>"
+    with patch(MUSE, fake), patch.object(iu, "fetch", lambda url, **k: _page(html, url)):
+        out = iu.understand("https://blog.example/post", index_db=index_db)
+    assert len(calls) == 1 and calls[0]["note"] == "input-page-book"
+    assert "tools" not in calls[0]["body"]
+    assert out["status"] in {"resolved", "candidates"}
+    assert out["isbn13"] == HUNGRY or out["candidates"][0]["isbn13"] == HUNGRY
+    assert out["paste_offer"] is None
+
+
+def test_page_naming_no_book_says_so_and_stores_nothing(index_db):
+    fake, calls = _muse('{"title": null, "author": null, "language": null}')
+    before = _count(index_db)
+    with patch(MUSE, fake), patch.object(iu, "fetch", lambda url, **k: _page("<html><body>Weather today</body></html>", url)):
+        out = iu.understand("https://blog.example/weather", index_db=index_db)
+    assert out["status"] == "not_found"
+    assert out["message"] == "I couldn't find a book on that page."
+    assert len(calls) == 1 and _count(index_db) == before
+
+
+def test_page_book_not_in_index_is_also_the_honest_message(index_db):
+    fake, _ = _muse('{"title": "Zzyzx Unknown Tome", "author": null, "language": "en"}')
+    with patch(MUSE, fake), patch.object(iu, "fetch", lambda url, **k: _page("<html><body>x</body></html>", url)):
+        out = iu.understand("https://blog.example/x", index_db=index_db)
+    assert out["message"] == iu.NO_BOOK_MESSAGE
+
+
+# ---- free text
+
+def test_free_text_uses_identifying_prompt_and_spike_settings(index_db):
+    fake, calls = _muse('{"title": "The Very Hungry Caterpillar", "author": "Eric Carle", "language": "en"}')
+    with patch(MUSE, fake):
+        out = iu.understand("the caterpillar book", index_db=index_db)
+    body = calls[0]["body"]
+    assert "real title of the book you think they mean" in json.dumps(body)
+    assert body["reasoning"] == {"effort": "low"}
+    assert body["max_output_tokens"] >= 1200
+    assert out["type"] == "free_text"
+    assert out["structured_query"] == {"title": "The Very Hungry Caterpillar", "author": "Eric Carle", "language": "en"}
+    assert out["isbn13"] == HUNGRY  # single candidate in the index
+
+
+@pytest.mark.parametrize("reply", ["", "   ", "not json at all", '{"title": "", "author": null}'])
+def test_empty_or_unusable_model_reply_is_a_failed_parse(reply, index_db):
+    fake, calls = _muse(reply)
+    with patch(MUSE, fake):
+        out = iu.understand("the caterpillar book", index_db=index_db)
+    assert out["status"] == "parse_failed"
+    assert out["structured_query"] is None and out["candidates"] == []
+    assert len(calls) == 1
+
+
+def test_muse_isbn_is_ignored(index_db):
+    fake, _ = _muse('{"title": "Zzyzx Unknown Tome", "author": null, "language": "en", "isbn13": "9780747532699", "isbn": "9780747532699"}')
+    with patch(MUSE, fake):
+        out = iu.understand("zzyzx tome", index_db=index_db)
+    assert out["isbn13"] is None
+    assert "9780747532699" not in json.dumps(out)
+    assert set(out["structured_query"]) == {"title", "author", "language"}
+
+
+def test_muse_numbers_not_on_the_page_are_dropped():
+    parsed = {"title": "X", "price": 99.99, "isbn13": "9780747532699"}
+    q = iu._clean_query(parsed, "page says nothing numeric")
+    assert q == {"title": "X", "author": None, "language": None}
+
+
+# ---- paste-only shops and fx
+
+def test_paste_only_non_ron_price_converts_at_bnr_rate(index_db):
+    with patch(MUSE, _no_muse), patch.object(iu, "fetch", lambda url, **k: _page(_product_html(price="12.50", cur="EUR"), url)):
+        out = iu.understand("https://other-shop.example/p/1", index_db=index_db, rates_loader=lambda d: _rates("EUR", "5.0000"), today=TODAY)
+    offer = out["paste_offer"]
+    assert offer["badge"] == "new shop, not checked"
+    assert offer["store_id"] == "paste:other-shop.example"
+    assert offer["ron_cents"] == 6250  # 12.50 EUR x 5.0000
+    assert offer["rate"]["date"] == "2026-10-30"
+    # Delivery was not read, so the order is not ranked.
+    assert offer["ranked"] is False and offer["not_ranked_reason"] == "delivery_rules_not_read"
+    assert offer["shipping_fee_cents"] is None and offer["free_shipping_threshold_cents"] is None
+
+
+def test_paste_only_non_ron_without_rate_is_not_ranked(index_db):
+    for loader in (lambda d: None, lambda d: _rates("USD")):
+        with patch(MUSE, _no_muse), patch.object(iu, "fetch", lambda url, **k: _page(_product_html(cur="EUR"), url)):
+            out = iu.understand("https://other-shop.example/p/1", index_db=index_db, rates_loader=loader, today=TODAY)
+        offer = out["paste_offer"]
+        assert offer["ron_cents"] is None and offer["ranked"] is False
+        assert offer["not_ranked_reason"] == "no_bnr_rate"
+
+
+def test_paste_only_shop_is_never_added_to_the_index(index_db):
+    before = _count(index_db)
+    with patch(MUSE, _no_muse), patch.object(iu, "fetch", lambda url, **k: _page(_product_html(cur="RON"), url)):
+        out = iu.understand("https://other-shop.example/p/1", index_db=index_db, today=TODAY)
+    assert out["paste_offer"]["ron_cents"] == 1250 and _count(index_db) == before
+
+
+# ---- limits
+
+def test_daily_paste_limit_trips():
+    lim = DailyPasteLimiter(pastes_per_day=2, new_domains_per_day=10, today=lambda: 1)
+    assert lim.check("1.1.1.1", "a.example") is None
+    assert lim.check("1.1.1.1", "a.example") is None
+    assert lim.check("1.1.1.1", "a.example") == "paste_limit"
+    assert lim.check("2.2.2.2", "a.example") is None  # per IP
+
+
+def test_new_domain_limit_trips_but_known_domain_still_passes():
+    day = [1]
+    lim = DailyPasteLimiter(pastes_per_day=50, new_domains_per_day=2, today=lambda: day[0])
+    assert lim.check("ip", "a.example") is None
+    assert lim.check("ip", "b.example") is None
+    assert lim.check("ip", "c.example") == "new_domain_limit"
+    assert lim.check("ip", "a.example") is None
+    day[0] = 2
+    assert lim.check("ip", "c.example") is None  # new day
+
+
+def test_post_input_endpoint_shape_and_limits(tmp_path, index_db):
+    app = create_app(tmp_path / "pages.sqlite")
+    app.state.index_db_path = index_db
+    app.state.paste_limiter = DailyPasteLimiter(pastes_per_day=1, new_domains_per_day=5, today=lambda: 1)
+    client = TestClient(app)
+    with patch(MUSE, _no_muse):
+        r = client.post("/input", json={"raw_input": HUNGRY})
+        assert r.status_code == 200
+        body = r.json()
+        assert set(body) >= {"type", "isbn13", "structured_query", "shop_context", "status", "candidates", "paste_offer", "events_url", "message"}
+        assert body["type"] == "isbn" and body["shop_context"] == {"shop_id": None, "product_url": None}
+        with patch.object(iu, "fetch", lambda url, **k: _page(_product_html(cur="RON"), url)):
+            assert client.post("/input", json={"raw_input": "https://other-shop.example/p/1"}).status_code == 200
+            tripped = client.post("/input", json={"raw_input": "https://other-shop.example/p/2"})
+        assert tripped.status_code == 429 and tripped.json()["error"] == "paste_limit"
+        # The sample basket and plain searches are not touched by the paste limit.
+        assert client.post("/input", json={"raw_input": HUNGRY}).status_code == 200
+        assert client.post("/solve").status_code == 200
+
+
+def test_ro_v1_totals_unchanged(tmp_path):
+    client = TestClient(create_app(tmp_path / "pages.sqlite"))
+    text = json.dumps(client.post("/solve").json())
+    assert "51516" in text and "55873" in text
