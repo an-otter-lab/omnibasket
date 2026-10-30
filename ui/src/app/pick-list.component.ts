@@ -43,6 +43,12 @@ export type PickState = 'searching' | 'results' | 'empty' | 'error' | 'link_fail
                 </span>
                 @if (c.isbn) { <span class="pgo">{{ m.pickRead }} ›</span> }
               </button>
+              @for (x of unchecked(c); track x.shop) {
+                <p class="s other" [attr.data-other]="x.shop">
+                  {{ label(x.shop) }}: {{ m.readsNotChecked }}
+                  @if (x.url) { · <a class="store" [href]="x.url" target="_blank" rel="noopener">{{ m.pickOpenShop }}</a> }
+                </p>
+              }
             </li>
           }
         </ul>
@@ -66,6 +72,14 @@ export class PickListComponent {
 
   cover(c: Candidate): string | null {
     return coverUrl(c);
+  }
+
+  unchecked(c: Candidate) {
+    return (c.other_shops || []).filter((x) => x.status === 'not_checked');
+  }
+
+  label(id: string): string {
+    return shopLabel(id);
   }
 
   listed(c: Candidate): string {

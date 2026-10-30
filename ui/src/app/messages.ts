@@ -84,6 +84,8 @@ export interface Messages {
   readsRefused: string;
   readsRefusedLine: string;
   readsNoOffer: string;
+  readsNotChecked: string;
+  pickOpenShop: string;
   readsNoPrice: string;
   /** {shop} */
   readsNotLive: string;
@@ -425,6 +427,8 @@ export const MESSAGES: Record<Lang, Messages> = {
     readsRefused: "Couldn't read {shop} right now",
     readsRefusedLine: 'Its page didn’t load. Nothing was guessed.',
     readsNoOffer: 'No offer found for this ISBN',
+    readsNotChecked: 'Not checked here',
+    pickOpenShop: 'Open shop ↗',
     readsNoPrice: 'Found the page, couldn’t read a price',
     readsNotLive: '{shop} isn’t read live.',
     readsCheckAmazon: 'Check on Amazon.de',
@@ -694,6 +698,8 @@ export const MESSAGES: Record<Lang, Messages> = {
     readsRefused: 'Nu am putut citi {shop} acum',
     readsRefusedLine: 'Pagina nu s-a încărcat. Nu am ghicit nimic.',
     readsNoOffer: 'Nicio ofertă găsită pentru acest ISBN',
+    readsNotChecked: 'Nu a fost verificat aici',
+    pickOpenShop: 'Deschide magazinul ↗',
     readsNoPrice: 'Am găsit pagina, dar nu am putut citi un preț',
     readsNotLive: '{shop} nu se citește pe loc.',
     readsCheckAmazon: 'Verifică pe Amazon.de',
