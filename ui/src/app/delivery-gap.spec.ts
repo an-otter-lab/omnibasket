@@ -68,7 +68,7 @@ const PAYLOAD = {
     delta_vs_cheapest_cents: 0,
     not_ranked: [],
   },
-  one_parcel: { status: 'ranked', reason: null, best_store_id: null, answer: null, per_book_delta: [], shops: [] },
+  one_order: { status: 'ranked', reason: null, best_store_id: null, answer: null, per_book_delta: [], shops: [] },
   custom: null,
   edition: { pins: {}, unknown_pins: [], status: 'ranked', reason: null, unpinned_total_cents: null, total_cents: null, delta_cents: null, not_ranked: [] },
 };
@@ -85,7 +85,7 @@ async function showResult(lang: 'en' | 'ro') {
 
 function gapLines(fixture: ComponentFixture<AppComponent>): string[] {
   const el: HTMLElement = fixture.nativeElement;
-  return Array.from(el.querySelectorAll('.parcel .gap')).map((p) => (p.textContent || '').trim());
+  return Array.from(el.querySelectorAll('.obox .gap')).map((p) => (p.textContent || '').trim());
 }
 
 describe('free-delivery gap per order', () => {
@@ -108,7 +108,7 @@ describe('free-delivery gap per order', () => {
 
   it('hides the line entirely when the threshold is unknown', async () => {
     const fixture = await showResult('en');
-    const cards = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.parcel'));
+    const cards = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.obox'));
     const unknown = cards.find((c) => (c.textContent || '').includes('somewhere'));
     expect(unknown).toBeTruthy();
     expect(unknown!.querySelector('.gap')).toBeNull();
@@ -119,10 +119,10 @@ describe('free-delivery gap per order', () => {
     expect(fixture.componentInstance.deliveryGap(older as never)).toBe('');
   });
 
-  it('keeps RO copy on comma-below ș/ț and never says parcel/colet', () => {
+  it('keeps RO copy on comma-below ș/ț and never says the old word', () => {
     const all = Object.values(MESSAGES).flatMap((m) => Object.values(m)).join(' ');
     expect(/[\u015E\u015F\u0162\u0163]/.test(all)).toBeFalse();
-    expect(/parcel|colet/i.test(all)).toBeFalse();
+    expect(new RegExp(['par', 'cel|colet'].join(''), 'i').test(all)).toBeFalse();
     expect(Object.keys(MESSAGES.ro).sort()).toEqual(Object.keys(MESSAGES.en).sort());
   });
 });

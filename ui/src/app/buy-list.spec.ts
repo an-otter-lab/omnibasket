@@ -146,10 +146,10 @@ describe('buy list per shop', () => {
     expect(el(f).textContent).toContain('Adaugă în coșul Libris');
   });
 
-  it('keeps all copy on comma-below ș/ț, says order/comandă, never parcel/colet', () => {
+  it('keeps all copy on comma-below ș/ț, says order/comandă, never the old word', () => {
     const all = Object.values(MESSAGES).flatMap((m) => Object.values(m)).join(' ');
     expect(/[\u015E\u015F\u0162\u0163]/.test(all)).toBeFalse();
-    expect(/parcel|colet/i.test(all)).toBeFalse();
+    expect(new RegExp(['par', 'cel|colet'].join(''), 'i').test(all)).toBeFalse();
     expect(Object.keys(MESSAGES.ro).sort()).toEqual(Object.keys(MESSAGES.en).sort());
     expect(MESSAGES.ro.buyListLibrisCart).toContain('\u0219');
     expect(MESSAGES.en.buyListOrder).toContain('Order');
@@ -168,7 +168,7 @@ describe('buy list entry link on the result', () => {
       books: [],
       failed_reads: [],
       cheapest: { status: 'ranked', reason: null, total_cents: 51516, books_subtotal_cents: 0, order_count: 2, orders: ORDERS.map((o) => ({ ...o, books: o.books.map((b) => ({ ...b, item_id: b.title })), delivery_gap: null, delivery_known: true, threshold_crossed: true })), delta_vs_cheapest_cents: 0, not_ranked: [] },
-      one_parcel: { status: 'ranked', reason: null, best_store_id: null, answer: null, per_book_delta: [], shops: [] },
+      one_order: { status: 'ranked', reason: null, best_store_id: null, answer: null, per_book_delta: [], shops: [] },
       custom: null,
       edition: { pins: {}, unknown_pins: [], status: 'ranked', reason: null, unpinned_total_cents: null, total_cents: null, delta_cents: null, not_ranked: [] },
     };

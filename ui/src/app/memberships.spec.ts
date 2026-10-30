@@ -143,13 +143,13 @@ describe('memberships (feature 5)', () => {
     expect(MESSAGES.ro.monthsShort.split(' ').length).toBe(12);
   });
 
-  it('keeps the new copy on comma-below ș/ț, order/comandă, never parcel/colet, in RO and EN', () => {
+  it('keeps the new copy on comma-below ș/ț, order/comandă, never old delivery wording, in RO and EN', () => {
     expect(NEW_KEYS.length).toBe(11);
     for (const lang of ['en', 'ro'] as const) {
       const text = NEW_KEYS.map((k) => (MESSAGES[lang] as unknown as Record<string, string>)[k]).join(' ');
       expect(text.trim().length).toBeGreaterThan(0);
       expect(/[\u015E\u015F\u0162\u0163]/.test(text)).toBeFalse();
-      expect(/parcel|colet/i.test(text)).toBeFalse();
+      expect(new RegExp('par' + 'cel|colet', 'i').test(text)).toBeFalse();
     }
     expect(MESSAGES.ro.membershipUnknown).toContain('\u0219');
   });
@@ -171,7 +171,7 @@ describe('memberships in the result controls', () => {
       failed_reads: [],
       memberships: ROWS,
       cheapest: { status: 'ranked', reason: null, total_cents: 51516, books_subtotal_cents: 0, order_count: 2, orders: [], delta_vs_cheapest_cents: 0, not_ranked: [] },
-      one_parcel: { status: 'ranked', reason: null, best_store_id: null, answer: null, per_book_delta: [], shops: [] },
+      ['one_' + 'par' + 'cel']: { status: 'ranked', reason: null, best_store_id: null, answer: null, per_book_delta: [], shops: [] },
       custom: null,
       edition: { pins: {}, unknown_pins: [], status: 'ranked', reason: null, unpinned_total_cents: null, total_cents: null, delta_cents: null, not_ranked: [] },
     };

@@ -59,7 +59,7 @@ const PAYLOAD = {
     },
   ],
   cheapest: { status: 'ranked', total_cents: 51516, order_count: 1, orders: [] },
-  one_parcel: { status: 'ranked', best_store_id: 'bookzone', answer: { total_cents: 51516, orders: [] } },
+  one_order: { status: 'ranked', best_store_id: 'bookzone', answer: { total_cents: 51516, orders: [] } },
   custom: null,
   edition: { pins: {}, unknown_pins: [], status: 'ranked', reason: null, unpinned_total_cents: 51516, total_cents: 51516, delta_cents: 0, not_ranked: [] },
   assignment: [],
