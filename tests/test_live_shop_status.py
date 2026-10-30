@@ -9,10 +9,11 @@ from api.cache import PageCache
 
 def test_shop_is_indexed(indexed_shops_db):
     """Verify which shops are indexed in the database."""
-    assert shop_is_indexed("libris") is True
-    assert shop_is_indexed("books_express") is True
-    assert shop_is_indexed("bookzone") is False
-    assert shop_is_indexed("emag") is False
+    db = indexed_shops_db
+    assert shop_is_indexed("libris", db) is True
+    assert shop_is_indexed("books_express", db) is True
+    assert shop_is_indexed("bookzone", db) is False
+    assert shop_is_indexed("emag", db) is False
 
 
 def test_non_indexed_shops_return_not_checked(tmp_path, indexed_shops_db):
