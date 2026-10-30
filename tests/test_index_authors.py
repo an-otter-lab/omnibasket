@@ -31,7 +31,7 @@ class Opener:
         if "search.json" in url:
             return Resp({"docs": []})
         oid = url.split("/authors/")[1].split("/")[0]
-        return Resp({"entries": [{"title": t} for t in self.works.get(oid, [])]})
+        return Resp({"entries": [{"title": t} if not isinstance(t, tuple) else {"title": t[0], "authors": [{"author": {"key": "/authors/" + k}} for k in t[1]]} for t in self.works.get(oid, [])]})
 
 
 ROWS = [
@@ -133,3 +133,74 @@ def test_title_prefixed_by_author_name_still_enriches(tmp_path):
     search_module.search("eric carle", db_path=p, opener=op3)
     assert [c for c in op3.calls if "search/authors.json" in c]
     assert authors_of(p)[1] == "Eric Carle"
+
+
+def test_rule1_study_row_not_labelled_when_work_titled_like_author(tmp_path):
+    p = tmp_path / "b.sqlite3"
+    make_db(p, [("libris", "https://libris.ro/p/1", "Mircea Eliade si cultura", None, None),
+                ("libris", "https://libris.ro/p/2", "Mircea Eliade", None, None),
+                ("libris", "https://libris.ro/p/3", "Maitreyi", None, None)])
+    op = Opener([{"key": "/authors/OL2A", "name": "Mircea Eliade"}], {"OL2A": ["Mircea Eliade", "Maitreyi"]})
+    search_module.search("mircea eliade", db_path=p, opener=op)
+    assert authors_of(p)[:2] == [None, None]
+
+
+def test_rule2_single_word_work_needs_surname_in_row(tmp_path):
+    p = tmp_path / "b.sqlite3"
+    make_db(p, [("libris", "https://libris.ro/p/1", "Sarpele Mircea Eliade", None, None),
+                ("libris", "https://libris.ro/p/2", "Sarpele de aur", None, None),
+                ("libris", "https://libris.ro/p/3", "Sarpele", None, None)])
+    op = Opener([{"key": "/authors/OL2A", "name": "Mircea Eliade"}], {"OL2A": ["Sarpele"]})
+    search_module.search("mircea eliade", db_path=p, opener=op)
+    assert authors_of(p) == ["Mircea Eliade", None, "Mircea Eliade"]
+
+
+def test_rule3_person_beats_brand_candidate(tmp_path):
+    p = tmp_path / "b.sqlite3"
+    make_db(p, [("libris", "https://libris.ro/p/1", "Brown Bear Eric Carle", None, None)])
+    op = Opener([{"key": "/authors/OL8A", "name": "World of Eric Carle"},
+                 {"key": "/authors/OL9A", "name": "Eric Carle"}],
+                {"OL8A": ["Brown Bear"], "OL9A": ["Brown Bear"]})
+    search_module.search("eric carle", db_path=p, opener=op)
+    assert authors_of(p) == ["Eric Carle"]
+    assert authors._pick_author([{"key": "/authors/OL8A", "name": "Eric Carle Studio Foo"}], ["eric", "carle"]) is None
+
+
+def test_rule3_no_qualifying_candidate_caches_miss_and_leaves_rows(tmp_path):
+    p = tmp_path / "b.sqlite3"; make_db(p, ROWS)
+    op = Opener([{"key": "/authors/OL8A", "name": "Carle Eric Fan Club"}], {"OL8A": ["Matilda"]})
+    search_module.search("eric carle", db_path=p, opener=op)
+    assert authors_of(p) == ["roald-dahl", None, "Jane Real", None]
+    with sqlite3.connect(p) as db:
+        assert db.execute("SELECT status FROM author_cache").fetchone()[0] == "miss"
+
+
+def test_rule4_unknown_work_row_with_surname_not_labelled(tmp_path):
+    p = tmp_path / "b.sqlite3"
+    make_db(p, [("libris", "https://libris.ro/p/1", "Studii despre Dahl", None, None),
+                ("libris", "https://libris.ro/p/2", "Roald Dahl", None, None)])
+    op = Opener([{"key": "/authors/OL1A", "name": "Roald Dahl"}], {"OL1A": ["Matilda"]})
+    search_module.search("roald dahl", db_path=p, opener=op)
+    assert authors_of(p) == [None, None]
+
+
+def test_guard_unrelated_suffix_and_ambiguous_work_not_labelled(tmp_path):
+    p = tmp_path / "b.sqlite3"
+    rows = [("libris", "https://libris.ro/p/%d" % i, "The Night Before Christmas", None, None) for i in range(9)]
+    rows += [("libris", "https://libris.ro/p/50", "Polar Bear Polar Bear board book", None, None),
+             ("libris", "https://libris.ro/p/51", "Polar Bear Polar Bear Mad Libs", None, None)]
+    make_db(p, rows)
+    op = Opener([{"key": "/authors/OL1A", "name": "Eric Carle"}], {"OL1A": ["The Night Before Christmas", "Polar Bear Polar Bear"]})
+    search_module.search("eric carle", db_path=p, opener=op)
+    assert authors_of(p) == [None] * 9 + ["Eric Carle", None]
+
+
+def test_anthology_where_author_is_not_primary_is_skipped(tmp_path):
+    p = tmp_path / "b.sqlite3"
+    make_db(p, [("libris", "https://libris.ro/p/1", "Flight or Fright", None, None),
+                ("libris", "https://libris.ro/p/2", "Matilda", None, None),
+                ("libris", "https://libris.ro/p/3", "Wonka Mad Libs", None, None)])
+    op = Opener([{"key": "/authors/OL1A", "name": "Roald Dahl"}],
+                {"OL1A": [("Flight or Fright", ["OL9A", "OL1A"]), ("Wonka Mad Libs", ["OL1A", "OL9A"]), ("Matilda", ["OL1A"])]})
+    search_module.search("roald dahl", db_path=p, opener=op)
+    assert authors_of(p) == [None, "Roald Dahl", None]
