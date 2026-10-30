@@ -209,6 +209,7 @@ a.row:hover{color:var(--ink);background:var(--surface-2)}
   .onebox .btn{min-height:64px;padding:0 32px}
   .entry-stack .onebox{flex-direction:column}
   .entry-stack .onebox .inp{flex:none}
+  .entry-stack .onebox .btn{min-height:52px;padding:0 24px}
 }
 @media (min-width:1200px){
   .reads{padding:20px 24px}
@@ -226,5 +227,6 @@ a.row:hover{color:var(--ink);background:var(--surface-2)}
 .segb{min-height:44px;min-width:44px;padding:0 12px;border:0;background:var(--surface);color:var(--ink);font:500 13px Inter,sans-serif;cursor:pointer}
 .segb+.segb{border-left:1px solid var(--control)}
 .segb[aria-pressed=true]{background:var(--brand);color:var(--on-brand);font-weight:600}
+.entry-prefs .prefs{border-top:1px solid var(--line);border-bottom:0;margin-top:24px}
 @media (min-width:768px){.prefs{padding:6px 32px}}
 @media (min-width:1200px){.prefs{padding:6px 40px}}
