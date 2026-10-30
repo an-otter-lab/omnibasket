@@ -184,8 +184,12 @@ def _text_of(payload: dict) -> str:
     return muse_integration._payload_text(payload).strip()
 
 
-def call_muse_json(instructions: str, user_text: str, note: str) -> dict:
-    """One Muse call through meta_budget.guarded_post. Empty or unparseable -> ParseFailed."""
+def call_muse_json(instructions: str, user_text: str, note: str, strict: bool = False) -> dict:
+    """One Muse call through meta_budget.guarded_post. Empty or unparseable -> ParseFailed.
+
+    strict=True (Ask): the whole reply must be one JSON object, optionally in one
+    code fence. Prose around the JSON is ParseFailed, never searched for a lookalike.
+    """
     body = {
         "model": muse_integration.meta_budget.MODEL,
         "input": [
@@ -203,10 +207,26 @@ def call_muse_json(instructions: str, user_text: str, note: str) -> dict:
     text = _text_of(payload)
     if not text:
         raise ParseFailed("empty model output")
-    parsed = muse_integration._extract_muse_json(text)
+    if strict:
+        parsed = _strict_json(text)
+    else:
+        parsed = muse_integration._extract_muse_json(text)
     if not isinstance(parsed, dict):
         raise ParseFailed("model output was not JSON")
     return parsed
+
+
+def _strict_json(text: str):
+    import json as _json
+
+    body = text.strip()
+    fence = re.fullmatch(r"```(?:json)?\s*(.*?)\s*```", body, re.DOTALL)
+    if fence:
+        body = fence.group(1)
+    try:
+        return _json.loads(body)
+    except ValueError:
+        return None
 
 
 def _clean_query(parsed: dict, page_text: str | None = None) -> dict | None:
