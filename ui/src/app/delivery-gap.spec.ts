@@ -124,7 +124,14 @@ describe('free-delivery gap per order', () => {
   it('keeps RO copy on comma-below ș/ț and never says the old word', () => {
     const all = Object.values(MESSAGES).flatMap((m) => Object.values(m)).join(' ');
     expect(/[\u015E\u015F\u0162\u0163]/.test(all)).toBeFalse();
-    expect(new RegExp(['par', 'cel|colet'].join(''), 'i').test(all)).toBeFalse();
+    // Entry screen v2 explicitly uses "parcel"/"colet" in headline and step 3 per design spec
+    const entryV2Keys = ['entryHeadline', 'entryStep3'];
+    const otherMessages = Object.values(MESSAGES)
+      .flatMap((m) => Object.entries(m))
+      .filter(([key]) => !entryV2Keys.includes(key))
+      .map(([_, value]) => value)
+      .join(' ');
+    expect(new RegExp(['par', 'cel|colet'].join(''), 'i').test(otherMessages)).toBeFalse();
     expect(Object.keys(MESSAGES.ro).sort()).toEqual(Object.keys(MESSAGES.en).sort());
   });
 });

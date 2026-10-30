@@ -1,5 +1,6 @@
 import { NgTemplateOutlet } from '@angular/common';
 import { Component, HostListener, OnDestroy, effect, inject, untracked } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { Subscription, firstValueFrom } from 'rxjs';
 import { BasketItem, BasketService, itemId } from './basket.service';
 import { BuyListComponent } from './buy-list.component';
@@ -21,6 +22,7 @@ import { MembershipRow, loadDeclared, saveDeclared } from './memberships';
 import { AskApplied, AskBoxComponent } from './ask-box.component';
 import { PhotoInputComponent, PhotoInputEvent } from './photo-input.component';
 import { PhotoResultComponent } from './photo-result.component';
+import { MAX_PHOTO_BYTES } from './photo';
 import { ConfigService } from './config.service';
 import {
   PhotoCandidate,
@@ -259,7 +261,7 @@ const STATUS_KEY: Record<string, keyof Messages> = {
 
 @Component({
   selector: 'app-root',
-  imports: [NgTemplateOutlet, SettingsComponent, BuyListComponent, InputBoxComponent, PickListComponent, LiveProgressComponent, ShopReadsComponent, MembershipsComponent, PhotoInputComponent, PhotoResultComponent, AskBoxComponent],
+  imports: [NgTemplateOutlet, FormsModule, SettingsComponent, BuyListComponent, InputBoxComponent, PickListComponent, LiveProgressComponent, ShopReadsComponent, MembershipsComponent, PhotoResultComponent, AskBoxComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.css',
 })
@@ -318,6 +320,12 @@ export class AppComponent implements OnDestroy {
   // Feature 2: photo reading state.
   photoState: PhotoState = { kind: 'idle' };
 
+  // Entry screen v2: menu state and entry input
+  langMenuOpen = false;
+  themeMenuOpen = false;
+  entryInputValue = '';
+  private documentClickListener: ((event: MouseEvent) => void) | null = null;
+
   constructor() {
     this.config.getConfig().subscribe((config) => {
       this.isDemoMode = config.demo;
@@ -338,10 +346,22 @@ export class AppComponent implements OnDestroy {
         if (this.whyPayload) void this.loadWhy(this.whyPayload);
       });
     });
+    // Entry screen v2: close menus on outside click
+    this.documentClickListener = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.icmenu') && !target.closest('#lang-btn') && !target.closest('#theme-btn')) {
+        this.closeMenus();
+      }
+    };
+    document.addEventListener('click', this.documentClickListener);
   }
 
   ngOnDestroy(): void {
     this.stream?.unsubscribe();
+    if (this.documentClickListener) {
+      document.removeEventListener('click', this.documentClickListener);
+      this.documentClickListener = null;
+    }
   }
 
   @HostListener('window:hashchange')
@@ -365,6 +385,88 @@ export class AppComponent implements OnDestroy {
       void this.load();
     } else {
       this.afterRoute();
+    }
+  }
+
+  // ------------------------------------------------------------ entry screen v2 menus
+
+  get theme(): string {
+    return localStorage.getItem('omnibasket-theme') || 'system';
+  }
+
+  toggleLangMenu(): void {
+    this.langMenuOpen = !this.langMenuOpen;
+    this.themeMenuOpen = false;
+  }
+
+  toggleThemeMenu(): void {
+    this.themeMenuOpen = !this.themeMenuOpen;
+    this.langMenuOpen = false;
+  }
+
+  setLang(lang: Lang): void {
+    this.lang = lang;
+    this.langMenuOpen = false;
+  }
+
+  setTheme(theme: string): void {
+    localStorage.setItem('omnibasket-theme', theme);
+    this.themeMenuOpen = false;
+    // Theme change is handled by the browser re-evaluating the CSS
+  }
+
+  closeMenus(): void {
+    this.langMenuOpen = false;
+    this.themeMenuOpen = false;
+  }
+
+  onMenuKey(event: Event, menuType: 'lang' | 'theme'): void {
+    const keyboardEvent = event as KeyboardEvent;
+    if (keyboardEvent.key === 'Escape') {
+      this.closeMenus();
+      const buttonId = menuType === 'lang' ? '#lang-btn' : '#theme-btn';
+      (document.querySelector(buttonId) as HTMLButtonElement)?.focus();
+    } else if (keyboardEvent.key === 'ArrowDown' || keyboardEvent.key === 'Enter' || keyboardEvent.key === ' ') {
+      keyboardEvent.preventDefault();
+      if (menuType === 'lang') {
+        this.langMenuOpen = true;
+        this.themeMenuOpen = false;
+      } else {
+        this.themeMenuOpen = true;
+        this.langMenuOpen = false;
+      }
+    }
+  }
+
+  onEntrySubmit(event: Event): void {
+    event.preventDefault();
+    if (this.entryInputValue.trim()) {
+      this.submitBox(this.entryInputValue.trim());
+    }
+  }
+
+  async onEntryPhoto(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    input.value = '';
+
+    if (file.size > MAX_PHOTO_BYTES) {
+      this.onPhotoEvent({ kind: 'oversize', size: file.size });
+      return;
+    }
+
+    try {
+      const buffer = await file.arrayBuffer();
+      const res = await fetch('/photo', {
+        method: 'POST',
+        headers: { 'content-type': file.type || 'application/octet-stream' },
+        body: buffer,
+      });
+      const json = (await res.json()) as PhotoReadResponse;
+      this.onPhotoEvent({ kind: 'read', response: json });
+    } catch {
+      this.onPhotoEvent({ kind: 'error' });
     }
   }
 

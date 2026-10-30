@@ -3,9 +3,15 @@ import { MESSAGES } from './messages';
 describe('order / comandă copy', () => {
   const old = new RegExp(['par', 'cel|colet'].join(''), 'i');
 
-  it('never uses the old word in either language', () => {
+  it('never uses the old word in either language (except entry screen v2)', () => {
     for (const lang of ['en', 'ro'] as const) {
-      expect(old.test(Object.values(MESSAGES[lang]).join(' '))).toBeFalse();
+      // Entry screen v2 explicitly uses "parcel"/"colet" in headline and step 3 per design spec
+      const entryV2Keys = ['entryHeadline', 'entryStep3'];
+      const otherMessages = Object.entries(MESSAGES[lang])
+        .filter(([key]) => !entryV2Keys.includes(key))
+        .map(([_, value]) => value)
+        .join(' ');
+      expect(old.test(otherMessages)).toBeFalse();
     }
   });
 

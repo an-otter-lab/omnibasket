@@ -230,3 +230,38 @@ a.row:hover{color:var(--ink);background:var(--surface-2)}
 .entry-prefs .prefs{border-top:1px solid var(--line);border-bottom:0;margin-top:24px}
 @media (min-width:768px){.prefs{padding:6px 32px}}
 @media (min-width:1200px){.prefs{padding:6px 40px}}
+
+/* Entry screen v2: header controls and menus */
+.hcontrols{display:flex;gap:4px;align-items:center}
+.iconbtn{width:44px;height:44px;display:inline-flex;align-items:center;justify-content:center;border:0;background:transparent;color:var(--ink);border-radius:12px;cursor:pointer;transition:background .15s}
+.iconbtn:hover{background:var(--surface-3)}
+.iconbtn:active{background:var(--surface-4)}
+.iconbtn:focus-visible{outline:2px solid var(--brand-ink);outline-offset:2px}
+.icmenu{position:absolute;top:calc(100% + 4px);right:16px;background:var(--surface);border:1px solid var(--line-strong);border-radius:16px;padding:6px;min-width:180px;box-shadow:0 8px 24px -6px var(--scrim);z-index:30;display:none}
+.icmenu[aria-hidden="false"]{display:block}
+.icmenu button{display:flex;align-items:center;gap:8px;width:100%;min-height:44px;padding:0 14px;border:0;background:transparent;color:var(--ink);font:500 15px Inter,sans-serif;text-align:start;border-radius:10px;cursor:pointer}
+.icmenu button:hover{background:var(--surface-3)}
+.icmenu button[aria-current="true"]{background:var(--surface-3);font-weight:600}
+.iccheck{flex:none;width:16px;height:16px;margin-left:auto;color:var(--brand-ink)}
+@media (min-width:768px){
+  .hcontrols{gap:8px}
+  .icmenu{right:32px}
+}
+@media (min-width:1200px){
+  .icmenu{right:40px}
+}
+
+/* Entry screen v2: field layout */
+.efield{display:flex;flex-direction:column;gap:8px}
+.how{gap:12px;padding:14px 16px}
+.footnote{margin-top:16px}
+
+/* Pick list: compact "not checked" line */
+.picks .not-checked{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;padding-top:8px;border-top:1px solid var(--line)}
+.not-checked-chip{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;background:var(--surface-3);border-radius:999px;font:400 13px Inter,sans-serif;color:var(--ink-soft)}
+.not-checked-chip a{color:var(--brand-ink);text-decoration:none}
+.not-checked-chip a:hover{text-decoration:underline}
+
+/* No offer: next step affordance */
+.no-offer-next{display:flex;flex-direction:column;gap:12px;margin-top:16px;padding:16px;background:var(--surface-2);border-radius:16px}
+.no-offer-next .lnk{font-weight:500}
