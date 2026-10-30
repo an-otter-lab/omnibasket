@@ -37,3 +37,25 @@ shipping_rules:
     source_url: https://www.amazon.de/gp/help/customer/display.html?nodeId=GA6MMBQJBJ5QYUDW
     source_kind: manual_capture
     read_date: 2026-10-28
+# Feature 5. Spike 3 (docs/ops/omnibasket-spikes-2026-10-30.md), read by hand,
+# logged out, 30 Oct 2026. Prime buys nothing on a Romanian order: the Romania
+# block prints only the standard 49 EUR minimum, for everyone.
+memberships:
+  - id: amazon_prime
+    name: Amazon Prime
+    effect: none
+    read_status: read
+    source_url: https://www.amazon.de/gp/help/customer/display.html?nodeId=GZXW7X6AKTHNUP6H
+    source_kind: manual_capture
+    read_date: 2026-10-30
+    evidence: >-
+      Romania block: "Lieferung nach Rumänien — Standardzustellung —
+      Mindestbestellwert 49 € — Alle Artikel". The "Premiumversand —
+      Mitglieder von Amazon Prime" row is printed for Germany and Austria
+      only, not for Romania.
+    also_read:
+      - source_url: https://www.amazon.de/prime
+        read_date: 2026-10-30
+        evidence: >-
+          "Gratis Premiumversand für Millionen von Artikeln innerhalb
+          Deutschlands und nach Österreich."
