@@ -51,8 +51,8 @@ a.pt{display:inline-flex;align-items:center;min-height:44px}
 .tabs span{font:400 12px Inter,sans-serif;color:#525252;font-variant-numeric:tabular-nums}
 .tabs>a.on{background:#14532d;color:#fff}
 .tabs>a.on span{color:#d1e7d8}
-.parcel{background:#f4efe6;border:1px solid #d9cfbd;border-radius:24px;padding:14px 16px;display:flex;flex-direction:column;gap:10px;min-width:0}
-.parcel.on{border:2px solid #14532d}
+.obox{background:#f4efe6;border:1px solid #d9cfbd;border-radius:24px;padding:14px 16px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.obox.on{border:2px solid #14532d}
 .phead{display:flex;justify-content:space-between;align-items:center;gap:10px}
 .pamt{font:600 17px Inter,sans-serif}
 .box{background:#fafafa;border:1px solid #d4d4d4;border-radius:24px;padding:14px 16px;display:flex;flex-direction:column;gap:8px;min-width:0}
@@ -123,7 +123,7 @@ a.row:hover{color:#1a1a1a;background:#fafafa}
   .findrow{flex-direction:row;align-items:flex-end}
   .tabs>a,.tabs>.off{min-height:64px;font-size:16px}
   .tabs span{font-size:13px}
-  .parcel{padding:20px 22px;gap:14px}
+  .obox{padding:20px 22px;gap:14px}
   .row{font-size:16px;padding:12px 0}
   .dlg{left:50%;top:50%;bottom:auto;right:auto;transform:translate(-50%,-50%);width:600px;max-width:calc(100vw - 48px);border-radius:28px;padding:28px}
   .grab{display:none}
@@ -141,4 +141,42 @@ a.row:hover{color:#1a1a1a;background:#fafafa}
   .split .rail{flex:1 1 320px}
   .split.flip{flex-direction:row-reverse}
   .g2{grid-template-columns:repeat(2,minmax(0,1fr));gap:24px}
+}
+
+/* Feature 1: the one box, the pick list, live progress, per-shop reads */
+.wrap.first{padding-top:20vh;gap:18px}
+.onebox{display:flex;flex-direction:column;gap:12px}
+.big-inp{height:64px;font-size:15px;border-radius:20px;padding:0 12px}
+.sample{margin:0;text-align:center}
+.sample .lnk{font-weight:500;font-size:15px;text-decoration:underline;text-underline-offset:3px;justify-content:center;min-width:44px}
+.picks{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.pick{width:100%;display:flex;align-items:center;gap:14px;text-align:left;background:#fff;border:1px solid #d4d4d4;border-radius:24px;padding:12px 16px;min-height:96px;cursor:pointer;color:#1a1a1a;font:inherit}
+.pick:hover:not(:disabled){border-color:#14532d}
+.pick:disabled{background:#fafafa;cursor:default}
+.pcover{flex:none;width:56px;height:80px;border-radius:6px;object-fit:cover;background:#f4efe6;border:1px solid #d9cfbd;display:block}
+.pcover.ph{display:inline-block}
+.pmeta{display:flex;flex-direction:column;gap:3px;min-width:0;flex:1}
+.pgo{flex:none;font:600 14px Inter,sans-serif;color:#14532d;white-space:nowrap}
+.plog{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.plog li{display:flex;align-items:center;gap:12px;min-height:48px;border-bottom:1px solid #e5e5e5;font:15px/1.4 Inter,sans-serif}
+.plog .pmsg{flex:1;min-width:0}
+.dot{flex:none;width:24px;height:24px;border-radius:50%;border:2px solid #a3a3a3;display:inline-flex;align-items:center;justify-content:center;font:700 13px Inter,sans-serif;color:#14532d}
+.dot.run{border-color:#14532d;border-top-color:transparent;animation:spin .9s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.dot.run{animation:none;border-top-color:#14532d}}
+.reads{background:#fafafa;border:1px solid #d4d4d4;border-radius:24px;padding:16px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.rlist{list-style:none;margin:0;padding:0}
+.rrow{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #e5e5e5;min-height:56px}
+.rrow:last-child{border-bottom:0}
+.rrow .rowr{flex-wrap:wrap;justify-content:flex-end}
+.s.warn{color:#9a3412}
+@media (min-width:768px){
+  .wrap.first{padding-top:22vh}
+  .onebox{flex-direction:row;align-items:stretch}
+  .onebox .inp{flex:1}
+  .big-inp{font-size:18px;padding:0 20px}
+  .onebox .btn{min-height:64px;padding:0 32px}
+}
+@media (min-width:1200px){
+  .reads{padding:20px 24px}
 }
