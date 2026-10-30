@@ -70,8 +70,10 @@ describe('the shopper\'s own basket', () => {
   let solveBodies: any[];
   let source: FakeSource;
   let demo = false;
+  let active = false;
 
   beforeEach(() => {
+    active = true;
     localStorage.clear();
     window.location.hash = '';
     solveBodies = [];
@@ -82,7 +84,7 @@ describe('the shopper\'s own basket', () => {
       if (url.endsWith('/config')) return json({ demo });
       if (url.endsWith('/solve')) {
         const body = JSON.parse(String(init?.body));
-        solveBodies.push(body);
+        if (active) solveBodies.push(body); // a finished spec's stale async call is not ours
         return json(solved(body));
       }
       return json({}, false);
@@ -90,7 +92,7 @@ describe('the shopper\'s own basket', () => {
     TestBed.configureTestingModule({ providers: [{ provide: EVENT_SOURCE, useValue: (url: string) => (source = new FakeSource(url)) }] });
   });
 
-  afterEach(() => { localStorage.clear(); window.location.hash = ''; });
+  afterEach(() => { active = false; solveBodies = []; localStorage.clear(); window.location.hash = ''; });
 
   async function settle(fixture: { detectChanges(): void; whenStable(): Promise<unknown> }) {
     for (let n = 0; n < 4; n++) { await fixture.whenStable(); await new Promise((r) => setTimeout(r, 0)); fixture.detectChanges(); }
@@ -153,7 +155,9 @@ describe('the shopper\'s own basket', () => {
     fixture.detectChanges();
     await settle(fixture);
     const el: HTMLElement = fixture.nativeElement;
-    expect(solveBodies[0].items.map((i: any) => i.isbn13)).toEqual([A, B]);
+    const first = solveBodies.find((b) => b.items.some((i: any) => i.isbn13 === A));
+    expect(first).toBeDefined();
+    expect(first.items.map((i: any) => i.isbn13)).toEqual([A, B]);
     const row = el.querySelector<HTMLElement>('[data-isbn="' + C + '"]')!;
     expect(row).not.toBeNull();
     expect(row.dataset['noOffer']).toBe('true');

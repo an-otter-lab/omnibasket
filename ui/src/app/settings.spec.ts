@@ -53,15 +53,17 @@ describe('language (feature 8)', () => {
     fixture.detectChanges();
     await fixture.whenStable();
     const el: HTMLElement = fixture.nativeElement;
-    const box = () => el.querySelector('input[name="q"]')!.getAttribute('placeholder');
-    expect(box()).toBe(MESSAGES.en.boxPlaceholder);
-    expect(pressed(el)).toContain('EN');
+    const box = () => el.querySelector('input[name="entry-inp"]')!.getAttribute('placeholder');
+    // Entry screen v2: the language lives in a header menu; the current item carries aria-current.
+    const current = () => [...el.querySelectorAll<HTMLButtonElement>('#lang-menu [aria-current="true"]')].map((b) => b.textContent!.trim());
+    expect(box()).toBe(MESSAGES.en.entryPlaceholder);
+    expect(current()).toEqual([MESSAGES.en.langEnName]);
 
-    el.querySelector<HTMLButtonElement>('button[lang="ro"]')!.click();
+    el.querySelectorAll<HTMLButtonElement>('#lang-menu button')[1].click();
     fixture.detectChanges();
-    expect(box()).toBe(MESSAGES.ro.boxPlaceholder);
-    expect(el.querySelector('app-photo-input .btn2')!.textContent!.trim()).toBe(MESSAGES.ro.photoButtonFull);
-    expect(pressed(el)).toContain('RO');
+    expect(box()).toBe(MESSAGES.ro.entryPlaceholder);
+    expect(el.querySelector('#photo-trigger')!.textContent!.trim()).toBe(MESSAGES.ro.entryPhoto);
+    expect(current()).toEqual([MESSAGES.ro.langRoName]);
     expect(document.documentElement.lang).toBe('ro');
     expect(localStorage.getItem(LANG_KEY)).toBe('ro');
 

@@ -405,7 +405,7 @@ export class AppComponent implements OnDestroy {
   }
 
   setLang(lang: Lang): void {
-    this.lang = lang;
+    this.i18n.choose(lang); // remembered, as the old RO/EN toggle was (feature 8)
     this.langMenuOpen = false;
   }
 

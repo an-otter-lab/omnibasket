@@ -65,9 +65,11 @@ describe('other shops (not checked)', () => {
     const f = TestBed.createComponent(PickListComponent);
     f.componentInstance.items = [BOOK];
     f.detectChanges();
-    const o = (f.nativeElement as HTMLElement).querySelector('[data-other="bookzone"]')!;
-    expect(o.textContent).toContain('Not checked here');
+    // Entry screen v2 folds the not-checked shops into one compact line of chips (name + link, no reason text).
+    const chips = Array.from((f.nativeElement as HTMLElement).querySelectorAll('.not-checked .not-checked-chip'));
+    const o = chips.find((c) => c.textContent!.includes('Bookzone'))!;
+    expect(o).toBeTruthy();
     expect(o.textContent).not.toContain('No offer');
-    expect(o.querySelector('a')).toBeTruthy();
+    expect(o.querySelector('a')!.getAttribute('href')).toContain('bookzone.ro');
   });
 });

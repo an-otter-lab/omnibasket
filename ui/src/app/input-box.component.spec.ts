@@ -23,12 +23,12 @@ describe('the one-box first screen', () => {
     const fixture = TestBed.createComponent(AppComponent);
     fixture.detectChanges();
     const el: HTMLElement = fixture.nativeElement;
-    expect(el.querySelectorAll('input[type="search"]').length).toBe(1);
+    expect(el.querySelectorAll('form input[type="text"]').length).toBe(1);
     // One primary button (find) and one secondary button (photo).
     expect(el.querySelectorAll('.btn').length).toBe(1);
     expect(el.querySelectorAll('.btn2').length).toBe(1);
     expect(el.querySelector('form .btn')).not.toBeNull();
-    expect(el.querySelector('app-photo-input .btn2')).not.toBeNull();
+    expect(el.querySelector('form #photo-trigger.btn2')).not.toBeNull();
     // Normal mode (config says demo is off): no sample link on the entry screen.
     expect(el.querySelector('a[data-sample]')).toBeNull();
   });

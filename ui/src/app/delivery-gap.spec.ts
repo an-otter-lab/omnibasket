@@ -75,8 +75,8 @@ const PAYLOAD = {
 };
 
 async function showResult(lang: 'en' | 'ro') {
-  const fixture: ComponentFixture<AppComponent> = TestBed.createComponent(AppComponent);
   demoSample();
+  const fixture: ComponentFixture<AppComponent> = TestBed.createComponent(AppComponent);
   await fixture.componentInstance.load();
   fixture.componentInstance.lang = lang;
   fixture.componentInstance.route = { name: 'result', arg: '' };

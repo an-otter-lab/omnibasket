@@ -160,7 +160,10 @@ describe('live flow: progress then per-shop reads', () => {
     source.emit('solution', solution(OFFERS));
     fixture.componentInstance.route = { name: 'result', arg: '' };
     fixture.detectChanges();
-    const text = (fixture.nativeElement as HTMLElement).innerHTML + Object.values(MESSAGES.en).join(' ');
+    // Entry screen v2 explicitly uses the old word in its headline and step 3 (design spec); same exemption as i18n.spec.
+    const entryV2Keys = ['entryHeadline', 'entryStep3'];
+    const text = (fixture.nativeElement as HTMLElement).innerHTML +
+      Object.entries(MESSAGES.en).filter(([k]) => !entryV2Keys.includes(k)).map(([, v]) => v).join(' ');
     expect(new RegExp(['par', 'cel'].join(''), 'i').test(text)).toBeFalse();
   });
 });

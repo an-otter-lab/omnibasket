@@ -39,9 +39,9 @@ describe('Ask box', () => {
     new Response(JSON.stringify({ status: 'ok', actions, reply_key: 'askDoneTab', reply_args: { tab: 'one' }, ...(replies ? { replies } : {}) }), { status: 200 });
 
   async function setup() {
+    demoSample();
     const fixture = TestBed.createComponent(AppComponent);
     const app = fixture.componentInstance;
-    demoSample();
     await app.load();
     app.route = { name: 'result', arg: '' };
     app.lang = 'en';

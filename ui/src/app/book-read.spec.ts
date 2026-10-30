@@ -70,8 +70,8 @@ const PAYLOAD = {
 };
 
 async function showBook(status: Record<string, unknown>) {
-  const fixture: ComponentFixture<AppComponent> = TestBed.createComponent(AppComponent);
   demoSample();
+  const fixture: ComponentFixture<AppComponent> = TestBed.createComponent(AppComponent);
   await fixture.componentInstance.load();
   fixture.componentInstance.route = { name: 'book', arg: 'ghici' };
   fixture.detectChanges();
