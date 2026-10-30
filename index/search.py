@@ -8,6 +8,7 @@ import json
 import logging
 import re
 import sqlite3
+import time
 import unicodedata
 import urllib.parse
 import urllib.request
@@ -21,6 +22,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DB = ROOT / "data" / "index" / "books.sqlite3"
 UA = "Omnibasket/1.0 (+https://omnibasket.anottersolution.com/contact)"
 TIMEOUT = 5
+SKIP_TTL = 600  # seconds an ISBN lookup cut off by the budget is not retried (throttle, not a cached result)
 
 # Common stop words for Romanian and English
 STOP_WORDS = {
@@ -186,12 +188,72 @@ def _rank_key(title: str | None, author: str | None, isbn: str | None, query: st
     )
 
 
-def _lookup_isbn(db: sqlite3.Connection, title: str, author: str | None, opener) -> str | None:
+def _budget() -> float:
+    try:
+        from index import authors as _a
+        return _a.BUDGET
+    except Exception:  # pragma: no cover
+        return 4.0
+
+
+def _fetch_isbn(title: str, author: str | None, opener, timeout: float) -> str | None:
+    """Network part of an ISBN lookup. Raises on any failure."""
+    params = {"title": title}
+    if author:
+        params["author"] = author
+    url = "https://openlibrary.org/search.json?" + urllib.parse.urlencode(params)
+    req = urllib.request.Request(url, headers={"User-Agent": UA, "Accept": "application/json"})
+    with opener(req, timeout=timeout) as response:
+        payload = json.loads(response.read(1_000_000).decode("utf-8"))
+    docs = payload.get("docs", [])
+    if docs and isinstance(docs[0].get("isbn"), list):
+        for candidate in docs[0]["isbn"]:
+            if re.fullmatch(r"(?:97[89])?\d{9}[\dXx]", candidate) and validate_isbn(candidate):
+                return candidate
+    return None
+
+
+def _prefetch_isbns(db: sqlite3.Connection, items: list, opener, deadline: float) -> None:
+    """Look up the uncached ISBNs in parallel inside the shared deadline. Lookups that finish in
+    time are cached (hit, or a genuine miss/failure as before); lookups cut off by the deadline
+    are left uncached so a later call retries them."""
+    db.execute("CREATE TABLE IF NOT EXISTS openlibrary_skip (cache_key TEXT PRIMARY KEY, until INTEGER NOT NULL)")
+    now = int(time.time())
+    todo = {}
+    for item in items:
+        key = normalize(item["title"]) + "|" + normalize(item["author"] or "")
+        if key in todo or db.execute("SELECT 1 FROM openlibrary_cache WHERE cache_key=?", (key,)).fetchone() is not None:
+            continue
+        if db.execute("SELECT 1 FROM openlibrary_skip WHERE cache_key=? AND until>?", (key, now)).fetchone() is None:
+            todo[key] = item
+    left = deadline - time.monotonic()
+    if not todo or left <= 0:
+        return
+    timeout = TIMEOUT if left >= TIMEOUT else left
+    from concurrent.futures import ThreadPoolExecutor, wait
+    pool = ThreadPoolExecutor(max_workers=min(len(todo), 8))
+    futures = {pool.submit(_fetch_isbn, it["title"], it["author"], opener, timeout): k for k, it in todo.items()}
+    done, _ = wait(futures, timeout=left)
+    pool.shutdown(wait=False, cancel_futures=True)
+    for fut in done:
+        try:
+            isbn = fut.result()
+        except Exception:
+            isbn = None
+        db.execute("INSERT OR IGNORE INTO openlibrary_cache(cache_key,isbn) VALUES(?,?)", (futures[fut], isbn))
+    for fut, key in futures.items():  # cut off by the budget: not cached as a result, only throttled for a while
+        if fut not in done:
+            db.execute("INSERT OR REPLACE INTO openlibrary_skip(cache_key,until) VALUES(?,?)", (key, now + SKIP_TTL))
+
+
+def _lookup_isbn(db: sqlite3.Connection, title: str, author: str | None, opener, cache_only: bool = False) -> str | None:
     """Look up ISBN from Open Library, validate check digit, and cache result."""
     key = normalize(title) + "|" + normalize(author or "")
     found = db.execute("SELECT isbn FROM openlibrary_cache WHERE cache_key=?", (key,)).fetchone()
     if found is not None:
         return found[0]
+    if cache_only:
+        return None
     params = {"title": title}
     if author:
         params["author"] = author
@@ -243,6 +305,7 @@ def search(query: str, limit: int = 10, db_path: Path | str = DB, opener=None) -
     # Filter stop words
     tokens = _filter_stop_words(tokens)
 
+    deadline = time.monotonic() + _budget()  # one wall-clock budget: author calls, matching, ISBN lookups
     with sqlite3.connect(str(db_path)) as db:
         db.row_factory = sqlite3.Row
         _cache_init(db)
@@ -283,7 +346,7 @@ def search(query: str, limit: int = 10, db_path: Path | str = DB, opener=None) -
                     _authors._tnorm(r["title"]) == qn for r in rows
                 )  # an exact title match already found its book: no author lookup
                 if not title_query and not any(_authors.hint_matches(r["author_hint"], tokens) for r in rows):
-                    if _authors.enrich(db, query, tokens, opener):
+                    if _authors.enrich(db, query, tokens, opener, deadline=deadline):
                         db.commit()
                         rows = db.execute("""
                             SELECT b.shop, b.url, b.title, b.author_hint, b.isbn
@@ -386,9 +449,10 @@ def search(query: str, limit: int = 10, db_path: Path | str = DB, opener=None) -
         )
 
         results = []
+        _prefetch_isbns(db, [i for i in ranked if not i["isbn"]][:limit], opener, deadline)
         for item in ranked:
             if not item["isbn"]:
-                item["isbn"] = _lookup_isbn(db, item["title"], item["author"], opener)
+                item["isbn"] = _lookup_isbn(db, item["title"], item["author"], opener, cache_only=True)
             if item["isbn"]:
                 item["cover_url"] = f"https://covers.openlibrary.org/b/isbn/{urllib.parse.quote(item['isbn'])}-M.jpg"
             results.append({k: item[k] for k in ("title", "author", "isbn", "cover_url", "shops")})

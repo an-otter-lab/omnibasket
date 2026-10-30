@@ -20,6 +20,8 @@ except ImportError:  # pragma: no cover
     from search import normalize, UA
 
 TIMEOUT = 3
+BUDGET = 4.0  # seconds, wall clock for the whole enrichment step (author calls, ISBN lookups, matching)
+MAX_WORKS = 50  # works considered for matching (Open Library order)
 MAX_CALLS = 3
 HIT_TTL = 30 * 86400
 MISS_TTL = 86400
@@ -59,13 +61,32 @@ def hint_matches(hint: str | None, tokens: list[str]) -> bool:
     return bool(tokens) and all(t in hn for t in tokens)
 
 
-def _get(opener, url: str) -> dict:
+class DeadlineExceeded(Exception):
+    pass
+
+
+def call_timeout(deadline: float | None, default: float = TIMEOUT) -> float:
+    """Per-call timeout: the default, or what is left of the budget when that is smaller."""
+    if deadline is None:
+        return default
+    left = deadline - time.monotonic()
+    if left >= default:
+        return default
+    if left <= 0:
+        raise DeadlineExceeded()
+    return left
+
+
+def _get(opener, url: str, deadline: float | None = None) -> dict:
+    timeout = call_timeout(deadline)
     req = urllib.request.Request(url, headers={"User-Agent": UA, "Accept": "application/json"})
-    with opener(req, timeout=TIMEOUT) as response:
+    with opener(req, timeout=timeout) as response:
         status = getattr(response, "status", 200)
         if isinstance(status, int) and status >= 400:
             raise OSError(f"HTTP {status}")
         payload = json.loads(response.read(2_000_000).decode("utf-8"))
+    if deadline is not None and time.monotonic() > deadline:
+        raise DeadlineExceeded()
     if not isinstance(payload, dict):
         raise ValueError("unexpected payload")
     return payload
@@ -91,15 +112,17 @@ def _pick_author(docs: list, tokens: list[str]) -> tuple[str, str] | None:
     return best
 
 
-def fetch_author(query: str, tokens: list[str], opener) -> tuple[str, dict]:
-    """Return (status, record). status: hit | miss | error. At most 2 calls."""
+def fetch_author(query: str, tokens: list[str], opener, deadline: float | None = None) -> tuple[str, dict]:
+    """Return (status, record). status: hit | miss | error | timeout. At most 2 calls."""
     try:
-        found = _get(opener, "https://openlibrary.org/search/authors.json?" + urllib.parse.urlencode({"q": query, "limit": 10}))
+        found = _get(opener, "https://openlibrary.org/search/authors.json?" + urllib.parse.urlencode({"q": query, "limit": 10}), deadline)
         picked = _pick_author(found.get("docs") or [], tokens)
         if not picked:
             return "miss", {}
         ol_id, name = picked
-        works = _get(opener, f"https://openlibrary.org/authors/{urllib.parse.quote(ol_id)}/works.json?limit={MAX_TITLES}")
+        works = _get(opener, f"https://openlibrary.org/authors/{urllib.parse.quote(ol_id)}/works.json?limit={MAX_TITLES}", deadline)
+    except DeadlineExceeded:
+        return "timeout", {}
     except Exception:
         return "error", {}
     titles = []
@@ -113,7 +136,26 @@ def fetch_author(query: str, tokens: list[str], opener) -> tuple[str, dict]:
     return ("hit" if titles else "miss"), {"author_ol_id": ol_id, "name": name, "titles": titles}
 
 
-def apply_titles(db: sqlite3.Connection, name: str, titles: list[str], query_key: str = "") -> int:
+def _fetch_within(query: str, tokens: list[str], opener, deadline: float | None) -> tuple[str, dict]:
+    """fetch_author with a hard wall-clock bound: socket timeouts are per operation, so the call
+    runs in a worker and is abandoned when the deadline passes (status 'timeout', nothing cached)."""
+    if deadline is None:
+        return fetch_author(query, tokens, opener)
+    left = deadline - time.monotonic()
+    if left <= 0:
+        return "timeout", {}
+    from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutTimeout
+    pool = ThreadPoolExecutor(max_workers=1)
+    fut = pool.submit(fetch_author, query, tokens, opener, deadline)
+    try:
+        return fut.result(timeout=left)
+    except FutTimeout:
+        return "timeout", {}
+    finally:
+        pool.shutdown(wait=False, cancel_futures=True)
+
+
+def apply_titles(db: sqlite3.Connection, name: str, titles: list[str], query_key: str = "", deadline: float | None = None) -> int:
     """Write name into author_hint of rows that match an Open Library work of that author.
 
     Rules: a work titled like the query or the author name is dropped (it would prefix-match
@@ -125,7 +167,9 @@ def apply_titles(db: sqlite3.Connection, name: str, titles: list[str], query_key
     qn = _tnorm(query_key)
     name_toks = name_n.split()
     surname = name_toks[-1] if name_toks else ""
-    for title in titles:
+    for title in titles[:MAX_WORKS]:
+        if deadline is not None and time.monotonic() > deadline:
+            break
         tn = _tnorm(title)
         toks = tn.split()
         if not toks or tn == qn or tn == name_n:
@@ -171,7 +215,7 @@ def apply_titles(db: sqlite3.Connection, name: str, titles: list[str], query_key
     return changed
 
 
-def enrich(db: sqlite3.Connection, query: str, tokens: list[str], opener, now: float | None = None) -> int:
+def enrich(db: sqlite3.Connection, query: str, tokens: list[str], opener, now: float | None = None, deadline: float | None = None) -> int:
     """Lazy author lookup for one query. Returns rows updated. Never raises on network trouble."""
     now = int(now if now is not None else time.time())
     cache_init(db)
@@ -182,12 +226,14 @@ def enrich(db: sqlite3.Connection, query: str, tokens: list[str], opener, now: f
         ttl = {"hit": HIT_TTL, "miss": MISS_TTL}.get(status, ERROR_TTL)
         if now - fetched < ttl:
             if status == "hit":
-                return apply_titles(db, name, json.loads(titles_json or "[]"), key)
+                return apply_titles(db, name, json.loads(titles_json or "[]"), key, deadline)
             return 0
-    status, rec = fetch_author(query, tokens, opener)
+    status, rec = _fetch_within(query, tokens, opener, deadline)
+    if status == "timeout":  # never cache a timeout or a partial lookup
+        return 0
     db.execute(
         "INSERT OR REPLACE INTO author_cache(query_key,author_ol_id,name,titles_json,fetched,status) VALUES(?,?,?,?,?,?)",
         (key, rec.get("author_ol_id"), rec.get("name"), json.dumps(rec.get("titles", [])), now, status))
     if status == "hit":
-        return apply_titles(db, rec["name"], rec["titles"], key)
+        return apply_titles(db, rec["name"], rec["titles"], key, deadline)
     return 0

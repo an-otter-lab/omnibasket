@@ -204,3 +204,54 @@ def test_anthology_where_author_is_not_primary_is_skipped(tmp_path):
                 {"OL1A": [("Flight or Fright", ["OL9A", "OL1A"]), ("Wonka Mad Libs", ["OL1A", "OL9A"]), ("Matilda", ["OL1A"])]})
     search_module.search("roald dahl", db_path=p, opener=op)
     assert authors_of(p) == [None, "Roald Dahl", None]
+
+
+class SlowOpener(Opener):
+    def __init__(self, *a, delay=0.3, **k):
+        super().__init__(*a, **k); self.delay = delay
+    def __call__(self, req, timeout=None):
+        import time as _t
+        _t.sleep(self.delay)
+        self.calls.append(req.full_url)
+        if "search/authors.json" in req.full_url:
+            return Resp({"docs": self.docs})
+        return Resp({"entries": [{"title": t} for t in self.works.get("OL1A", [])]})
+
+
+def test_slow_opener_past_budget_returns_plain_results_and_caches_nothing(tmp_path, monkeypatch):
+    monkeypatch.setattr(authors, "BUDGET", 0.2)
+    p = tmp_path / "b.sqlite3"; make_db(p, ROWS)
+    before = authors_of(p)
+    op = SlowOpener([{"key": "/authors/OL1A", "name": "Roald Dahl"}], {"OL1A": ["Matilda", "The BFG"]}, delay=0.3)
+    res = search_module.search("roald dahl", db_path=p, opener=op)
+    assert isinstance(res, list)
+    assert authors_of(p) == before  # nothing labelled
+    with sqlite3.connect(p) as db:
+        assert db.execute("SELECT count(*) FROM author_cache").fetchone()[0] == 0
+
+
+def test_fetch_author_timeout_status_and_enrich_skips_cache(tmp_path):
+    import time as _t
+    p = tmp_path / "b.sqlite3"; make_db(p, ROWS)
+    op = SlowOpener([{"key": "/authors/OL1A", "name": "Roald Dahl"}], {"OL1A": ["Matilda"]}, delay=0.1)
+    status, rec = authors.fetch_author("roald dahl", ["roald", "dahl"], op, _t.monotonic() + 0.05)
+    assert status == "timeout" and rec == {}
+    with sqlite3.connect(p) as db:
+        assert authors.enrich(db, "roald dahl", ["roald", "dahl"], op, deadline=_t.monotonic() - 1) == 0
+        assert db.execute("SELECT count(*) FROM author_cache").fetchone()[0] == 0
+
+
+def test_normal_run_within_budget_still_labels(tmp_path):
+    p = tmp_path / "b.sqlite3"; make_db(p, ROWS)
+    search_module.search("roald dahl", db_path=p, opener=dahl())
+    assert authors_of(p)[:2] == ["Roald Dahl", "Roald Dahl"]
+
+
+def test_works_are_capped(tmp_path, monkeypatch):
+    monkeypatch.setattr(authors, "MAX_WORKS", 1)
+    p = tmp_path / "b.sqlite3"; make_db(p, ROWS)
+    with sqlite3.connect(p) as db:
+        search_module.ensure_books_search(db)
+        authors.apply_titles(db, "Roald Dahl", ["Matilda", "The BFG"], "roald dahl")
+        db.commit()
+    assert authors_of(p)[:2] == ["Roald Dahl", None]
