@@ -108,6 +108,11 @@
               {
                 "glob": "**/*",
                 "input": "public"
+              },
+              {
+                "glob": "**/*.{ts,html}",
+                "input": "src/app",
+                "output": "__src__"
               }
             ],
             "styles": [

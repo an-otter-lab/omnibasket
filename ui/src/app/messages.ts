@@ -1,5 +1,7 @@
-// RO and EN copy. Feature 8 moves the rest of the app's copy here and adds the
-// browser-language default and the toggle. Until then the app runs in 'en'.
+// RO and EN copy. Every user-facing string in ui/src lives here (feature 8);
+// i18n.ts picks the language (browser default, RO/EN toggle, localStorage).
+// Shop names and book titles are proper nouns and stay as they are; text the API
+// sends (reasons) is shown as sent.
 // Rules: "order" in EN, "comandă" in RO, never the old word for it.
 // Romanian uses comma-below ș/ț (U+0219/U+021B), never the cedilla forms (U+015F/U+0163).
 
@@ -135,6 +137,212 @@ export interface Messages {
   photoContinue: string;
   /** {size} */
   photoMaxSize: string;
+
+  // Feature 8: settings (language and theme).
+  prefsLabel: string;
+  langLabel: string;
+  langEn: string;
+  langRo: string;
+  /** Each language is named in itself. */
+  langEnName: string;
+  langRoName: string;
+  themeLabel: string;
+  themeSystem: string;
+  themeLight: string;
+  themeDark: string;
+
+  // Feature 8: the rest of the app's copy.
+  brand: string;
+  /** {n}. One / 2-19 / 20+ (RO adds “de” from 20). */
+  bookOne: string;
+  bookMany: string;
+  bookMany20: string;
+  editionOne: string;
+  editionMany: string;
+  editionMany20: string;
+  orderOne: string;
+  orderMany: string;
+  orderMany20: string;
+  tryOne: string;
+  tryMany: string;
+  tryMany20: string;
+  movedOne: string;
+  movedMany: string;
+  movedMany20: string;
+  photoBooksOne: string;
+  photoBooksMany: string;
+  photoBooksMany20: string;
+  openArrow: string;
+  /** {shop} */
+  openOn: string;
+  /** {shop} */
+  openOnArrow: string;
+  /** {title} {shop} */
+  openBookOn: string;
+  noTotal: string;
+  moved: string;
+  /** {amount} */
+  deliveryAmount: string;
+  /** {amount} */
+  feeAmount: string;
+  deliveryNotPrinted: string;
+  notRankedTitle: string;
+  /** {amount} */
+  booksLei: string;
+  /** {shops} */
+  notRankedNote: string;
+  edit: string;
+  loadFailTitle: string;
+  loadFailNote: string;
+  tryAgain: string;
+  readingShops: string;
+  addLabel: string;
+  addPlaceholder: string;
+  addNone: string;
+  isbnNotPrinted: string;
+  firstFoundAt: string;
+  anyEdition: string;
+  removeFromBasket: string;
+  addToBasket: string;
+  /** {n} */
+  inBasket: string;
+  seeOrders: string;
+  back: string;
+  /** {shop} */
+  inCheapestPlan: string;
+  deliveryOnOrder: string;
+  otherShops: string;
+  editionNotPrinted: string;
+  readMatch: string;
+  /** {fields} */
+  readMismatch: string;
+  bookPricesOnly: string;
+  bookMissing: string;
+  orders: string;
+  /** {date} */
+  readStamp: string;
+  /** {shop} */
+  insideOrder: string;
+  /** {shop} */
+  openEachToCart: string;
+  /** {amount} */
+  freeDeliveryFrom: string;
+  /** {amount} */
+  thisOrder: string;
+  /** {amount} */
+  overBy: string;
+  /** {amount} */
+  shortBy: string;
+  rowBooks: string;
+  rowDelivery: string;
+  rowFee: string;
+  notPrinted: string;
+  rowTotal: string;
+  orderMissing: string;
+  /** {date} */
+  triedStamp: string;
+  /** {date} */
+  checkedStamp: string;
+  /** {shop} */
+  couldntReadShop: string;
+  /** {tries} */
+  shopFailLoad: string;
+  /** {date} {tries} */
+  shopFailLoadWhen: string;
+  /** {total} */
+  shopFailCovers: string;
+  aboutPricesRead: string;
+  aboutPricesReadNote: string;
+  /** {shop} */
+  checkedCantPrice: string;
+  /** {shop} {reason} */
+  checkedCantPriceNote: string;
+  shopMissing: string;
+  tabsLabel: string;
+  onlyWay: string;
+  notPossible: string;
+  tabOrders: string;
+  tabCustom: string;
+  noOtherShop: string;
+  tabCheapestHead: string;
+  chooseStores: string;
+  /** {value} */
+  editionsPill: string;
+  /** {n} */
+  editionsPinned: string;
+  editionsAny: string;
+  oneBookTitle: string;
+  /** {amount} */
+  oneBookPrice: string;
+  /** {amount} */
+  plusDelivery: string;
+  /** {amount} */
+  notRankedBook: string;
+  /** {shop} */
+  onlyShopLists: string;
+  /** {n} {shop} */
+  allFromShop: string;
+  /** {amount} */
+  amountMore: string;
+  thanCheapest: string;
+  /** {shop} */
+  openEachAt: string;
+  whyNotSplit: string;
+  /** {amount} */
+  deltaFrom: string;
+  /** {amount} */
+  booksAmount: string;
+  noSingleShop: string;
+  customIntro: string;
+  off: string;
+  /** {shop} */
+  useShop: string;
+  sameAsCheapest: string;
+  movedTitle: string;
+  noTotalShops: string;
+  workingSplit: string;
+  deliveryIncluded: string;
+  oneOrderCosts: string;
+  shopsLeftOut: string;
+  leftOutCouldntRead: string;
+  /** {reason} */
+  leftOutCantPrice: string;
+  noRanked: string;
+  editionsTitle: string;
+  cancel: string;
+  any: string;
+  notPossibleTitle: string;
+  withEditions: string;
+  /** {amount} {base} */
+  editionsMore: string;
+  /** {amount} {base} */
+  editionsLess: string;
+  editionsSame: string;
+  /** {names} */
+  edNotRankedBefore: string;
+  cantBePriced: string;
+  /** {amount} {shops} */
+  edNotRankedAfter: string;
+  apply: string;
+  statusInPlan: string;
+  statusCompared: string;
+  statusFeesNotPrinted: string;
+  statusNotListed: string;
+  statusOutOfStock: string;
+  statusCouldntRead: string;
+  statusOtherEdition: string;
+  editionPaperback: string;
+  editionHardcover: string;
+  editionBoardBook: string;
+  fieldPrice: string;
+  fieldTitle: string;
+  fieldEdition: string;
+  recordedNote: string;
+  solveFailed: string;
+  /** {date} */
+  pricesRead: string;
+  listAnd: string;
+  progLabel: string;
 }
 
 export const MESSAGES: Record<Lang, Messages> = {
@@ -229,6 +437,163 @@ export const MESSAGES: Record<Lang, Messages> = {
     photoNotFoundCount: '{n} not found',
     photoContinue: 'Add to basket',
     photoMaxSize: '4\u202fMB',
+    prefsLabel: 'Settings',
+    langLabel: 'Language',
+    langEn: 'EN',
+    langRo: 'RO',
+    langEnName: 'English',
+    langRoName: 'Română',
+    themeLabel: 'Theme',
+    themeSystem: 'System',
+    themeLight: 'Light',
+    themeDark: 'Dark',
+    brand: 'omnibasket',
+    bookOne: '{n} book',
+    bookMany: '{n} books',
+    bookMany20: '{n} books',
+    editionOne: '{n} edition',
+    editionMany: '{n} editions',
+    editionMany20: '{n} editions',
+    orderOne: '{n} order',
+    orderMany: '{n} orders',
+    orderMany20: '{n} orders',
+    tryOne: '{n} try',
+    tryMany: '{n} tries',
+    tryMany20: '{n} tries',
+    movedOne: '{n} book moved',
+    movedMany: '{n} books moved',
+    movedMany20: '{n} books moved',
+    photoBooksOne: '{n} book from photo',
+    photoBooksMany: '{n} books from photo',
+    photoBooksMany20: '{n} books from photo',
+    openArrow: 'Open ↗',
+    openOn: 'Open on {shop}',
+    openOnArrow: 'Open on {shop} ↗',
+    openBookOn: 'Open {title} on {shop}',
+    noTotal: 'no total',
+    moved: 'moved',
+    deliveryAmount: 'Delivery {amount}',
+    feeAmount: '+ fee {amount}',
+    deliveryNotPrinted: 'delivery not printed',
+    notRankedTitle: 'Another split, not ranked',
+    booksLei: 'books {amount} lei',
+    notRankedNote: '{shops} does not print its delivery under the free-delivery line, so this split has no total.',
+    edit: 'Edit',
+    loadFailTitle: 'We couldn’t load the shops.',
+    loadFailNote: 'Nothing was guessed. Try again in a moment.',
+    tryAgain: 'Try again',
+    readingShops: 'Reading the shops…',
+    addLabel: 'Book title or ISBN',
+    addPlaceholder: 'e.g. Where the Wild Things Are',
+    addNone: 'Not in the shops we read.',
+    isbnNotPrinted: 'ISBN not printed',
+    firstFoundAt: 'First found at',
+    anyEdition: 'Any edition',
+    removeFromBasket: 'Remove from basket',
+    addToBasket: 'Add to basket',
+    inBasket: 'In your basket · {n}',
+    seeOrders: 'See orders',
+    back: 'Back',
+    inCheapestPlan: 'In your cheapest plan · {shop}',
+    deliveryOnOrder: 'delivery counted on the order',
+    otherShops: 'Other shops for this book',
+    editionNotPrinted: 'edition not printed',
+    readMatch: 'Read by Muse Spark · matches the page',
+    readMismatch: 'doesn’t match the page · {fields}',
+    bookPricesOnly: 'Book prices only. What you pay for postage depends on the whole order.',
+    bookMissing: 'This book is not in the shops we read.',
+    orders: 'Orders',
+    readStamp: 'read {date}',
+    insideOrder: 'Inside the {shop} order',
+    openEachToCart: 'Open each book to add it to your {shop} cart. We can’t fill shop carts for you.',
+    freeDeliveryFrom: 'Free delivery from {amount}',
+    thisOrder: 'this order {amount}',
+    overBy: '{amount} over',
+    shortBy: '{amount} short',
+    rowBooks: 'Books',
+    rowDelivery: 'Delivery',
+    rowFee: 'Order fee',
+    notPrinted: 'not printed',
+    rowTotal: 'Order total',
+    orderMissing: 'That order is not in this answer.',
+    triedStamp: 'tried {date}',
+    checkedStamp: 'checked {date}',
+    couldntReadShop: 'We couldn’t read {shop}',
+    shopFailLoad: 'Its pages didn’t load ({tries}). It isn’t part of your orders.',
+    shopFailLoadWhen: 'Its pages didn’t load when we tried on {date} ({tries}). It isn’t part of your orders.',
+    shopFailCovers: 'The {total} covers the shops we could read.',
+    aboutPricesRead: 'About “prices read”',
+    aboutPricesReadNote: 'Every order shows when its shop was read. Shops change prices now and then, so check again before you order.',
+    checkedCantPrice: '{shop}: checked, can’t be priced',
+    checkedCantPriceNote: 'Some books look cheaper here. Without the delivery and order fee we can’t tell whether the order is, so we leave {shop} out rather than guess. Reason: {reason}.',
+    shopMissing: 'That shop is not in this answer.',
+    tabsLabel: 'Ways to buy',
+    onlyWay: 'only way',
+    notPossible: 'not possible',
+    tabOrders: 'orders',
+    tabCustom: 'Custom',
+    noOtherShop: 'no other shop',
+    tabCheapestHead: 'Cheapest',
+    chooseStores: 'choose stores',
+    editionsPill: 'Editions: {value}',
+    editionsPinned: '{n} pinned',
+    editionsAny: 'any',
+    oneBookTitle: 'One book, one order. Which shop?',
+    oneBookPrice: 'book {amount} · delivery and fees included in the total',
+    plusDelivery: '{amount} + delivery',
+    notRankedBook: 'Not ranked: delivery not printed. Book {amount}, no total.',
+    onlyShopLists: 'Only {shop} lists all of them · delivery included',
+    allFromShop: 'All {n} from {shop} in one order ·',
+    amountMore: '{amount} more',
+    thanCheapest: 'than the cheapest',
+    openEachAt: 'Open each book at {shop}',
+    whyNotSplit: 'Why not a split into orders?',
+    deltaFrom: 'Where the {amount} comes from',
+    booksAmount: 'Books {amount}',
+    noSingleShop: 'No single shop',
+    customIntro: 'Switch off shops you’d rather not use. Their books move to the shops you keep, the cheapest way.',
+    off: 'Off',
+    useShop: 'Use {shop}',
+    sameAsCheapest: 'same as the cheapest',
+    movedTitle: 'Moved',
+    noTotalShops: 'No total for these shops',
+    workingSplit: 'Working out the split…',
+    deliveryIncluded: 'Delivery included',
+    oneOrderCosts: 'one order costs',
+    shopsLeftOut: 'Shops left out',
+    leftOutCouldntRead: 'Couldn’t read its pages · try again',
+    leftOutCantPrice: 'Checked, can’t be priced: {reason}',
+    noRanked: 'No ranked answer',
+    editionsTitle: 'Editions',
+    cancel: 'Cancel',
+    any: 'Any',
+    notPossibleTitle: 'Not possible',
+    withEditions: 'With these editions',
+    editionsMore: '{amount} more than any edition ({base}).',
+    editionsLess: '{amount} less than any edition ({base}).',
+    editionsSame: 'Same total as any edition.',
+    edNotRankedBefore: 'Another split, {names},',
+    cantBePriced: 'can’t be priced',
+    edNotRankedAfter: ': books {amount}, {shops} doesn’t print delivery under its free-delivery line. No total.',
+    apply: 'Apply',
+    statusInPlan: 'In your plan',
+    statusCompared: 'Compared',
+    statusFeesNotPrinted: 'Fees not printed, not compared',
+    statusNotListed: 'Not listed',
+    statusOutOfStock: 'Out of stock',
+    statusCouldntRead: 'Couldn’t read',
+    statusOtherEdition: 'Another edition',
+    editionPaperback: 'Paperback',
+    editionHardcover: 'Hardcover',
+    editionBoardBook: 'Board book',
+    fieldPrice: 'price',
+    fieldTitle: 'title',
+    fieldEdition: 'edition',
+    recordedNote: 'This is a recorded example. Changes are not re-solved.',
+    solveFailed: 'The solve failed.',
+    pricesRead: 'prices read {date}',
+    listAnd: 'and',
+    progLabel: 'Read progress',
   },
   ro: {
     deliveryGapShort: 'Mai ai {amount} lei până la livrarea gratuită la {shop}',
@@ -321,9 +686,207 @@ export const MESSAGES: Record<Lang, Messages> = {
     photoNotFoundCount: '{n} negăsite',
     photoContinue: 'Adaugă în coș',
     photoMaxSize: '4\u202fMO',
+    prefsLabel: 'Setări',
+    langLabel: 'Limba',
+    langEn: 'EN',
+    langRo: 'RO',
+    langEnName: 'English',
+    langRoName: 'Română',
+    themeLabel: 'Temă',
+    themeSystem: 'Sistem',
+    themeLight: 'Luminoasă',
+    themeDark: 'Întunecată',
+    brand: 'omnibasket',
+    bookOne: '{n} carte',
+    bookMany: '{n} cărți',
+    bookMany20: '{n} de cărți',
+    editionOne: '{n} ediție',
+    editionMany: '{n} ediții',
+    editionMany20: '{n} de ediții',
+    orderOne: '{n} comandă',
+    orderMany: '{n} comenzi',
+    orderMany20: '{n} de comenzi',
+    tryOne: '{n} încercare',
+    tryMany: '{n} încercări',
+    tryMany20: '{n} de încercări',
+    movedOne: '{n} carte mutată',
+    movedMany: '{n} cărți mutate',
+    movedMany20: '{n} de cărți mutate',
+    photoBooksOne: '{n} carte din fotografie',
+    photoBooksMany: '{n} cărți din fotografie',
+    photoBooksMany20: '{n} de cărți din fotografie',
+    openArrow: 'Deschide ↗',
+    openOn: 'Deschide la {shop}',
+    openOnArrow: 'Deschide la {shop} ↗',
+    openBookOn: 'Deschide {title} la {shop}',
+    noTotal: 'fără total',
+    moved: 'mutată',
+    deliveryAmount: 'Livrare {amount}',
+    feeAmount: '+ taxă {amount}',
+    deliveryNotPrinted: 'livrarea nu e afișată',
+    notRankedTitle: 'Altă împărțire, neclasată',
+    booksLei: 'cărți {amount} lei',
+    notRankedNote: '{shops} nu afișează livrarea sub pragul de livrare gratuită, deci această împărțire nu are total.',
+    edit: 'Editează',
+    loadFailTitle: 'Nu am putut încărca magazinele.',
+    loadFailNote: 'Nu am ghicit nimic. Încearcă din nou peste puțin timp.',
+    tryAgain: 'Încearcă din nou',
+    readingShops: 'Citim magazinele…',
+    addLabel: 'Titlul cărții sau ISBN',
+    addPlaceholder: 'ex. Where the Wild Things Are',
+    addNone: 'Nu e în magazinele pe care le citim.',
+    isbnNotPrinted: 'ISBN neafișat',
+    firstFoundAt: 'Găsită prima dată la',
+    anyEdition: 'Orice ediție',
+    removeFromBasket: 'Scoate din coș',
+    addToBasket: 'Adaugă în coș',
+    inBasket: 'În coșul tău · {n}',
+    seeOrders: 'Vezi comenzile',
+    back: 'Înapoi',
+    inCheapestPlan: 'În planul cel mai ieftin · {shop}',
+    deliveryOnOrder: 'livrarea se socotește pe comandă',
+    otherShops: 'Alte magazine pentru această carte',
+    editionNotPrinted: 'ediția nu e afișată',
+    readMatch: 'Citit de Muse Spark · se potrivește cu pagina',
+    readMismatch: 'nu se potrivește cu pagina · {fields}',
+    bookPricesOnly: 'Doar prețurile cărților. Cât plătești pentru livrare depinde de toată comanda.',
+    bookMissing: 'Cartea aceasta nu e în magazinele pe care le citim.',
+    orders: 'Comenzi',
+    readStamp: 'citit {date}',
+    insideOrder: 'Ce e în comanda de la {shop}',
+    openEachToCart: 'Deschide fiecare carte ca s-o adaugi în coșul tău {shop}. Nu putem umple coșurile magazinelor în locul tău.',
+    freeDeliveryFrom: 'Livrare gratuită de la {amount}',
+    thisOrder: 'această comandă {amount}',
+    overBy: 'cu {amount} peste',
+    shortBy: 'lipsesc {amount}',
+    rowBooks: 'Cărți',
+    rowDelivery: 'Livrare',
+    rowFee: 'Taxă de comandă',
+    notPrinted: 'neafișat',
+    rowTotal: 'Totalul comenzii',
+    orderMissing: 'Comanda aceea nu e în acest răspuns.',
+    triedStamp: 'încercat {date}',
+    checkedStamp: 'verificat {date}',
+    couldntReadShop: 'Nu am putut citi {shop}',
+    shopFailLoad: 'Paginile nu s-au încărcat ({tries}). Nu face parte din comenzile tale.',
+    shopFailLoadWhen: 'Paginile nu s-au încărcat când am încercat pe {date} ({tries}). Nu face parte din comenzile tale.',
+    shopFailCovers: 'Totalul de {total} acoperă magazinele pe care le-am putut citi.',
+    aboutPricesRead: 'Despre „prețuri citite”',
+    aboutPricesReadNote: 'Fiecare comandă arată când i-a fost citit magazinul. Magazinele schimbă prețurile din când în când, așa că verifică din nou înainte să comanzi.',
+    checkedCantPrice: '{shop}: verificat, nu poate fi calculat',
+    checkedCantPriceNote: 'Unele cărți par mai ieftine aici. Fără livrare și taxa de comandă nu putem spune dacă și comanda e mai ieftină, așa că lăsăm {shop} deoparte în loc să ghicim. Motiv: {reason}.',
+    shopMissing: 'Magazinul acela nu e în acest răspuns.',
+    tabsLabel: 'Moduri de cumpărare',
+    onlyWay: 'singura variantă',
+    notPossible: 'imposibil',
+    tabOrders: 'comenzi',
+    tabCustom: 'Personalizat',
+    noOtherShop: 'niciun alt magazin',
+    tabCheapestHead: 'Cea mai ieftină',
+    chooseStores: 'alege magazinele',
+    editionsPill: 'Ediții: {value}',
+    editionsPinned: '{n} fixate',
+    editionsAny: 'oricare',
+    oneBookTitle: 'O carte, o comandă. Care magazin?',
+    oneBookPrice: 'carte {amount} · livrarea și taxele sunt incluse în total',
+    plusDelivery: '{amount} + livrare',
+    notRankedBook: 'Neclasat: livrarea nu e afișată. Carte {amount}, fără total.',
+    onlyShopLists: 'Doar {shop} le are pe toate · livrare inclusă',
+    allFromShop: 'Toate cele {n} de la {shop} într-o comandă ·',
+    amountMore: 'cu {amount} mai mult',
+    thanCheapest: 'decât cea mai ieftină',
+    openEachAt: 'Deschide fiecare carte la {shop}',
+    whyNotSplit: 'De ce nu o împărțire în comenzi?',
+    deltaFrom: 'De unde vine diferența de {amount}',
+    booksAmount: 'Cărți {amount}',
+    noSingleShop: 'Niciun magazin nu le are pe toate',
+    customIntro: 'Oprește magazinele pe care nu vrei să le folosești. Cărțile lor se mută la magazinele rămase, în varianta cea mai ieftină.',
+    off: 'Oprit',
+    useShop: 'Folosește {shop}',
+    sameAsCheapest: 'la fel ca cea mai ieftină',
+    movedTitle: 'Mutate',
+    noTotalShops: 'Niciun total pentru aceste magazine',
+    workingSplit: 'Calculăm împărțirea…',
+    deliveryIncluded: 'Livrare inclusă',
+    oneOrderCosts: 'o singură comandă costă',
+    shopsLeftOut: 'Magazine lăsate deoparte',
+    leftOutCouldntRead: 'Nu i-am putut citi paginile · încearcă din nou',
+    leftOutCantPrice: 'Verificat, nu poate fi calculat: {reason}',
+    noRanked: 'Niciun răspuns clasat',
+    editionsTitle: 'Ediții',
+    cancel: 'Anulează',
+    any: 'Oricare',
+    notPossibleTitle: 'Imposibil',
+    withEditions: 'Cu aceste ediții',
+    editionsMore: 'Cu {amount} mai mult decât cu orice ediție ({base}).',
+    editionsLess: 'Cu {amount} mai puțin decât cu orice ediție ({base}).',
+    editionsSame: 'Același total ca pentru orice ediție.',
+    edNotRankedBefore: 'Altă împărțire, {names},',
+    cantBePriced: 'nu poate fi calculată',
+    edNotRankedAfter: ': cărți {amount}, {shops} nu afișează livrarea sub pragul de livrare gratuită. Fără total.',
+    apply: 'Aplică',
+    statusInPlan: 'În planul tău',
+    statusCompared: 'Comparat',
+    statusFeesNotPrinted: 'Taxe neafișate, necomparat',
+    statusNotListed: 'Nu e listată',
+    statusOutOfStock: 'Stoc epuizat',
+    statusCouldntRead: 'Nu am putut citi',
+    statusOtherEdition: 'Altă ediție',
+    editionPaperback: 'Copertă broșată',
+    editionHardcover: 'Copertă cartonată',
+    editionBoardBook: 'File cartonate',
+    fieldPrice: 'preț',
+    fieldTitle: 'titlu',
+    fieldEdition: 'ediție',
+    recordedNote: 'Acesta e un exemplu înregistrat. Modificările nu se recalculează.',
+    solveFailed: 'Calculul nu a reușit.',
+    pricesRead: 'prețuri citite {date}',
+    listAnd: 'și',
+    progLabel: 'Progresul citirii',
   },
 };
 
 export function fill(template: string, values: Record<string, string>): string {
   return template.replace(/\{(\w+)\}/g, (whole, key: string) => (key in values ? values[key] : whole));
+}
+
+type CountKey = 'book' | 'edition' | 'order' | 'try' | 'moved' | 'photoBooks';
+
+/**
+ * "{n} books" in either language. Romanian has three forms: 1 carte, 2-19 cărți,
+ * 20+ (and 101-119 back to the middle form) "de cărți". English uses the first two.
+ */
+export function count(lang: Lang, n: number, key: CountKey): string {
+  const m = MESSAGES[lang] as unknown as Record<string, string>;
+  const rest = Math.abs(n) % 100;
+  const form = n === 1 ? 'One' : lang === 'ro' && n !== 0 && (rest === 0 || rest >= 20) ? 'Many20' : 'Many';
+  return fill(m[key + form], { n: String(n) });
+}
+
+const EDITION_KEY: Record<string, keyof Messages> = {
+  paperback: 'editionPaperback',
+  hardcover: 'editionHardcover',
+  board_book: 'editionBoardBook',
+};
+
+/** An edition code from the API, named in the language. Unknown codes are shown tidied, not guessed. */
+export function editionName(lang: Lang, code: string | null | undefined): string {
+  if (!code) return '';
+  const key = EDITION_KEY[code];
+  if (key) return MESSAGES[lang][key];
+  const t = code.replace(/_/g, ' ');
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
+
+const FIELD_KEY: Record<string, keyof Messages> = {
+  price: 'fieldPrice',
+  title: 'fieldTitle',
+  edition: 'fieldEdition',
+};
+
+/** A model-read field code, named in the language. */
+export function fieldName(lang: Lang, code: string): string {
+  if (code === 'isbn13') return 'ISBN';
+  const key = FIELD_KEY[code];
+  return key ? MESSAGES[lang][key] : code;
 }

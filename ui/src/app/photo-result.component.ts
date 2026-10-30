@@ -1,6 +1,6 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
-import { Lang, MESSAGES, fill } from './messages';
-import { PhotoCandidate, PhotoLineAmbiguous, PhotoLineNotFound, PhotoState, ResolvedLine, coverOf, editionLabel } from './photo';
+import { Lang, MESSAGES, editionName, fill } from './messages';
+import { PhotoCandidate, PhotoLineAmbiguous, PhotoLineNotFound, PhotoState, ResolvedLine, coverOf } from './photo';
 
 /** The photo result screen: matched, ambiguous (with pick lists), not found. */
 @Component({
@@ -110,7 +110,7 @@ import { PhotoCandidate, PhotoLineAmbiguous, PhotoLineNotFound, PhotoState, Reso
       }
       .pick-title {
         font-size: 0.875rem;
-        color: #6b6b6b;
+        color: var(--ink-soft);
         margin: 0.5rem 0;
       }
       .picks {
@@ -127,21 +127,21 @@ import { PhotoCandidate, PhotoLineAmbiguous, PhotoLineNotFound, PhotoState, Reso
         gap: 0.75rem;
         width: 100%;
         padding: 0.5rem;
-        border: 1px solid #ddd;
+        border: 1px solid var(--line-strong);
         border-radius: 4px;
-        background: #fff;
+        background: var(--surface);
         cursor: pointer;
         text-align: left;
       }
       .pick.sel {
-        border-color: #0066cc;
-        background: #f0f7ff;
+        border-color: var(--brand-ink);
+        background: var(--good-bg);
       }
       .pick .pmeta {
         flex: 1;
       }
       .pick .pgo {
-        color: #0066cc;
+        color: var(--brand-ink);
         font-weight: 500;
       }
       .notfound {
@@ -151,7 +151,7 @@ import { PhotoCandidate, PhotoLineAmbiguous, PhotoLineNotFound, PhotoState, Reso
       }
       .notfound li {
         padding: 0.5rem 0;
-        border-bottom: 1px solid #eee;
+        border-bottom: 1px solid var(--line);
       }
       .notfound li:last-child {
         border-bottom: none;
@@ -195,7 +195,7 @@ export class PhotoResultComponent {
   }
 
   editionLabel(e: string | undefined): string {
-    return editionLabel(e);
+    return editionName(this.lang, e);
   }
 
   coverOf(c: PhotoCandidate): string | null {

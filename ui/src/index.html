@@ -5,6 +5,8 @@
   <title>Omnibasket</title>
   <base href="/">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- Feature 8: theme and language before first paint (ThemeService / I18nService take over). -->
+  <script>try{var d=document.documentElement,t=localStorage.getItem('omnibasket.theme.v1'),l=localStorage.getItem('omnibasket.lang.v1');d.setAttribute('data-theme',t==='light'||t==='dark'?t:(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'));d.lang=l==='ro'||l==='en'?l:(/^ro/i.test(navigator.language||'')?'ro':'en')}catch(e){}</script>
   <link rel="icon" href="favicon.ico" sizes="32x32">
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
