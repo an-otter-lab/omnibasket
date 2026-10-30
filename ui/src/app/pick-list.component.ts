@@ -2,13 +2,16 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { Candidate, coverUrl, initials, shopLabel } from './live';
 import { Lang, MESSAGES, Messages, fill } from './messages';
 
-export type PickState = 'searching' | 'results' | 'empty' | 'error' | 'link_failed';
+export type PickState = 'idle' | 'searching' | 'results' | 'empty' | 'error' | 'link_failed';
 
 /** A short list of candidate books. Covers come from Open Library only. */
 @Component({
   selector: 'app-pick-list',
   template: `
     @switch (state) {
+      @case ('idle') {
+        <!-- Nothing to list: the field is empty and this screen has no search running. -->
+      }
       @case ('searching') {
         <p class="p" role="status">{{ m.pickSearching }}</p>
       }
@@ -22,7 +25,10 @@ export type PickState = 'searching' | 'results' | 'empty' | 'error' | 'link_fail
         </div>
       }
       @case ('empty') {
-        <p class="p" role="status" data-state="empty">{{ m.pickEmpty }}</p>
+        <div class="box" role="status" data-state="empty">
+          <p class="p">{{ m.pickEmpty }}</p>
+          <button class="lnk" type="button" data-action="clear" (click)="cleared.emit()">{{ m.pickClear }}</button>
+        </div>
       }
       @default {
         <h2 class="h2">{{ m.pickTitle }}</h2>
@@ -65,6 +71,8 @@ export class PickListComponent {
   @Input() state: PickState = 'results';
   @Input() items: Candidate[] = [];
   @Output() picked = new EventEmitter<Candidate>();
+  /** R0: the no-match message's Clear button, handled by the add-book state. */
+  @Output() cleared = new EventEmitter<void>();
 
   get m() {
     return MESSAGES[this.lang];

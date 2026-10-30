@@ -403,6 +403,14 @@ export interface Messages {
   entrySearchShop: string;
   entryPlaceholder: string;
   entryPhotoPlaceholder: string;
+
+  // R0/R4: the add-book state (#/add and #/find/<q>).
+  addFindLabel: string;
+  /** {title} {books} */
+  addedToBasket: string;
+  /** {title} */
+  addReadFailed: string;
+  pickClear: string;
 }
 
 export const MESSAGES: Record<Lang, Messages> = {
@@ -711,6 +719,10 @@ export const MESSAGES: Record<Lang, Messages> = {
     entrySearchShop: 'Search this shop',
     entryPlaceholder: 'e.g. Room on the Broom',
     entryPhotoPlaceholder: 'Photo of a list',
+    addFindLabel: 'Find a book',
+    addedToBasket: 'Added {title}. {books} in your basket.',
+    addReadFailed: 'Couldn’t read prices for {title}. Try again.',
+    pickClear: 'Clear',
   },
   ro: {
     deliveryGapShort: 'Mai ai {amount} lei până la livrarea gratuită la {shop}',
@@ -1017,6 +1029,10 @@ export const MESSAGES: Record<Lang, Messages> = {
     entrySearchShop: 'Caută în acest magazin',
     entryPlaceholder: 'ex. Camera din Pădure',
     entryPhotoPlaceholder: 'Fotografie a unei liste',
+    addFindLabel: 'Caută o carte',
+    addedToBasket: 'Adăugat {title}. {books} în coș.',
+    addReadFailed: 'Nu am putut citi prețurile pentru {title}. Încearcă din nou.',
+    pickClear: 'Șterge',
   },
 };
 

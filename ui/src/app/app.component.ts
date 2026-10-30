@@ -1,6 +1,5 @@
 import { NgTemplateOutlet } from '@angular/common';
-import { Component, HostListener, OnDestroy, effect, inject, untracked } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import { Component, ElementRef, HostListener, OnDestroy, effect, inject, untracked, viewChild } from '@angular/core';
 import { Subscription, firstValueFrom } from 'rxjs';
 import { BasketItem, BasketService, itemId } from './basket.service';
 import { BuyListComponent } from './buy-list.component';
@@ -8,7 +7,6 @@ import { EventsService, liveUrl } from './events.service';
 
 /** The route argument of the photo read's progress screen. It is not an ISBN and starts no read. */
 const PHOTO_ROUTE_ARG = 'photo';
-import { InputBoxComponent } from './input-box.component';
 import { LiveProgressComponent } from './live-progress.component';
 import { Candidate, LiveOffer, Progress, parseInput } from './live';
 import { PickListComponent, PickState } from './pick-list.component';
@@ -262,7 +260,7 @@ const STATUS_KEY: Record<string, keyof Messages> = {
 
 @Component({
   selector: 'app-root',
-  imports: [NgTemplateOutlet, FormsModule, SettingsComponent, BuyListComponent, InputBoxComponent, PickListComponent, LiveProgressComponent, ShopReadsComponent, MembershipsComponent, PhotoResultComponent, AskBoxComponent],
+  imports: [NgTemplateOutlet, SettingsComponent, BuyListComponent, PickListComponent, LiveProgressComponent, ShopReadsComponent, MembershipsComponent, PhotoResultComponent, AskBoxComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.css',
 })
@@ -322,10 +320,17 @@ export class AppComponent implements OnDestroy {
   // Feature 2: photo reading state.
   photoState: PhotoState = { kind: 'idle' };
 
-  // Entry screen v2: menu state and entry input
+  // Entry screen v2: menu state. R0/R4: the entry and add-book screens share the one field.
   langMenuOpen = false;
   themeMenuOpen = false;
-  entryInputValue = '';
+  /** The add-book field. Empty whenever the state opens and after every pick (R0); the query lives in #/find/<q>. */
+  fieldText = '';
+  /** The polite live region: what was just added, and how many books the basket now holds. */
+  addedNote = '';
+  /** A pick whose prices could not be read. */
+  addError = '';
+  private addStream: Subscription | null = null;
+  private readonly fieldRef = viewChild<ElementRef<HTMLInputElement>>('entryInput');
   private documentClickListener: ((event: MouseEvent) => void) | null = null;
 
   constructor() {
@@ -360,6 +365,8 @@ export class AppComponent implements OnDestroy {
 
   ngOnDestroy(): void {
     this.stream?.unsubscribe();
+    this.addStream?.unsubscribe();
+    this.addStream = null;
     if (this.documentClickListener) {
       document.removeEventListener('click', this.documentClickListener);
       this.documentClickListener = null;
@@ -377,10 +384,22 @@ export class AppComponent implements OnDestroy {
   private routeChanged(): void {
     const name = this.route.name;
     if (name !== 'live') this.stopStream();
-    if (name === 'entry') {
-      this.boxText = '';
-    } else if (name === 'find') {
-      void this.runSearch(this.route.arg);
+    if (this.adding) {
+      // R0: the axis of the defect was a query left in the field. Every visit to the add-book
+      // state starts from an empty field; the query itself is only ever the #/find/<q> argument.
+      this.clearField();
+      this.addedNote = '';
+      this.addError = '';
+      this.closeMenus();
+      const q = name === 'find' ? this.route.arg.trim() : '';
+      if (q) {
+        void this.runSearch(q);
+      } else {
+        this.boxText = '';
+        this.candidates = [];
+        this.pickState = 'idle';
+      }
+      this.focusField();
     } else if (name === 'live') {
       if (this.route.arg !== PHOTO_ROUTE_ARG && this.liveIsbn !== this.route.arg) this.startLive(this.route.arg, this.picked?.isbn === this.route.arg ? this.picked.title : '');
     } else if (!this.loaded && !this.loading) {
@@ -388,6 +407,45 @@ export class AppComponent implements OnDestroy {
     } else {
       this.afterRoute();
     }
+  }
+
+  /** The four screens that share the one add-book field: the first run, #/add and #/find/<q>. */
+  get adding(): boolean {
+    const name = this.route.name;
+    return name === 'entry' || name === 'add' || name === 'find';
+  }
+
+  /** The first-run copy (headline, How it works) belongs to an empty basket at #/ and nowhere else. */
+  get firstRun(): boolean {
+    return this.route.name === 'entry' && this.basketItems.length === 0;
+  }
+
+  /** What the one screen is showing: the first run, or the add-book state. */
+  get screenName(): string {
+    return this.firstRun ? 'first' : 'add';
+  }
+
+  onFieldInput(event: Event): void {
+    this.fieldText = (event.target as HTMLInputElement).value;
+  }
+
+  /**
+   * R0: empty the field in the model and in the input itself. A typed query cleared within the
+   * same frame (Enter, or the pick straight after typing) would otherwise leave its text behind,
+   * because the property binding only writes when the value it rendered last changes.
+   */
+  private clearField(): void {
+    this.fieldText = '';
+    const el = this.fieldRef()?.nativeElement;
+    if (el) el.value = '';
+  }
+
+  /** Put the cursor in the empty field when the add-book state opens (R0). */
+  private focusField(): void {
+    setTimeout(() => {
+      const el = this.fieldRef()?.nativeElement;
+      if (el && document.activeElement !== el) el.focus();
+    }, 0);
   }
 
   // ------------------------------------------------------------ entry screen v2 menus
@@ -439,11 +497,13 @@ export class AppComponent implements OnDestroy {
     }
   }
 
-  onEntrySubmit(event: Event): void {
+  /** R0: the field asks for a search and is empty again at once; the query is only in #/find/<q>. */
+  onFieldSubmit(event: Event): void {
     event.preventDefault();
-    if (this.entryInputValue.trim()) {
-      this.submitBox(this.entryInputValue.trim());
-    }
+    const text = this.fieldText.trim();
+    if (!text) return;
+    this.clearField();
+    this.submitBox(text);
   }
 
   async onEntryPhoto(event: Event): Promise<void> {
@@ -475,6 +535,16 @@ export class AppComponent implements OnDestroy {
 
   submitBox(text: string): void {
     this.go('find/' + encodeURIComponent(text));
+  }
+
+  /** The no-match message's Clear button: back to the empty field, nothing left to search. */
+  clearSearch(): void {
+    this.clearField();
+    this.boxText = '';
+    this.candidates = [];
+    this.pickState = 'idle';
+    this.go('add');
+    this.focusField();
   }
 
   async runSearch(text: string): Promise<void> {
@@ -511,10 +581,75 @@ export class AppComponent implements OnDestroy {
 
   pickBook(c: Candidate): void {
     if (!c.isbn) return;
+    // R0/R4: a pick adds the book here. The field and the rows go, the state stays.
+    this.clearField();
+    this.candidates = [];
+    this.pickState = 'idle';
+    this.addError = '';
+    this.addedNote = '';
     this.picked = c;
     this.liveTitle = c.title;
     this.liveIsbn = '';
-    this.go('live/' + c.isbn);
+    this.route = { name: 'add', arg: '' };
+    this.replaceRoute('add');
+    this.addToBasket(c);
+    this.focusField();
+  }
+
+  /**
+   * The picked book joins the basket at once, so the chip and the count are honest straight away;
+   * its prices are read in the background and the same book is upgraded in place when the read
+   * answers. A read that fails (and a book that was not in the basket before) leaves again, and
+   * the shopper is told, rather than shown a book no shop can price.
+   */
+  private addToBasket(c: Candidate): void {
+    const isbn = c.isbn as string;
+    const title = (c.title || '').trim() || 'ISBN ' + isbn;
+    const author = c.author ?? null;
+    const had = this.basketSvc.has(isbn);
+    this.basketSvc.addUnpriced(isbn, title, author);
+    this.noteAdded(title);
+    this.markStale();
+    this.addStream?.unsubscribe();
+    let done = false;
+    const settle = (payload: Payload | null): void => {
+      if (done) return;
+      done = true;
+      this.addStream = null;
+      if (payload) {
+        this.basketSvc.addFromLive(adapt(payload), isbn, title, author);
+        this.noteAdded(title);
+      } else {
+        if (!had) this.basketSvc.remove(itemId(isbn));
+        this.addError = fill(this.m.addReadFailed, { title });
+      }
+      this.markStale();
+    };
+    this.addStream = this.events.open(liveUrl(isbn, itemId(isbn), title, author)).subscribe({
+      next: (ev) => {
+        if (ev.type === 'solution') settle(ev.payload as Payload);
+        else if (ev.type === 'error') settle(null);
+      },
+      error: () => settle(null),
+      complete: () => settle(null),
+    });
+  }
+
+  private noteAdded(title: string): void {
+    this.addedNote = fill(this.m.addedToBasket, { title, books: count(this.lang, this.basketSvc.count, 'book') });
+  }
+
+  /** The basket changed: the next result screen is solved again, and a visible one now. */
+  private markStale(): void {
+    this.dirty = true;
+    if (this.route.name === 'result') void this.refresh();
+  }
+
+  /** The URL follows the add-book state without a route round-trip: no second search, no scroll jump. */
+  private replaceRoute(path: string): void {
+    const next = '#/' + path;
+    if (window.location.hash === next) return;
+    window.history.replaceState(null, '', window.location.pathname + window.location.search + next);
   }
 
   private stopStream(): void {
@@ -595,6 +730,14 @@ export class AppComponent implements OnDestroy {
     this.basketSvc.remove(id);
     this.resetPlan();
     void this.refresh();
+  }
+
+  /** The add-book chip's ×: the book leaves, and the result screen is solved again when it is opened. */
+  removeChip(id: string): void {
+    this.basketSvc.remove(id);
+    this.resetPlan();
+    this.addedNote = '';
+    this.markStale();
   }
 
   clearBasket(): void {
