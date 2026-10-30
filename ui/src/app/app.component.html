@@ -1,4 +1,4 @@
-<app-settings />
+@if (route.name !== 'entry') { <app-settings /> }
 
 <ng-template #cover let-big="big">
   <div class="cover" [class.lg]="big" aria-hidden="true">
@@ -118,6 +118,7 @@
       <p class="s note" role="alert">{{ m.photoReadFail }}</p>
     }
   </main>
+  <footer class="entry-prefs"><app-settings /></footer>
 } @else if (route.name === 'photo') {
   <header class="hdr"><a class="brand" href="#/">{{ m.brand }}</a></header>
   <main class="wrap narrow" data-screen="photo">

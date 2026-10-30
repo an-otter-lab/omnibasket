@@ -68,10 +68,19 @@ META_API_KEY=<key> python3 tools/muse_reads.py
 Every call is written to the spend ledger by `tools/meta_budget.py`, with a job stop short of USD 1.
 
 ```bash
-./scripts/start-demo.sh
+./scripts/start-demo.sh --demo   # demo mode: serves the ro-v1 sample basket
+./scripts/start-demo.sh          # normal mode: no sample data
 ```
 
 Then open http://127.0.0.1:8000 . `GET /health` returns `{"status":"ok"}`.
+
+### Demo mode vs normal mode
+
+Demo mode is an explicit flag: `--demo` on `scripts/start-demo.sh`, which sets `OMNIBASKET_DEMO=1` (`1` or `true`) for the service. Without it the service runs in normal mode.
+
+- `GET /config` returns `{"demo": bool, "commit": "<short sha>"}`. `demo` is true only when the env var says so.
+- Demo only: `GET /sample` (the 'Try a sample basket' target), `POST /solve` with no basket body, and `GET /events?source=cache`. In normal mode all three return 404, so no captured data is served.
+- The Mac LaunchAgent (`ai.omnibasket.app`) and the VM unit never pass `--demo` or set `OMNIBASKET_DEMO`.
 
 ## Status
 
