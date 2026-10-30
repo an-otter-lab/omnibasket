@@ -180,3 +180,8 @@ a.row:hover{color:#1a1a1a;background:#fafafa}
 @media (min-width:1200px){
   .reads{padding:20px 24px}
 }
+
+.pick .unk{white-space:normal;border-radius:12px;max-width:100%;overflow-wrap:anywhere}
+.pick{max-width:100%}
+.sample-sep{border:0;border-top:2px solid #d4d4d4;margin:12px 0 0;width:100%}
+.sample-head{display:flex;flex-direction:column;gap:2px}

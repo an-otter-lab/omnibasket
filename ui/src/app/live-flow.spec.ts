@@ -123,6 +123,20 @@ describe('live flow: progress then per-shop reads', () => {
     expect(el.querySelector('.tabs')!.textContent).toContain('1 order');
   });
 
+  it('labels the sample basket as its own section below the chosen book', async () => {
+    const fixture = await start();
+    source.emit('solution', solution(OFFERS));
+    fixture.componentInstance.route = { name: 'result', arg: '' };
+    fixture.detectChanges();
+    const el: HTMLElement = fixture.nativeElement;
+    const reads = el.querySelector('app-shop-reads')!;
+    const head = el.querySelector('[data-section="sample-basket"]')!;
+    expect(head.textContent).toContain('Your sample basket');
+    expect(el.querySelector('hr.sample-sep')).not.toBeNull();
+    expect(reads.compareDocumentPosition(head) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(head.compareDocumentPosition(el.querySelector('.tabs')!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it('failure state: a shop that could not be read shows its honest line and its listing link', async () => {
     const fixture = await start();
     source.emit('solution', solution(OFFERS));

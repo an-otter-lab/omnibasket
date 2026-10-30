@@ -294,6 +294,8 @@
       <main class="wrap" [attr.aria-busy]="busy">
         @if (isLiveResult) {
           <app-shop-reads [lang]="lang" [offers]="liveOffers" [pick]="picked" [isbn]="liveIsbn || data.joined_isbn13 || null" [title]="data.joined_title || ''" />
+          <hr class="sample-sep" />
+          <div class="sample-head" data-section="sample-basket"><h2 class="h2">{{ m.sampleTitle }}</h2><p class="s">{{ m.sampleNote }}</p></div>
         }
         @if (degraded !== 'one_book') {
           <div class="controls">

@@ -67,6 +67,21 @@ describe('the pick list', () => {
     expect(el.querySelector('.pcover.ph')).not.toBeNull();
   });
 
+  it('wraps a candidate line inside the card at 390px', () => {
+    const fixture = render(BOOKS);
+    const host: HTMLElement = fixture.nativeElement;
+    const box = document.createElement('div');
+    box.style.cssText = 'width:390px;padding:16px;overflow:hidden;box-sizing:border-box';
+    document.body.appendChild(box);
+    box.appendChild(host);
+    const bad = host.querySelector<HTMLElement>('button.pick:disabled')!;
+    expect(bad.scrollWidth).toBeLessThanOrEqual(bad.clientWidth + 1);
+    for (const el of Array.from(host.querySelectorAll<HTMLElement>('.pmeta *'))) {
+      expect(el.getBoundingClientRect().right).toBeLessThanOrEqual(bad.getBoundingClientRect().right + 1);
+    }
+    box.remove();
+  });
+
   it('says so when nothing matches', () => {
     const el: HTMLElement = render([], 'empty').nativeElement;
     expect(el.textContent).toContain('Nothing in our index matches that');
