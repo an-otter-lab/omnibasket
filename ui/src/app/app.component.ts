@@ -1,5 +1,5 @@
 import { NgTemplateOutlet } from '@angular/common';
-import { Component, HostListener, OnDestroy, inject } from '@angular/core';
+import { Component, HostListener, OnDestroy, effect, inject, untracked } from '@angular/core';
 import { Subscription } from 'rxjs';
 import { BuyListComponent } from './buy-list.component';
 import { EventsService, liveUrl } from './events.service';
@@ -9,7 +9,9 @@ import { Candidate, LiveOffer, Progress, parseInput } from './live';
 import { PickListComponent, PickState } from './pick-list.component';
 import { ShopReadsComponent } from './shop-reads.component';
 import { buyListFromOrders, encodeBuyList } from './buy-list';
-import { Lang, MESSAGES, fill } from './messages';
+import { Lang, MESSAGES, Messages, count, editionName, fieldName, fill } from './messages';
+import { I18nService } from './i18n';
+import { SettingsComponent } from './settings.component';
 import { MembershipsComponent } from './memberships.component';
 import { MembershipRow, loadDeclared } from './memberships';
 import { PhotoInputComponent, PhotoInputEvent } from './photo-input.component';
@@ -237,26 +239,25 @@ const SHOP_NAME: Record<string, string> = {
   carturesti: 'Cărturești',
 };
 
-const STATUS_TEXT: Record<string, string> = {
-  in_plan: 'In your plan',
-  compared: 'Compared',
-  fees_not_printed: 'Fees not printed, not compared',
-  not_listed: 'Not listed',
-  out_of_stock: 'Out of stock',
-  couldnt_read: 'Couldn’t read',
-  other_edition: 'Another edition',
+const STATUS_KEY: Record<string, keyof Messages> = {
+  in_plan: 'statusInPlan',
+  compared: 'statusCompared',
+  fees_not_printed: 'statusFeesNotPrinted',
+  not_listed: 'statusNotListed',
+  out_of_stock: 'statusOutOfStock',
+  couldnt_read: 'statusCouldntRead',
+  other_edition: 'statusOtherEdition',
 };
-
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 @Component({
   selector: 'app-root',
-  imports: [NgTemplateOutlet, BuyListComponent, InputBoxComponent, PickListComponent, LiveProgressComponent, ShopReadsComponent, MembershipsComponent, PhotoInputComponent, PhotoResultComponent],
+  imports: [NgTemplateOutlet, SettingsComponent, BuyListComponent, InputBoxComponent, PickListComponent, LiveProgressComponent, ShopReadsComponent, MembershipsComponent, PhotoInputComponent, PhotoResultComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.css',
 })
 export class AppComponent implements OnDestroy {
   private readonly events = inject(EventsService);
+  private readonly i18n = inject(I18nService);
   private stream: Subscription | null = null;
   // Feature 1 state.
   boxText = '';
@@ -287,7 +288,14 @@ export class AppComponent implements OnDestroy {
   preview: Payload | null = null;
   selected: string[] | null = null;
   lastOrderTab: Tab = 'cheapest';
-  lang: Lang = 'en';
+  // Feature 8: the language lives in I18nService (browser default, toggle, storage).
+  get lang(): Lang {
+    return this.i18n.lang();
+  }
+  set lang(lang: Lang) {
+    this.i18n.set(lang);
+  }
+  private whyPayload: unknown = null;
   whyText = '';
   whyMuse = false;
   private whyRequest = 0;
@@ -302,6 +310,18 @@ export class AppComponent implements OnDestroy {
     if (sample && !window.location.hash) window.location.hash = '#/result/cheapest';
     this.readRoute();
     this.routeChanged();
+    // A language switch re-asks for the split explanation in the new language.
+    let first = true;
+    effect(() => {
+      this.i18n.lang();
+      if (first) {
+        first = false;
+        return;
+      }
+      untracked(() => {
+        if (this.whyPayload) void this.loadWhy(this.whyPayload);
+      });
+    });
   }
 
   ngOnDestroy(): void {
@@ -386,7 +406,7 @@ export class AppComponent implements OnDestroy {
   startLive(isbn: string, title: string): void {
     this.stopStream();
     this.liveIsbn = isbn;
-    this.liveTitle = title || 'ISBN ' + isbn;
+    this.liveTitle = title || fill(this.m.pickIsbnTitle, { isbn });
     this.progress = [];
     this.liveFailed = false;
     this.data = null;
@@ -440,7 +460,19 @@ export class AppComponent implements OnDestroy {
 
   // Tab words: "1 order", "{n} orders".
   orderWord(n: number): string {
-    return n === 1 ? MESSAGES[this.lang].tabOne : fill(MESSAGES[this.lang].tabMany, { n: String(n) });
+    return count(this.lang, n, 'order');
+  }
+
+  /** "{n} books", "{n} editions", ... with the language's plural forms. */
+  count(n: number | null | undefined, key: 'book' | 'edition' | 'order' | 'try' | 'moved'): string {
+    return count(this.lang, n ?? 0, key);
+  }
+
+  /** A message with its {placeholders} filled. */
+  t(key: keyof Messages, values: Record<string, string | number | null | undefined> = {}): string {
+    const v: Record<string, string> = {};
+    for (const k of Object.keys(values)) v[k] = String(values[k] ?? '');
+    return fill(this.m[key], v);
   }
 
   private readRoute(): void {
@@ -524,6 +556,7 @@ export class AppComponent implements OnDestroy {
 
   private async loadWhy(payload: unknown): Promise<void> {
     const request = ++this.whyRequest;
+    this.whyPayload = payload;
     this.whyMuse = false;
     this.whyText = MESSAGES[this.lang].whySplitTemplate;
     if (!this.hasDescribableResult(payload)) return;
@@ -574,7 +607,7 @@ export class AppComponent implements OnDestroy {
 
   private async post(pins: Record<string, string>, selected: string[] | null, requestBody?: Record<string, unknown>): Promise<Payload | null> {
     if (this.fixture) {
-      this.note = 'This is a recorded example. Changes are not re-solved.';
+      this.note = this.m.recordedNote;
       return null;
     }
     const body: Record<string, unknown> = requestBody ?? (this.fullBasket() ? {} : this.givenBody());
@@ -586,7 +619,7 @@ export class AppComponent implements OnDestroy {
     const res = await fetch('/solve', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
     const payload = adapt((await res.json()) as Payload);
     if (!res.ok || payload.error) {
-      this.note = payload.error || 'The solve failed.';
+      this.note = payload.error || this.m.solveFailed;
       return null;
     }
     return payload;
@@ -656,7 +689,7 @@ export class AppComponent implements OnDestroy {
     this.liveFailed = false;
     this.liveOffers = [];
     this.liveIsbn = '';
-    this.liveTitle = `${resolved.length} book${resolved.length === 1 ? '' : 's'} from photo`;
+    this.liveTitle = count(this.lang, resolved.length, 'photoBooks');
     
     const collectedPayloads: Payload[] = [];
     let completed = 0;
@@ -876,13 +909,12 @@ export class AppComponent implements OnDestroy {
   }
 
   edLabel(e: string | null): string {
-    if (!e) return '';
-    const t = e.replace(/_/g, ' ');
-    return t.charAt(0).toUpperCase() + t.slice(1);
+    return editionName(this.lang, e);
   }
 
   statusText(code: string): string {
-    return STATUS_TEXT[code] || code;
+    const key = STATUS_KEY[code];
+    return key ? this.m[key] : code;
   }
 
   // A read line only where the API says there is one. Nothing is derived here.
@@ -893,13 +925,13 @@ export class AppComponent implements OnDestroy {
 
   readFields(o: OfferRow): string {
     return (o.model_read?.mismatch_fields || [])
-      .map((f) => (f === 'isbn13' ? 'ISBN' : f))
+      .map((f) => fieldName(this.lang, f))
       .join(', ');
   }
 
   private day(iso: string): string {
     const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
-    return m ? Number(m[3]) + ' ' + MONTHS[Number(m[2]) - 1] : iso;
+    return m ? Number(m[3]) + ' ' + this.m.monthsShort.split(' ')[Number(m[2]) - 1] : iso;
   }
 
   dateTime(iso: string | null): string {
@@ -911,10 +943,10 @@ export class AppComponent implements OnDestroy {
   stamp(): string {
     const r = this.data?.read_at_range;
     if (!r?.newest) return '';
-    if (!r.oldest || r.oldest === r.newest) return 'prices read ' + this.day(r.newest);
+    if (!r.oldest || r.oldest === r.newest) return this.t('pricesRead', { date: this.day(r.newest) });
     const a = this.day(r.oldest).split(' ');
     const b = this.day(r.newest).split(' ');
-    return 'prices read ' + (a[1] === b[1] ? a[0] : a.join(' ')) + '–' + b.join(' ');
+    return this.t('pricesRead', { date: (a[1] === b[1] ? a[0] : a.join(' ')) + '–' + b.join(' ') });
   }
 
   // ------------------------------------------------------------ view helpers
@@ -941,6 +973,11 @@ export class AppComponent implements OnDestroy {
 
   get pinCount(): number {
     return Object.keys(this.data?.edition.pins || {}).length;
+  }
+
+  editionsPill(): string {
+    const n = this.pinCount;
+    return this.t('editionsPill', { value: n ? this.t('editionsPinned', { n }) : this.m.editionsAny });
   }
 
   get oneDelta(): number | null {
@@ -986,6 +1023,17 @@ export class AppComponent implements OnDestroy {
 
   maxAttempts(rows: FailedRead[]): number {
     return rows.reduce((m, r) => Math.max(m, r.attempts), 0);
+  }
+
+  /** The "its pages didn't load" paragraph on the couldn't-read shop screen. */
+  shopFailText(storeId: string): string {
+    const rows = this.failedFor(storeId);
+    const tries = this.count(this.maxAttempts(rows), 'try');
+    const at = rows[0]?.failed_at;
+    let text = at ? this.t('shopFailLoadWhen', { date: this.dateTime(at), tries }) : this.t('shopFailLoad', { tries });
+    const total = this.data?.cheapest.total_cents;
+    if (total != null) text += ' ' + this.t('shopFailCovers', { total: this.lei(total) });
+    return text;
   }
 
   movedIds(): Set<string> {
@@ -1039,7 +1087,7 @@ export class AppComponent implements OnDestroy {
   get shopList(): string {
     const names = (this.data?.shops || []).map((s) => this.shopName(s.store_id));
     if (names.length < 2) return names.join('');
-    return names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1];
+    return names.slice(0, -1).join(', ') + ' ' + this.m.listAnd + ' ' + names[names.length - 1];
   }
 
   trackId(_: number, x: { item_id?: string; store_id?: string }): string {

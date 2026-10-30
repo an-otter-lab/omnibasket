@@ -28,7 +28,7 @@ interface Saved {
   selector: 'app-buy-list',
   standalone: true,
   styles: [
-    '.tick{width:22px;height:22px;flex:none;accent-color:#14532d;margin-right:10px}',
+    '.tick{width:22px;height:22px;flex:none;accent-color:var(--brand);margin-right:10px}',
     '.rowlink{display:flex;align-items:center;gap:6px;flex-wrap:wrap;cursor:pointer}',
     '.rowr{display:flex;gap:6px;flex-wrap:wrap}',
     '.shareurl{width:100%;margin:8px 0}',

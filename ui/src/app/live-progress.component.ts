@@ -8,7 +8,7 @@ import { Lang, MESSAGES, fill } from './messages';
   template: `
     <h1 class="h2">{{ heading }}</h1>
     @if (!failed) { <p class="s" role="status">{{ m.progWait }}</p> }
-    <ol class="plog" aria-live="polite" aria-label="Read progress">
+    <ol class="plog" aria-live="polite" [attr.aria-label]="m.progLabel">
       @for (p of lines; track $index) {
         <li [attr.data-status]="p.status" [attr.data-shop]="p.store_id">
           <span class="dot" [class.run]="p.status === 'reading'" aria-hidden="true">{{ mark(p.status) }}</span>
