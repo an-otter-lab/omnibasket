@@ -1,3 +1,4 @@
+import { demoSample } from './demo-sample';
 import { TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { AskBoxComponent } from './ask-box.component';
@@ -40,6 +41,7 @@ describe('Ask box', () => {
   async function setup() {
     const fixture = TestBed.createComponent(AppComponent);
     const app = fixture.componentInstance;
+    demoSample();
     await app.load();
     app.route = { name: 'result', arg: '' };
     app.lang = 'en';

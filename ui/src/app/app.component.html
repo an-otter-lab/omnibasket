@@ -60,6 +60,33 @@
   }
 </ng-template>
 
+<ng-template #yourbooks>
+  <section class="yourbooks" data-section="your-books" aria-labelledby="yb-h">
+    <h2 class="k" id="yb-h">{{ m.basketBooksTitle }}</h2>
+    @for (i of basketItems; track i.id) {
+      <article class="ybook" [attr.data-isbn]="i.isbn" [attr.data-no-offer]="isNoOffer(i) || null">
+        <div class="between">
+          <p class="pt">{{ i.title }}</p>
+          <button class="lnk" type="button" (click)="removeBook(i.id)" [attr.aria-label]="m.basketRemove + ' ' + i.title">{{ m.basketRemove }}</button>
+        </div>
+        <p class="s n">ISBN {{ i.isbn }}</p>
+        @if (!isNoOffer(i) && unplacedItems.includes(i)) { <p class="s warn">{{ m.basketLeftOut }}</p> }
+        <app-shop-reads [lang]="lang" [offers]="i.live_offers" [pick]="null" [isbn]="i.isbn" [title]="''" />
+      </article>
+    }
+  </section>
+</ng-template>
+
+<ng-template #emptystate>
+  <header class="hdr"><a class="brand" href="#/">{{ m.brand }}</a></header>
+  <main class="wrap narrow" data-screen="empty-basket">
+    <h1 class="h2">{{ m.basketEmptyTitle }}</h1>
+    <p class="p">{{ m.basketEmptyNote }}</p>
+    <a class="btn" href="#/">{{ m.basketAddBook }}</a>
+    @if (isDemoMode) { <p class="sample"><a class="lnk" href="?sample=ro-v1#/result/cheapest" data-sample>{{ m.boxSample }}</a></p> }
+  </main>
+</ng-template>
+
 <ng-template #topbar>
   <header class="hdr">
     <a class="brand" href="#/">{{ m.brand }}</a>
@@ -113,6 +140,20 @@
   <main class="wrap narrow" data-screen="live">
     <app-live-progress [lang]="lang" [title]="liveTitle" [lines]="progress" [failed]="liveFailed" (retry)="retryLive()" />
   </main>
+} @else if (route.name === 'add') {
+  <header class="hdr"><a class="brand" href="#/">{{ m.brand }}</a><span class="s">{{ count(basketItems.length, 'book') }}</span></header>
+  <main class="wrap narrow" data-screen="basket">
+    <h1 class="h2">{{ m.basketTitle }}</h1>
+    @if (basketItems.length) {
+      <ng-container *ngTemplateOutlet="yourbooks"></ng-container>
+      <p class="s"><a class="btn2 full" href="#/">{{ m.basketAddBook }}</a></p>
+      <p class="s"><a class="btn2 full" href="#/result/cheapest">{{ m.seeOrders }}</a></p>
+      <button class="lnk" type="button" data-action="clear" (click)="clearBasket()">{{ m.basketClear }}</button>
+    } @else {
+      <p class="p">{{ m.basketEmptyNote }}</p>
+      <a class="btn" href="#/">{{ m.basketAddBook }}</a>
+    }
+  </main>
 } @else if (loadError) {
   <header class="hdr"><a class="brand" href="#/">{{ m.brand }}</a></header>
   <main class="wrap">
@@ -120,53 +161,18 @@
     <p class="p">{{ m.loadFailNote }}</p>
     <button class="btn" type="button" (click)="load()">{{ m.tryAgain }}</button>
   </main>
-} @else if (!data) {
+} @else if (!loaded || loading) {
   <header class="hdr"><a class="brand" href="#/">{{ m.brand }}</a></header>
   <main class="wrap"><p class="p" role="status">{{ m.readingShops }}</p></main>
+} @else if (!sampleMode && basketItems.length === 0) {
+  <ng-container *ngTemplateOutlet="emptystate"></ng-container>
+} @else if (!data) {
+  <ng-container *ngTemplateOutlet="topbar"></ng-container>
+  <main class="wrap">
+    <ng-container *ngTemplateOutlet="yourbooks"></ng-container>
+  </main>
 } @else {
   @switch (route.name) {
-
-    @case ('add') {
-      <header class="hdr"><a class="brand" href="#/">{{ m.brand }}</a><span class="s">{{ count(basket.size, 'book') }}</span></header>
-      <main class="wrap narrow">
-        <div class="field">
-          <label class="lbl" for="q2">{{ m.addLabel }}</label>
-          <input class="inp" [class.focus]="q" id="q2" name="q" autocomplete="off" [attr.placeholder]="m.addPlaceholder" [value]="q" (input)="setQ($any($event.target).value)">
-        </div>
-        @if (q.trim() && matches.length === 0) {
-          <p class="s" role="status">{{ m.addNone }}</p>
-        }
-        @for (b of matches; track b.item_id) {
-          <div class="card">
-            <div class="bookhead">
-              <ng-container *ngTemplateOutlet="cover"></ng-container>
-              <div class="bmeta">
-                <a class="pt" [href]="'#/book/' + b.item_id">{{ b.title }}</a>
-                <p class="s n">@if (b.isbn13) { ISBN {{ b.isbn13 }} } @else { <span class="unk">{{ m.isbnNotPrinted }}</span> } · {{ count(b.editions.length, 'edition') }}</p>
-              </div>
-            </div>
-            @if (firstOffer(b); as f) {
-              <div class="between top">
-                <p class="s ink">{{ m.firstFoundAt }} <strong>{{ shopName(f.store_id) }}</strong> · <span class="n">{{ lei(f.price_cents) }}</span></p>
-                @if (offerLink(f.listing_url); as href) { <a class="store" [href]="href" target="_blank" rel="noopener">{{ shopName(f.store_id) }} ↗</a> }
-              </div>
-            }
-            <div class="chips">
-              <span class="chip sel">{{ m.anyEdition }}</span>
-              @for (e of b.editions; track e.edition) { <span class="chip">{{ edLabel(e.edition) }}</span> }
-            </div>
-            <button class="btn full" type="button" (click)="toggleBasket(b.item_id)">{{ inBasket(b.item_id) ? m.removeFromBasket : m.addToBasket }}</button>
-          </div>
-        }
-        <div class="basketbar">
-          <p class="k">{{ t('inBasket', { n: basket.size }) }}</p>
-          <div class="chips">
-            @for (b of books; track b.item_id) { <a class="chip" [href]="'#/book/' + b.item_id">{{ b.title }}</a> }
-          </div>
-          @if (basket.size) { <a class="btn2 full" href="#/result/cheapest">{{ m.seeOrders }}</a> } @else { <span class="btn2 full off" aria-disabled="true">{{ m.seeOrders }}</span> }
-        </div>
-      </main>
-    }
 
     @case ('book') {
       @if (bookRow(route.arg); as b) {
@@ -313,19 +319,6 @@
       <!-- result (03, 04, 05, 11, 12) and the editions overlay (08) over it -->
       <ng-container *ngTemplateOutlet="topbar"></ng-container>
       <main class="wrap" [attr.aria-busy]="busy">
-        @if (isLiveResult) {
-          <app-shop-reads [lang]="lang" [offers]="liveOffers" [pick]="picked" [isbn]="liveIsbn || data.joined_isbn13 || null" [title]="data.joined_title || ''" />
-          <hr class="sample-sep" />
-          <div class="sample-head" data-section="sample-basket">
-            <div class="between">
-              <h2 class="h2">{{ m.sampleTitle }}</h2>
-              @if (isDemoMode) {
-                <span class="stamp">{{ m.demoBadge }}</span>
-              }
-            </div>
-            <p class="s">{{ m.sampleNote }}</p>
-          </div>
-        }
         @if (degraded !== 'one_book') {
           <div class="controls">
             <nav class="tabs" [attr.aria-label]="m.tabsLabel">
@@ -514,6 +507,7 @@
           }
         }
         @if (orders.length) { <p class="s buyentry"><a class="lnk" [href]="buyHref()">{{ buyEntryText }}</a></p> }
+        @if (!sampleMode) { <ng-container *ngTemplateOutlet="yourbooks"></ng-container> }
       </main>
 
       @if (route.name === 'editions') {

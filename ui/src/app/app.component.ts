@@ -1,6 +1,7 @@
 import { NgTemplateOutlet } from '@angular/common';
 import { Component, HostListener, OnDestroy, effect, inject, untracked } from '@angular/core';
-import { Subscription } from 'rxjs';
+import { Subscription, firstValueFrom } from 'rxjs';
+import { BasketItem, BasketService } from './basket.service';
 import { BuyListComponent } from './buy-list.component';
 import { EventsService, liveUrl } from './events.service';
 import { InputBoxComponent } from './input-box.component';
@@ -261,6 +262,11 @@ export class AppComponent implements OnDestroy {
   private readonly events = inject(EventsService);
   private readonly i18n = inject(I18nService);
   private readonly config = inject(ConfigService);
+  readonly basketSvc = inject(BasketService);
+  // True only in demo mode, after the shopper asked for the sample. Never in normal mode.
+  sampleMode = false;
+  private sampleIds = new Set<string>();
+  loaded = false;
   private stream: Subscription | null = null;
   // Feature 1 state.
   boxText = '';
@@ -283,9 +289,7 @@ export class AppComponent implements OnDestroy {
   busy = false;
   note = '';
   fixture = '';
-  basket = new Set<string>();
   dirty = false;
-  q = '';
   tab: Tab = 'cheapest';
   pins: Record<string, string> = {};
   draftPins: Record<string, string> = {};
@@ -310,10 +314,10 @@ export class AppComponent implements OnDestroy {
   photoState: PhotoState = { kind: 'idle' };
 
   constructor() {
-    const sample = new URLSearchParams(window.location.search).get('sample');
-    if (sample && !window.location.hash) window.location.hash = '#/result/cheapest';
     this.config.getConfig().subscribe((config) => {
       this.isDemoMode = config.demo;
+      const sample = new URLSearchParams(window.location.search).get('sample');
+      if (config.demo && sample && !window.location.hash) window.location.hash = '#/result/cheapest';
     });
     this.readRoute();
     this.routeChanged();
@@ -352,7 +356,7 @@ export class AppComponent implements OnDestroy {
       void this.runSearch(this.route.arg);
     } else if (name === 'live') {
       if (this.liveIsbn !== this.route.arg) this.startLive(this.route.arg, this.picked?.isbn === this.route.arg ? this.picked.title : '');
-    } else if (!this.data && !this.loading) {
+    } else if (!this.loaded && !this.loading) {
       void this.load();
     } else {
       this.afterRoute();
@@ -416,8 +420,6 @@ export class AppComponent implements OnDestroy {
     this.liveTitle = title || fill(this.m.pickIsbnTitle, { isbn });
     this.progress = [];
     this.liveFailed = false;
-    this.data = null;
-    this.snapshot = null;
     this.liveOffers = [];
     this.stream = this.events.open(liveUrl(isbn, 'book-' + isbn, this.liveTitle, this.picked?.isbn === isbn ? this.picked.author : null)).subscribe({
       next: (ev) => {
@@ -438,21 +440,82 @@ export class AppComponent implements OnDestroy {
     this.startLive(this.liveIsbn, this.liveTitle);
   }
 
+  // The picked book joins the shopper's basket. Nothing else from the live payload is kept.
   private finishLive(payload: Payload): void {
     const body = adapt(payload);
-    this.snapshot = body;
-    this.data = body;
-    this.liveOffers = body.live_offers || [];
-    this.basket = new Set(body.books.map((b) => b.item_id));
+    this.leaveSample();
+    this.basketSvc.addFromLive(body, this.liveIsbn, this.liveTitle);
+    this.resetPlan();
+    void this.refresh().then(() => this.go('result/cheapest'));
+  }
+
+  private resetPlan(): void {
     this.pins = {};
     this.selected = null;
     this.dirty = false;
     this.tab = 'cheapest';
-    this.go('result/cheapest');
   }
 
-  get isLiveResult(): boolean {
-    return this.liveOffers.length > 0 && !!this.data?.live_offers;
+  private leaveSample(): void {
+    if (!this.sampleMode) return;
+    this.sampleMode = false;
+    this.fixture = '';
+    this.sampleIds = new Set();
+    this.data = null;
+    this.snapshot = null;
+    if (window.location.search) window.history.replaceState(null, '', window.location.pathname + window.location.hash);
+  }
+
+  /** Every id in the shopper's basket (or in the demo sample, when asked for in demo mode). */
+  get basket(): Set<string> {
+    return this.sampleMode ? this.sampleIds : new Set(this.basketSvc.items.map((i) => i.id));
+  }
+
+  get basketItems(): BasketItem[] {
+    return this.sampleMode ? [] : this.basketSvc.items;
+  }
+
+  get unplacedItems(): BasketItem[] {
+    return this.sampleMode ? [] : this.basketSvc.unplaced();
+  }
+
+  isNoOffer(i: BasketItem): boolean {
+    return !i.live_offers.some((o) => o.price_cents != null) && !i.offers.length;
+  }
+
+  removeBook(id: string): void {
+    this.basketSvc.remove(id);
+    this.resetPlan();
+    void this.refresh();
+  }
+
+  clearBasket(): void {
+    this.basketSvc.clear();
+    this.resetPlan();
+    void this.refresh();
+  }
+
+  /** Re-price the shopper's basket. With nothing to price, there is no answer to show. */
+  async refresh(): Promise<void> {
+    this.loadError = false;
+    if (!this.basketSvc.givenBody()) {
+      this.data = null;
+      this.snapshot = null;
+      this.loaded = true;
+      return;
+    }
+    this.busy = true;
+    const next = await this.post(this.pins, this.selected);
+    this.busy = false;
+    if (next) {
+      this.snapshot = next;
+      this.data = next;
+      void this.loadWhy(next);
+      this.note = '';
+    } else {
+      this.loadError = !this.note;
+    }
+    this.loaded = true;
   }
 
   get photoOversizeText(): string {
@@ -515,27 +578,37 @@ export class AppComponent implements OnDestroy {
   async load(): Promise<void> {
     this.loadError = false;
     this.loading = true;
+    const cfg = await firstValueFrom(this.config.getConfig());
+    this.isDemoMode = cfg.demo;
     const params = new URLSearchParams(window.location.search);
-    this.fixture = params.get('fixture') || '';
+    // The recorded sample is demo-only and only when asked for. Normal mode never reads it.
+    this.fixture = cfg.demo ? params.get('fixture') || '' : '';
+    this.sampleMode = cfg.demo && (params.get('sample') !== null || !!this.fixture);
     try {
-      const res = this.fixture
-        ? await fetch('/fixtures/' + this.fixture + '.json')
-        : await fetch('/solve', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
-      const body = adapt((await res.json()) as Payload);
-      if (!res.ok || body.error) throw new Error(body.error || 'solve failed');
-      this.snapshot = body;
-      this.data = body;
-      void this.loadWhy(body);
-      this.basket = new Set(body.books.map((b) => b.item_id));
-      const known = new Set((body.memberships || []).map((row) => row.id));
-      this.declaredMemberships = loadDeclared().filter((id) => known.has(id));
-      if (this.declaredMemberships.length && !this.fixture) await this.solve();
-      const wanted = params.get('books');
-      if (wanted && !this.fixture) {
-        const ids = wanted.split(',').filter((id) => this.basket.has(id));
-        if (ids.length) {
-          this.basket = new Set(ids);
-          await this.solve();
+      if (this.sampleMode) {
+        const res = this.fixture
+          ? await fetch('/fixtures/' + this.fixture + '.json')
+          : await fetch('/solve', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
+        const body = adapt((await res.json()) as Payload);
+        if (!res.ok || body.error) throw new Error(body.error || 'solve failed');
+        this.snapshot = body;
+        this.data = body;
+        void this.loadWhy(body);
+        this.sampleIds = new Set(body.books.map((b) => b.item_id));
+        const known = new Set((body.memberships || []).map((row) => row.id));
+        this.declaredMemberships = loadDeclared().filter((id) => known.has(id));
+        if (this.declaredMemberships.length && !this.fixture) await this.solve();
+        this.loaded = true;
+      } else {
+        this.declaredMemberships = loadDeclared();
+        await this.refresh();
+        const known = new Set((this.data?.memberships || []).map((row) => row.id));
+        const kept = this.declaredMemberships.filter((id) => known.has(id));
+        if (kept.length) {
+          this.declaredMemberships = kept;
+          await this.refresh();
+        } else {
+          this.declaredMemberships = [];
         }
       }
       this.afterRoute();
@@ -543,10 +616,6 @@ export class AppComponent implements OnDestroy {
       this.loadError = true;
     }
     this.loading = false;
-  }
-
-  private fullBasket(): boolean {
-    return !!this.snapshot && this.basket.size === this.snapshot.books.length;
   }
 
   private hasDescribableResult(payload: unknown): boolean {
@@ -577,52 +646,17 @@ export class AppComponent implements OnDestroy {
     } catch { /* Safe template remains visible. */ }
   }
 
-  private givenBody(): Record<string, unknown> {
-    const snap = this.snapshot as Payload;
-    const priced = snap.shops.filter((s) => s.priced && s.free_delivery_threshold_cents != null);
-    const ids = new Set(priced.map((s) => s.store_id));
-    return {
-      source: 'given',
-      stores: priced.map((s) => ({
-        id: s.store_id,
-        currency: s.currency || snap.currency,
-        free_shipping_threshold_cents: s.free_delivery_threshold_cents,
-        shipping_fee_cents: s.delivery_cents,
-        per_order_fee_cents: s.order_fee_cents ?? 0,
-        read_at: s.read_at,
-      })),
-      items: snap.books
-        .filter((b) => this.basket.has(b.item_id))
-        .map((b) => ({
-          id: b.item_id,
-          title: b.title,
-          isbn13: b.isbn13,
-          offers: b.shops
-            .filter((o) => o.price_cents != null && ids.has(o.store_id))
-            .map((o) => ({
-              store_id: o.store_id,
-              price_cents: o.price_cents,
-              seller_certainty: o.seller_certainty,
-              edition: o.edition,
-              listing_url: o.listing_url ?? null,
-              read_at: o.read_at ?? null,
-              in_stock: o.status === 'out_of_stock' ? false : null,
-            })),
-        })),
-    };
-  }
-
-  private async post(pins: Record<string, string>, selected: string[] | null, requestBody?: Record<string, unknown>): Promise<Payload | null> {
+  private async post(pins: Record<string, string>, selected: string[] | null): Promise<Payload | null> {
     if (this.fixture) {
       this.note = this.m.recordedNote;
       return null;
     }
-    const body: Record<string, unknown> = requestBody ?? (this.fullBasket() ? {} : this.givenBody());
-    if (!requestBody) {
-      if (Object.keys(pins).length) body['edition_pins'] = pins;
-      if (selected) body['selected_store_ids'] = selected;
-      if (this.declaredMemberships.length) body['memberships'] = this.declaredMemberships;
-    }
+    // Normal mode: exactly the shopper's books. The sample ({}) exists only in demo mode.
+    const body: Record<string, unknown> | null = this.sampleMode ? {} : (this.basketSvc.givenBody() as Record<string, unknown> | null);
+    if (!body) return null;
+    if (Object.keys(pins).length) body['edition_pins'] = pins;
+    if (selected) body['selected_store_ids'] = selected;
+    if (this.declaredMemberships.length) body['memberships'] = this.declaredMemberships;
     const res = await fetch('/solve', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
     const payload = adapt((await res.json()) as Payload);
     if (!res.ok || payload.error) {
@@ -710,24 +744,24 @@ export class AppComponent implements OnDestroy {
     this.liveIsbn = '';
     this.liveTitle = count(this.lang, resolved.length, 'photoBooks');
     
-    const collectedPayloads: Payload[] = [];
     let completed = 0;
     const total = resolved.length;
-    
+
+    this.leaveSample();
     resolved.forEach((line, idx) => {
       const sub = this.events.open(liveUrl(line.candidate.isbn, `photo-${idx}`, line.candidate.title)).subscribe({
         next: (ev) => {
           if (ev.type === 'progress') {
             this.progress = [...this.progress, ev.progress];
           } else if (ev.type === 'solution') {
-            const payload = adapt(ev.payload as Payload);
-            collectedPayloads.push(payload);
+            // Each photo book joins the same basket as a book picked by hand.
+            this.basketSvc.addFromLive(adapt(ev.payload as Payload), line.candidate.isbn, line.candidate.title);
             completed++;
             sub.unsubscribe();
-            
             if (completed === total) {
-              // All streams done - merge results and solve
-              this.finishPhotoLive(collectedPayloads);
+              this.picked = null;
+              this.resetPlan();
+              void this.refresh().then(() => this.go('result/cheapest'));
             }
           } else {
             this.liveFailed = true;
@@ -740,47 +774,13 @@ export class AppComponent implements OnDestroy {
     });
   }
 
-  private finishPhotoLive(payloads: Payload[]): void {
-    // Merge all payloads into one combined snapshot
-    const allBooks: BookRow[] = [];
-    const allLiveOffers: LiveOffer[] = [];
-    for (const p of payloads) {
-      allBooks.push(...(p.books || []));
-      allLiveOffers.push(...(p.live_offers || []));
-    }
-    
-    // Build merged snapshot with all books, keep shops/other data from first payload
-    const firstPayload = payloads[0];
-    const merged: Payload = {
-      ...firstPayload,
-      books: allBooks,
-      live_offers: allLiveOffers,
-    };
-    
-    this.snapshot = merged;
-    this.basket = new Set(allBooks.map((b) => b.item_id));
-    this.picked = null;
-    this.pins = {};
-    this.selected = null;
-    this.dirty = false;
-    this.tab = 'cheapest';
-    
-    // Trigger one solve with all books in basket
-    void this.solve().then(() => {
-      this.go('result/cheapest');
-    });
-  }
-
   async solve(): Promise<void> {
     this.busy = true;
     this.note = '';
-    const body: Record<string, unknown> = this.fullBasket() ? {} : this.givenBody();
-    if (Object.keys(this.pins).length) body['edition_pins'] = this.pins;
-    if (this.selected) body['selected_store_ids'] = this.selected;
-    if (this.declaredMemberships.length) body['memberships'] = this.declaredMemberships;
-    const next = await this.post(this.pins, this.selected, body);
+    const next = await this.post(this.pins, this.selected);
     if (next) {
       this.data = next;
+      this.snapshot = this.snapshot ?? next;
       void this.loadWhy(next);
       this.dirty = false;
       if (next.degraded?.kind === 'one_shop' && this.route.name === 'result') this.tab = 'one';
@@ -857,33 +857,7 @@ export class AppComponent implements OnDestroy {
   }
 
   toggleBasket(id: string): void {
-    if (this.basket.has(id)) this.basket.delete(id);
-    else this.basket.add(id);
-    this.basket = new Set(this.basket);
-    this.dirty = true;
-    this.pins = {};
-    this.selected = null;
-  }
-
-  setQ(value: string): void {
-    this.q = value;
-  }
-
-  findBook(): void {
-    this.go('add');
-  }
-
-  get matches(): BookRow[] {
-    const needle = this.fold(this.q);
-    if (!needle) return [];
-    const digits = this.q.replace(/\D/g, '');
-    return (this.snapshot?.books || []).filter(
-      (b) => this.fold(b.title).includes(needle) || (digits.length >= 4 && (b.isbn13 || '').includes(digits)),
-    );
-  }
-
-  private fold(text: string): string {
-    return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    this.removeBook(id);
   }
 
   firstOffer(b: BookRow): OfferRow | undefined {

@@ -1,3 +1,4 @@
+import { demoSample } from './demo-sample';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { AppComponent } from './app.component';
 import { MESSAGES } from './messages';
@@ -75,6 +76,7 @@ const PAYLOAD = {
 
 async function showResult(lang: 'en' | 'ro') {
   const fixture: ComponentFixture<AppComponent> = TestBed.createComponent(AppComponent);
+  demoSample();
   await fixture.componentInstance.load();
   fixture.componentInstance.lang = lang;
   fixture.componentInstance.route = { name: 'result', arg: '' };
