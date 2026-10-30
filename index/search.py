@@ -100,6 +100,19 @@ def ensure_books_search(db: sqlite3.Connection) -> None:
         db.execute("""INSERT INTO books_search(rowid, title, author, isbn)
             SELECT rowid, COALESCE(title, ''), COALESCE(author_hint, ''), COALESCE(isbn, '')
             FROM books""")
+    else:
+        # Rows written while the triggers were absent stay invisible for ever:
+        # an UPDATE only rewrites an FTS row that already exists. Compare counts
+        # and rebuild when they drift, so a stale index heals on the next call.
+        books_n = db.execute("SELECT COUNT(*) FROM books").fetchone()[0]
+        fts_n = db.execute("SELECT COUNT(*) FROM books_search").fetchone()[0]
+        if books_n != fts_n:
+            db.execute("DROP TABLE IF EXISTS books_search")
+            db.execute("""CREATE VIRTUAL TABLE books_search USING fts5(
+                title, author, isbn, tokenize="unicode61 remove_diacritics 2")""")
+            db.execute("""INSERT INTO books_search(rowid, title, author, isbn)
+                SELECT rowid, COALESCE(title, ''), COALESCE(author_hint, ''), COALESCE(isbn, '')
+                FROM books""")
     db.execute("CREATE INDEX IF NOT EXISTS idx_books_isbn ON books(isbn)")
     current = db.execute(
         "SELECT sql FROM sqlite_master WHERE type='trigger' AND name IN ('books_fts_ai','books_fts_ad','books_fts_au')"
