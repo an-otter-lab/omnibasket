@@ -5,14 +5,14 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, Query, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from api.basket import excluded_for_unresolved_fees, load_locked, locked_shop_rows
 from api.cache import PageCache, open_seeded
-from api.rate_limit import PerIPRateLimitMiddleware
+from api.rate_limit import DailyPasteLimiter, PerIPRateLimitMiddleware
 from api.solve_service import (
     context_from_body,
     context_from_locked,
@@ -54,6 +54,10 @@ class StoreIn(BaseModel):
     read_at: str | None = None
 
 
+class InputIn(BaseModel):
+    raw_input: str = Field(default="", max_length=2000)
+
+
 class SolveIn(BaseModel):
     stores: list[StoreIn] | None = None
     items: list[ItemIn] | None = None
@@ -72,6 +76,7 @@ def create_app(db_path: Path | None = None) -> FastAPI:
     app.state.db_path = path
     from index.search import DB as INDEX_DB
     app.state.index_db_path = INDEX_DB
+    app.state.paste_limiter = DailyPasteLimiter()
 
     @app.get("/health")
     def health() -> dict:
@@ -82,6 +87,26 @@ def create_app(db_path: Path | None = None) -> FastAPI:
         from index.search import search
 
         return {"query": q, "results": search(q, limit=limit, db_path=app.state.index_db_path)}
+
+    @app.post("/input")
+    def input_route(body: InputIn, request: Request) -> JSONResponse:
+        from api import input_understanding as iu
+
+        ip = request.client.host if request.client else "unknown"
+        try:
+            result = iu.understand(
+                body.raw_input,
+                ip=ip,
+                limiter=app.state.paste_limiter,
+                index_db=app.state.index_db_path,
+            )
+        except iu.LimitTripped as exc:
+            return JSONResponse(
+                status_code=429,
+                content={"error": exc.reason, "message": "Too many pasted links today. Try again tomorrow."},
+                headers={"Retry-After": "86400"},
+            )
+        return JSONResponse(result)
 
     @app.post("/solve")
     def solve_route(
