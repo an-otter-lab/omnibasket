@@ -55,13 +55,19 @@ export class ShopReadsComponent {
   }
 
   get rows(): LiveOffer[] {
-    return sortOffers(this.offers);
+    const nc = new Set(this.notChecked.map((x) => this.key(x.shop)));
+    return sortOffers(this.offers).filter((o) => !nc.has(this.key(o.store_id)));
   }
 
   /** Shops nobody read for this book: an honest line and a link, never "no offer". */
   get notChecked(): { shop: string; url: string }[] {
-    const read = new Set(this.offers.map((o) => o.store_id.replace(/_/g, '-')));
-    return (this.pick?.other_shops || []).filter((x) => x.status === 'not_checked' && !read.has(x.shop.replace(/_/g, '-')));
+    // A shop that returned a price was read; one with only an empty row was not.
+    const read = new Set(this.offers.filter((o) => o.price_cents != null || o.ranked).map((o) => this.key(o.store_id)));
+    return (this.pick?.other_shops || []).filter((x) => x.status === 'not_checked' && !read.has(this.key(x.shop)));
+  }
+
+  private key(id: string): string {
+    return id.replace(/_/g, '-');
   }
 
   label(id: string): string {
