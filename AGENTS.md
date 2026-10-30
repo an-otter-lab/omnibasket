@@ -25,7 +25,7 @@ The plan being built is `docs/ops/omnibasket-hackathon-push-2026-10-29.md`. Wher
 
 ## Models and money
 - Every model call goes through `tools/meta_budget.py`. Commit `data/meta-spend.jsonl` after any model run.
-- Never call a model API directly; scripts in `tmp/` included. `config/spend-windows.json` holds dated caps that `meta_budget.py` enforces on every call: 30 Oct overnight, USD 10 of Meta credits at most (Adrian). Never edit a window or re-enable a disabled key; only Adrian lifts a cap.
+- Never call a model API directly; scripts in `tmp/` included. `config/spend-windows.json` holds dated caps that `meta_budget.py` enforces on every call: until submission (Wed 4 Nov), at most USD 10 of Meta credits per working day and none on Sat 31 Oct or Sun 1 Nov (Adrian, 30 Oct). Never edit a window or re-enable a disabled key; only Adrian lifts a cap.
 - Prices, ISBN checks, currency conversion and all money arithmetic are plain code, never a model.
 - Every number in a model's output is checked against captured data before it is shown.
 
