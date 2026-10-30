@@ -112,6 +112,27 @@ export interface Messages {
   membershipSourceTried: string;
   /** Twelve short month names, space-separated. */
   monthsShort: string;
+
+  // Feature 2: photo of a reading list.
+  photoButton: string;
+  photoAriaLabel: string;
+  photoReading: string;
+  /** {size} */
+  photoOversize: string;
+  photoReadFail: string;
+  photoNotFoundTitle: string;
+  /** {title} */
+  photoPickEdition: string;
+  photoPick: string;
+  /** {n} */
+  photoMatchedCount: string;
+  /** {n} */
+  photoAmbiguousCount: string;
+  /** {n} */
+  photoNotFoundCount: string;
+  photoContinue: string;
+  /** {size} */
+  photoMaxSize: string;
 }
 
 export const MESSAGES: Record<Lang, Messages> = {
@@ -191,6 +212,19 @@ export const MESSAGES: Record<Lang, Messages> = {
     membershipSourceRead: 'Source: {url}, read {date}',
     membershipSourceTried: 'Read tried: {url}, {date}',
     monthsShort: 'Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec',
+    photoButton: 'Photo',
+    photoAriaLabel: 'Take or choose a photo of a reading list',
+    photoReading: 'Reading the photo\u2026',
+    photoOversize: 'This photo is over {size}. Try a smaller one.',
+    photoReadFail: 'couldn\u2019t read this photo, try again',
+    photoNotFoundTitle: 'not found in these shops',
+    photoPickEdition: 'Which edition of {title}?',
+    photoPick: 'Pick',
+    photoMatchedCount: '{n} matched',
+    photoAmbiguousCount: '{n} to pick',
+    photoNotFoundCount: '{n} not found',
+    photoContinue: 'Add to basket',
+    photoMaxSize: '4\u202fMB',
   },
   ro: {
     deliveryGapShort: 'Mai ai {amount} lei până la livrarea gratuită la {shop}',
@@ -268,6 +302,19 @@ export const MESSAGES: Record<Lang, Messages> = {
     membershipSourceRead: 'Sursa: {url}, citită pe {date}',
     membershipSourceTried: 'Citire încercată: {url}, pe {date}',
     monthsShort: 'ian. feb. mar. apr. mai iun. iul. aug. sept. oct. nov. dec.',
+    photoButton: 'Fotografie',
+    photoAriaLabel: 'Fă sau alege o fotografie a unei liste de cărți',
+    photoReading: 'Citesc fotografia\u2026',
+    photoOversize: 'Fotografia depășește {size}. Încearcă una mai mică.',
+    photoReadFail: 'nu am putut citi fotografia, încearcă din nou',
+    photoNotFoundTitle: 'nu se găsesc în aceste magazine',
+    photoPickEdition: 'Care ediție din {title}?',
+    photoPick: 'Alege',
+    photoMatchedCount: '{n} potrivite',
+    photoAmbiguousCount: '{n} de ales',
+    photoNotFoundCount: '{n} negăsite',
+    photoContinue: 'Adaugă în coș',
+    photoMaxSize: '4\u202fMO',
   },
 };
 

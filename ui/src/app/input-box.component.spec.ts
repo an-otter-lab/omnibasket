@@ -17,14 +17,15 @@ describe('the one-box first screen', () => {
     expect(inputs[0].getAttribute('aria-label')).toBe('Type a title, author or ISBN, or paste a link.');
   });
 
-  it('makes the box the only primary action and the sample basket a quiet link after it', () => {
+  it('makes the box the primary action and the photo button a secondary action', () => {
     const fixture = TestBed.createComponent(AppComponent);
     fixture.detectChanges();
     const el: HTMLElement = fixture.nativeElement;
-    expect(el.querySelectorAll('input').length).toBe(1);
-    // One filled button on the screen: the box's own.
-    expect(el.querySelectorAll('.btn').length).toBe(1);
-    expect(el.querySelector('.btn')!.closest('form')).not.toBeNull();
+    expect(el.querySelectorAll('input[type="search"]').length).toBe(1);
+    // Two buttons on the screen: the box's own and the photo button.
+    expect(el.querySelectorAll('.btn').length).toBe(2);
+    expect(el.querySelector('form .btn')).not.toBeNull();
+    expect(el.querySelector('app-photo-input .btn')).not.toBeNull();
     const sample = el.querySelector<HTMLAnchorElement>('a[data-sample]')!;
     expect(sample.textContent!.trim()).toBe('Try a sample basket');
     expect(sample.classList.contains('btn')).toBeFalse();
