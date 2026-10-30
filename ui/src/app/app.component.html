@@ -81,9 +81,9 @@
 } @else if (route.name === 'entry') {
   <header class="hdr"><a class="brand" href="#/">{{ m.brand }}</a></header>
   <main class="wrap narrow first" data-screen="first">
-    <div class="entry-row">
+    <div class="entry-stack">
       <app-input-box [lang]="lang" (submitted)="submitBox($event)" />
-      <app-photo-input [lang]="lang" [busy]="photoState.kind === 'reading'" (photoEvent)="onPhotoEvent($event)" />
+      <app-photo-input [lang]="lang" mode="inline" [busy]="photoState.kind === 'reading'" (photoEvent)="onPhotoEvent($event)" />
     </div>
     @if (photoState.kind === 'oversize') {
       <p class="s note" role="alert">{{ photoOversizeText }}</p>
@@ -315,7 +315,15 @@
         @if (isLiveResult) {
           <app-shop-reads [lang]="lang" [offers]="liveOffers" [pick]="picked" [isbn]="liveIsbn || data.joined_isbn13 || null" [title]="data.joined_title || ''" />
           <hr class="sample-sep" />
-          <div class="sample-head" data-section="sample-basket"><h2 class="h2">{{ m.sampleTitle }}</h2><p class="s">{{ m.sampleNote }}</p></div>
+          <div class="sample-head" data-section="sample-basket">
+            <div class="between">
+              <h2 class="h2">{{ m.sampleTitle }}</h2>
+              @if (isDemoMode) {
+                <span class="stamp">{{ m.demoBadge }}</span>
+              }
+            </div>
+            <p class="s">{{ m.sampleNote }}</p>
+          </div>
         }
         @if (degraded !== 'one_book') {
           <div class="controls">

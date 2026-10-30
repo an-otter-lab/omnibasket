@@ -9,6 +9,11 @@ import { Lang, MESSAGES, fill } from './messages';
     <section class="reads" aria-labelledby="reads-h">
       <h2 class="k" id="reads-h">{{ m.readsTitle }}</h2>
       @if (title) { <p class="pt">{{ title }}</p> }
+      @if (noOfferAnywhere) {
+        <div class="box" role="alert" data-state="no-offer">
+          <p class="pt">{{ m.readsNoOfferAnywhere }}</p>
+        </div>
+      }
       <ul class="rlist">
         @for (o of rows; track o.store_id) {
           <li class="rrow" [attr.data-shop]="o.store_id" [attr.data-outcome]="kind(o)">
@@ -42,6 +47,10 @@ export class ShopReadsComponent {
 
   get rows(): LiveOffer[] {
     return sortOffers(this.offers);
+  }
+
+  get noOfferAnywhere(): boolean {
+    return this.offers.length === 0 || this.offers.every((o) => outcomeOf(o) === 'no_offer');
   }
 
   name(o: LiveOffer): string {

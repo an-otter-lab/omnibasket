@@ -22,10 +22,11 @@ describe('the one-box first screen', () => {
     fixture.detectChanges();
     const el: HTMLElement = fixture.nativeElement;
     expect(el.querySelectorAll('input[type="search"]').length).toBe(1);
-    // Two buttons on the screen: the box's own and the photo button.
-    expect(el.querySelectorAll('.btn').length).toBe(2);
+    // One primary button (find) and one secondary button (photo).
+    expect(el.querySelectorAll('.btn').length).toBe(1);
+    expect(el.querySelectorAll('.btn2').length).toBe(1);
     expect(el.querySelector('form .btn')).not.toBeNull();
-    expect(el.querySelector('app-photo-input .btn')).not.toBeNull();
+    expect(el.querySelector('app-photo-input .btn2')).not.toBeNull();
     const sample = el.querySelector<HTMLAnchorElement>('a[data-sample]')!;
     expect(sample.textContent!.trim()).toBe('Try a sample basket');
     expect(sample.classList.contains('btn')).toBeFalse();

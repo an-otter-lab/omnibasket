@@ -172,7 +172,11 @@ a.row:hover{color:var(--ink);background:var(--surface-2)}
 }
 
 /* Feature 1: the one box, the pick list, live progress, per-shop reads */
-.wrap.first{padding-top:20vh;gap:18px}
+.wrap.first{gap:18px}
+.entry-stack{display:flex;flex-direction:column;gap:16px}
+.entry-stack .onebox{gap:12px;flex-direction:column}
+.entry-stack .onebox .inp{flex:none}
+.entry-stack .btn2{display:inline-flex;align-items:center;justify-content:center;gap:8px}
 .onebox{display:flex;flex-direction:column;gap:12px}
 .big-inp{height:64px;font-size:15px;border-radius:20px;padding:0 12px}
 .sample{margin:0;text-align:center}
@@ -199,11 +203,12 @@ a.row:hover{color:var(--ink);background:var(--surface-2)}
 .rrow .rowr{flex-wrap:wrap;justify-content:flex-end}
 .s.warn{color:var(--warn)}
 @media (min-width:768px){
-  .wrap.first{padding-top:22vh}
   .onebox{flex-direction:row;align-items:stretch}
   .onebox .inp{flex:1}
   .big-inp{font-size:18px;padding:0 20px}
   .onebox .btn{min-height:64px;padding:0 32px}
+  .entry-stack .onebox{flex-direction:column}
+  .entry-stack .onebox .inp{flex:none}
 }
 @media (min-width:1200px){
   .reads{padding:20px 24px}
