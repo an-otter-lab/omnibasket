@@ -22,6 +22,7 @@ The plan being built is `docs/ops/omnibasket-hackathon-push-2026-10-29.md`. Wher
 - The user agent names Omnibasket and gives a contact URL. It never contains "spider" or "crawler".
 - Tests never touch the network: use fixtures and mocks.
 - Book covers come from Open Library only, never from shop images.
+- A shop's data file may declare that the shop sells only its own stock. Its live offers then count as sold by the shop (`direct`) toward its free-delivery threshold, with no per-page model read. Shops with marketplace sellers (eMAG, Amazon.de) stay `unknown` unless the page names the seller (Adrian, 30 Oct).
 
 ## Models and money
 - Every model call goes through `tools/meta_budget.py`. Commit `data/meta-spend.jsonl` after any model run.
