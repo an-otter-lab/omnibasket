@@ -187,8 +187,8 @@ describe('memberships in the result controls', () => {
   afterEach(() => localStorage.removeItem(MEMBERSHIPS_KEY));
 
   it('renders the toggles on the result and re-solves with the declared ids', async () => {
-    const fixture = TestBed.createComponent(AppComponent);
     demoSample();
+    const fixture = TestBed.createComponent(AppComponent);
     await fixture.componentInstance.load();
     fixture.componentInstance.route = { name: 'result', arg: '' };
     fixture.componentInstance.tab = 'cheapest';
@@ -202,8 +202,8 @@ describe('memberships in the result controls', () => {
 
   it('restores declared memberships from localStorage and drops unknown ids', async () => {
     localStorage.setItem(MEMBERSHIPS_KEY, JSON.stringify(['emag_genius', 'gone_club']));
-    const fixture = TestBed.createComponent(AppComponent);
     demoSample();
+    const fixture = TestBed.createComponent(AppComponent);
     await fixture.componentInstance.load();
     expect(fixture.componentInstance.declaredMemberships).toEqual(['emag_genius']);
     expect(bodies[bodies.length - 1]['memberships']).toEqual(['emag_genius']);

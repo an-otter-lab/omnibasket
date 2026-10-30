@@ -184,8 +184,8 @@ describe('buy list entry link on the result', () => {
   });
 
   it('links once to #/buy/<code> for the orders on screen', async () => {
-    const fixture = TestBed.createComponent(AppComponent);
     demoSample();
+    const fixture = TestBed.createComponent(AppComponent);
     await fixture.componentInstance.load();
     fixture.componentInstance.route = { name: 'result', arg: '' };
     fixture.componentInstance.tab = 'cheapest';
