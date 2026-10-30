@@ -113,10 +113,14 @@ def create_app(db_path: Path | None = None) -> FastAPI:
         return {"status": "ok"}
 
     @app.get("/search")
-    def search_route(q: str = Query(default=""), limit: int = Query(default=10, ge=1, le=100)) -> dict:
-        from index.search import search
+    def search_route(q: str = Query(default=""), limit: int = Query(default=10, ge=1, le=100)):
+        from index.search import SearchUnavailable, search
 
-        return {"query": q, "results": search(q, limit=limit, db_path=app.state.index_db_path)}
+        try:
+            results = search(q, limit=limit, db_path=app.state.index_db_path)
+        except SearchUnavailable:
+            return JSONResponse({"query": q, "results": [], "error": "search_unavailable"}, status_code=503)
+        return {"query": q, "results": results}
 
     @app.post("/photo")
     async def photo_route(request: Request) -> JSONResponse:

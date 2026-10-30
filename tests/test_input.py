@@ -22,6 +22,24 @@ MUSE = "api.muse_integration.meta_budget.guarded_post"
 TODAY = date(2026, 10, 30)
 
 
+class _OL:
+    """Open Library stand-in handed to the search as its opener (the guard blocks real sockets)."""
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return None
+
+    def read(self, n=-1):
+        return json.dumps({"docs": [{"title": "The Very Hungry Caterpillar", "author_name": ["Eric Carle"],
+                                     "cover_i": 1, "isbn": [HUNGRY]}]}).encode()
+
+
+def ol_opener(*_a, **_k):
+    return _OL()
+
+
 @pytest.fixture
 def index_db(tmp_path):
     path = tmp_path / "books.sqlite3"
@@ -166,7 +184,7 @@ def test_page_without_schema_gets_exactly_one_muse_call(index_db):
     fake, calls = _muse('{"title": "The Very Hungry Caterpillar", "author": "Eric Carle", "language": "en"}')
     html = "<html><body><h1>Our favourite reads</h1><p>Try The Very Hungry Caterpillar by Eric Carle.</p></body></html>"
     with patch(MUSE, fake), patch.object(iu, "fetch", lambda url, **k: _page(html, url)):
-        out = iu.understand("https://blog.example/post", index_db=index_db)
+        out = iu.understand("https://blog.example/post", index_db=index_db, opener=ol_opener)
     assert len(calls) == 1 and calls[0]["note"] == "input-page-book"
     assert "tools" not in calls[0]["body"]
     assert out["status"] in {"resolved", "candidates"}
@@ -196,7 +214,7 @@ def test_page_book_not_in_index_is_also_the_honest_message(index_db):
 def test_free_text_uses_identifying_prompt_and_spike_settings(index_db):
     fake, calls = _muse('{"title": "The Very Hungry Caterpillar", "author": "Eric Carle", "language": "en"}')
     with patch(MUSE, fake):
-        out = iu.understand("the caterpillar book", index_db=index_db)
+        out = iu.understand("the caterpillar book", index_db=index_db, opener=ol_opener)
     body = calls[0]["body"]
     assert "real title of the book you think they mean" in json.dumps(body)
     assert body["reasoning"] == {"effort": "low"}

@@ -7,6 +7,14 @@ export interface Candidate {
   isbn: string | null;
   cover_url: string | null;
   shops: { shop: string; url: string }[];
+  /** Shops that are not indexed: a link and an honest reason, never a price. */
+  other_shops?: { shop: string; url: string; status: string; reason: string }[];
+}
+
+/** Up to two capitals from the title, for the cover placeholder. */
+export function initials(title: string): string {
+  const words = (title || '').split(/\s+/).filter((w) => /^\p{L}/u.test(w) && w.length > 2);
+  return words.slice(0, 2).map((w) => w[0].toUpperCase()).join('') || '·';
 }
 
 export interface Progress {
