@@ -59,6 +59,13 @@ class InputIn(BaseModel):
     raw_input: str = Field(default="", max_length=2000)
 
 
+class WhyIn(BaseModel):
+    """The /solve payload and the shopper's language (ro or en)."""
+
+    payload: dict
+    lang: str = Field(default="en")
+
+
 class SolveIn(BaseModel):
     stores: list[StoreIn] | None = None
     items: list[ItemIn] | None = None
@@ -124,6 +131,14 @@ def create_app(db_path: Path | None = None) -> FastAPI:
         except SolverError as exc:
             return JSONResponse(status_code=400, content={"error": str(exc)})
         return JSONResponse(payload)
+
+    @app.post("/why")
+    def why_route(body: WhyIn) -> JSONResponse:
+        from api.why import explain
+
+        public = explain(body.payload, body.lang)
+        public.pop("reason", None)
+        return JSONResponse(public)
 
     @app.get("/events")
     async def events(
