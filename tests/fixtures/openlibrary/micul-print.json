@@ -1,0 +1,26 @@
+{
+ "docs": [
+  {
+   "key": "/works/OL2187777W",
+   "title": "Micul Print",
+   "author_name": [
+    "Şerban Foarţă"
+   ],
+   "cover_i": 6015935,
+   "first_publish_year": 2008
+  },
+  {
+   "key": "/works/OL43604826W",
+   "title": "Micul prinț (Cu explicații pentru copii și recenzie pentru adulți)",
+   "author_name": [
+    "Antoine de Saint-Exupéry"
+   ],
+   "cover_i": 15098909,
+   "isbn": [
+    "6060339220",
+    "9786060339229"
+   ],
+   "first_publish_year": 2025
+  }
+ ]
+}

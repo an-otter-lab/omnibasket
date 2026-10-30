@@ -1,0 +1,53 @@
+{
+ "publishers": [
+  "Egremont"
+ ],
+ "translated_from": [
+  {
+   "key": "/languages/eng"
+  }
+ ],
+ "subtitle": "Harry Potter and the Philosophers Stone",
+ "last_modified": {
+  "type": "/type/datetime",
+  "value": "2020-04-12T15:33:51.277526"
+ },
+ "title": "Harry Potter si piatra filozofala",
+ "series": [
+  "Harry Potter #1"
+ ],
+ "created": {
+  "type": "/type/datetime",
+  "value": "2008-10-18T20:22:39.751035"
+ },
+ "languages": [
+  {
+   "key": "/languages/rum"
+  }
+ ],
+ "isbn_10": [
+  "9735832941"
+ ],
+ "publish_date": "2001",
+ "publish_country": "rm ",
+ "key": "/books/OL18633382M",
+ "authors": [
+  {
+   "key": "/authors/OL23919A"
+  }
+ ],
+ "latest_revision": 4,
+ "publish_places": [
+  "Bucharest, Romania"
+ ],
+ "works": [
+  {
+   "key": "/works/OL82563W"
+  }
+ ],
+ "type": {
+  "key": "/type/edition"
+ },
+ "translation_of": "Harry Potter and the Philosopher's Stone",
+ "revision": 4
+}

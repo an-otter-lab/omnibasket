@@ -128,9 +128,9 @@ def test_known_shop_offer_boosts_but_does_not_override_relevance(db_path):
     # GENES (Open Library #3, carried by Books-Express) moves up one place; #1 stays #1.
     assert [r["title"] for r in res][:3] == ["Another", "Genes, girls and gamow", "Filler 0"]
     assert res[-1]["title"] == "Filler 5"  # far results stay in Open Library order
-    top_carried = run(db_path, "q2", FakeOL({"q2": [GENES, other]}))
+    top_carried = run(db_path, "genes girls and gamow", FakeOL({"genes girls and gamow": [GENES, other]}))
     assert top_carried[0]["title"] == "Genes, girls and gamow"
-    not_displaced = run(db_path, "q3", FakeOL({"q3": [other, GENES]}))
+    not_displaced = run(db_path, "another", FakeOL({"another": [other, GENES]}))
     assert not_displaced[0]["title"] == "Another"  # a shop never displaces the top result
 
 

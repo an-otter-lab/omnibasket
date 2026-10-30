@@ -220,12 +220,14 @@ def match_line(line: dict, db_path, opener=None) -> dict:
                 qualifiers[isbn] = (fallback[0], item)
 
     if len(exact) == 1:
-        return {**base, "status": "matched", "candidate": next(iter(exact.values()))}
+        item = next(iter(exact.values()))
+        return {**base, "status": "matched", "candidate": _canonical(item, line, db_path, opener)}
     if len(exact) > 1:
         picks = [exact[k] for k in sorted(exact)][:MAX_CANDIDATES]
         return {**base, "status": "ambiguous", "candidates": picks}
     if len(editions) == 1:
-        return {**base, "status": "matched", "candidate": next(iter(editions.values()))}
+        item = next(iter(editions.values()))
+        return {**base, "status": "matched", "candidate": _canonical(item, line, db_path, opener)}
     if len(editions) > 1:
         picks = [editions[k] for k in sorted(editions)][:MAX_CANDIDATES]
         return {**base, "status": "ambiguous", "candidates": picks}
@@ -239,11 +241,13 @@ ONLINE_LIMIT = 8
 ONLINE_SIMILARITY = 0.85
 
 
-def online_lookup(line: dict, db_path, opener=None, fetcher=None) -> list[dict]:
+def online_lookup(line: dict, db_path, opener=None, fetcher=None, isbn: str | None = None) -> list[dict]:
     """Resolve a read line through the same Open Library search the app uses for typed input.
 
     Returns candidate dicts (title, author, isbn, cover_url) whose title and author agree
     with the read line. An unreachable search is an empty answer, never an error.
+    With `isbn`, the catalogue is asked for that edition only: its own title and author
+    are the book's, not the shop index's lowercase slug.
     """
     from difflib import SequenceMatcher
 
@@ -257,7 +261,8 @@ def online_lookup(line: dict, db_path, opener=None, fetcher=None) -> list[dict]:
     if not want:
         return []
     found: dict[str, dict] = {}
-    for query in ([" ".join([title, author]).strip(), title] if author else [title]):
+    queries = [isbn] if isbn else ([" ".join([title, author]).strip(), title] if author else [title])
+    for query in queries:
         try:
             results = search(query, limit=ONLINE_LIMIT, db_path=db_path, opener=opener, fetcher=fetcher)
         except Exception:  # SearchUnavailable, network, bad db: nothing resolved
@@ -287,6 +292,26 @@ def online_lookup(line: dict, db_path, opener=None, fetcher=None) -> list[dict]:
     for c in ranked:
         c.pop("_exact"), c.pop("_shops")
     return ranked
+
+
+def _canonical(item: dict, line: dict, db_path, opener) -> dict:
+    """A matched candidate shown with the catalogue's proper-case title and author (R13).
+
+    The local index holds shop slugs ("the very hungry caterpillar s", no author); what
+    the shopper is buying has a real title and an author. The edition label stays, so a
+    special edition is still shown as one.
+    """
+    isbn = item.get("isbn")
+    if not isbn:
+        return item
+    for cand in online_lookup(line, db_path, opener, isbn=isbn):
+        if cand.get("isbn") == isbn:
+            return {
+                **item,
+                "title": cand.get("title") or item["title"],
+                "author": cand.get("author") or item.get("author"),
+            }
+    return item
 
 
 def resolve_online(line: dict, base: dict, db_path, opener=None) -> dict:

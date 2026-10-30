@@ -20,6 +20,8 @@ import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
+from matching import ranking
+
 log = logging.getLogger(__name__)
 # MATCH failures are recorded here so an empty result is not silent.
 MATCH_ERRORS: list[dict] = []
@@ -34,7 +36,6 @@ MIN_REQUEST_INTERVAL = 1.0  # polite: at most one Open Library request per secon
 LIBRIS_READS = 3  # product pages read per search (the top results only)
 LIBRIS_TIMEOUT = 4.0
 OL_FIELDS = "key,title,author_name,cover_i,isbn,first_publish_year"
-RO_PREFIXES = ("978606", "978973", "606", "973")  # Romanian ISBN registrant groups
 BOOST = 1.5  # a result with a known shop offer moves up one place; Open Library's top result stays first
 
 _rate_lock = threading.Lock()
@@ -102,10 +103,6 @@ def _filter_stop_words(tokens: list[str]) -> list[str]:
     """Remove stop words from token list, but keep at least one token."""
     filtered = [t for t in tokens if t not in STOP_WORDS]
     return filtered if filtered else tokens
-
-
-def _is_ro(isbn: str) -> bool:
-    return isbn.startswith(RO_PREFIXES)
 
 
 # ---------------------------------------------------------------- Open Library client
@@ -186,6 +183,57 @@ def _books_express(db: sqlite3.Connection, isbns: list[str]) -> dict[str, dict]:
         ):
             found.setdefault(isbn, {"shop": "books-express", "url": url})
     return found
+
+
+def _index_titles(db: sqlite3.Connection, isbns: list[str]) -> dict[str, str]:
+    """isbn -> the shop index's own title: evidence that a printing is a dialect or
+    special edition ("matilda in scots"), or a different book in a bundle."""
+    found: dict[str, str] = {}
+    for i in range(0, len(isbns), 400):
+        chunk = isbns[i:i + 400]
+        marks = ",".join("?" * len(chunk))
+        for isbn, title in db.execute(
+            f"SELECT isbn, title FROM books WHERE isbn IN ({marks}) AND title IS NOT NULL AND title != ''",
+            chunk,
+        ):
+            found.setdefault(isbn, title)
+    return found
+
+
+def _doc_isbns(doc: dict) -> list[str]:
+    """The work's ISBNs as ISBN-13, in the catalogue's order."""
+    isbns: list[str] = []
+    for raw in doc.get("isbn") or []:
+        i13 = to_isbn13(raw)
+        if i13 and i13 not in isbns:
+            isbns.append(i13)
+    return isbns[:400]
+
+
+def _rows(items: list[dict]) -> list[dict]:
+    """One row per book to show. The best work is shown as its Romanian edition and
+    then its English original when both exist and the titles differ: a parent here
+    may want either, and both are shoppable."""
+    rows: list[dict] = []
+    seen: set[tuple[str, str]] = set()
+    for it in items:
+        doc_title = it["doc"]["title"]
+        ro, en = it["ro_isbn"], it["en_isbn"]
+        authors = it["doc"].get("author_name") or []
+        if (it["pos"] == 0 and ro and en and ro != en and it["edition_title"]
+                and ranking.fold(it["edition_title"]) != ranking.fold(doc_title)):
+            rows.append({"item": it, "title": it["edition_title"], "isbn": ro, "cover_i": it["cover_i"]})
+            rows.append({"item": it, "title": doc_title, "isbn": en, "cover_i": it["doc"].get("cover_i")})
+            seen.add((ranking.fold(it["edition_title"]), ranking.fold(authors[0] if authors else "")))
+            seen.add((ranking.fold(doc_title), ranking.fold(authors[0] if authors else "")))
+            continue
+        title = it["edition_title"] if (it["isbn"] == ro and it["edition_title"]) else doc_title
+        key = (ranking.fold(title), ranking.fold(authors[0] if authors else ""))
+        if key in seen:
+            continue  # the same book, another catalogue record: one row is enough
+        seen.add(key)
+        rows.append({"item": it, "title": title, "isbn": it["isbn"], "cover_i": it["cover_i"]})
+    return rows
 
 
 def _fold(word: str) -> str:
@@ -314,41 +362,48 @@ def search(query: str, limit: int = 10, db_path: Path | str = DB, opener=None, f
         ensure_books_search(db)
         docs = _ol_search(db, asked or query, opener)[:limit]
 
-        items = []
-        for pos, doc in enumerate(docs):
-            isbns = []
-            for raw in doc.get("isbn") or []:
-                i13 = to_isbn13(raw)
-                if i13 and i13 not in isbns:
-                    isbns.append(i13)
-            if asked and asked not in isbns:
-                isbns.insert(0, asked)
-            items.append({"doc": doc, "pos": pos, "isbns": isbns[:400]})
+        # The catalogue's order is for its whole corpus: rank it for this shopper first,
+        # then choose the ISBN of each work (never a dialect or foreign printing).
+        order = list(range(len(docs))) if asked else ranking.rank_docs(query, docs)
+        ranked = [{"doc": docs[i], "isbns": _doc_isbns(docs[i])} for i in order]
+        if asked:
+            # An ISBN query names one edition: only the works that hold it answer it.
+            holding = [it for it in ranked if asked in it["isbns"]]
+            ranked = holding or ranked[:1]
+            for it in ranked:
+                if asked not in it["isbns"]:
+                    it["isbns"].insert(0, asked)
+        every_isbn = sorted({i for it in ranked for i in it["isbns"]})
+        index_titles = _index_titles(db, every_isbn)
+        carried = _books_express(db, every_isbn)
 
-        carried = _books_express(db, sorted({i for it in items for i in it["isbns"]}))
-        for it in items:
-            if asked and asked in it["isbns"]:
-                it["isbn"] = asked
-            else:
-                ro = [i for i in it["isbns"] if _is_ro(i)]
-                have = [i for i in it["isbns"] if i in carried]
-                it["isbn"] = (ro or have or it["isbns"] or [None])[0]
+        items = []
+        for it in ranked:
+            usable = it["isbns"] if asked else ranking.usable_isbns(it["isbns"], index_titles)
+            if it["isbns"] and not usable:
+                continue  # only foreign printings (978-89, 978-7, ...): not a book we can price
+            it["pos"] = len(items)
+            it["ro_isbn"] = asked or ranking.pick_isbn(usable, index_titles, "ro")
+            it["en_isbn"] = asked or ranking.pick_isbn(usable, index_titles, "en")
+            it["isbn"] = asked or it["ro_isbn"] or it["en_isbn"] or (usable[0] if usable else None)
             # Romanian edition: its own title and cover when Open Library has them.
             it["edition_title"] = None
             it["cover_i"] = it["doc"].get("cover_i")
-            if it["isbn"] and _is_ro(it["isbn"]) and it["pos"] < 3:
+            if it["isbn"] and ranking.is_ro_isbn(it["isbn"]) and it["pos"] < 3:
                 ed = _edition(db, it["isbn"], opener) or {}
                 if ed.get("title"):
                     it["edition_title"] = ed["title"]
                 if ed.get("covers"):
                     it["cover_i"] = next((c for c in ed["covers"] if isinstance(c, int) and c > 0), it["cover_i"])
+            items.append(it)
+
+        rows = _rows(items)
 
         # Libris: index title match, then ONE product-page read (cached) confirmed from schema.org.
         pending = {}
-        for it in items[:LIBRIS_READS]:
-            titles = [t for t in (it["edition_title"], it["doc"]["title"]) if t]
-            url = _libris_candidate(db, titles)
-            it["libris_url"] = url
+        for row in rows[:LIBRIS_READS]:
+            url = _libris_candidate(db, [row["title"]])
+            row["libris_url"] = url
             if url and _libris_cached(db, url) is None:
                 pending[url] = None
         if pending:
@@ -361,9 +416,10 @@ def search(query: str, limit: int = 10, db_path: Path | str = DB, opener=None, f
         db.commit()
 
         results = []
-        for it in items:
-            isbn = it["isbn"]
-            url = it.get("libris_url")
+        for row in rows:
+            it = row["item"]
+            isbn = row["isbn"]
+            url = row.get("libris_url")
             libris_isbn = None
             if url:
                 hit = _libris_cached(db, url)
@@ -376,13 +432,13 @@ def search(query: str, limit: int = 10, db_path: Path | str = DB, opener=None, f
                 shops.append(dict(carried[isbn]))
             if libris_isbn and libris_isbn == isbn:
                 shops.append({"shop": "libris", "url": url})
-            title = it["edition_title"] if (isbn == it["isbn"] and it["edition_title"]) else it["doc"]["title"]
+            title = row["title"] if isbn == row["isbn"] else it["doc"]["title"]
             authors = it["doc"].get("author_name") or []
             results.append({
                 "title": title,
                 "author": authors[0] if authors else None,
                 "isbn": isbn,
-                "cover_url": cover_url(it["cover_i"], isbn),
+                "cover_url": cover_url(row.get("cover_i"), isbn),
                 "shops": shops,
                 "other_shops": _other_shops(isbn, title),
                 "_rank": -1 if it["pos"] == 0 else it["pos"] - (BOOST if shops else 0),
