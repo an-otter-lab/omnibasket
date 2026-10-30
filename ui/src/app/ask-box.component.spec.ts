@@ -213,6 +213,25 @@ describe('Ask box', () => {
     expect(reply(f)).not.toMatch(/[{}]/);
   });
 
+  it('absent shop + impossible one order: both sentences, EN and RO; possible one order still applies', async () => {
+    const both = [{ reply_key: 'askNotInBasket', reply_args: { shop: 'Amazon.de' } }, { reply_key: 'askOneNotPossible', reply_args: {} }];
+    askReply = () => new Response(JSON.stringify({ status: 'unsupported', actions: [], reply_key: 'askNotInBasket', reply_args: { shop: 'Amazon.de' }, replies: both }), { status: 200 });
+    const f = await setup();
+    await ask(f, 'no Amazon, and keep it to one order');
+    const lines = () => Array.from(f.el.querySelectorAll('app-ask-box .ask-reply span')).map((s) => s.textContent);
+    expect(lines()).toEqual(['Amazon.de isn’t part of this basket.', 'One order isn’t possible: no single shop lists every book.']);
+    f.app.lang = 'ro';
+    f.fixture.detectChanges();
+    await ask(f, 'fără Amazon, și într-o singură comandă');
+    expect(lines()).toEqual(['Amazon.de nu face parte din acest coș.', 'O singură comandă nu este posibilă: niciun magazin nu are toate cărțile.']);
+    f.app.lang = 'en';
+    f.fixture.detectChanges();
+    askReply = () => ok([act('set_tab', { tab: 'one' })], [{ reply_key: 'askNotInBasket', reply_args: { shop: 'Amazon.de' } }, { reply_key: 'askDoneTab', reply_args: { tab: 'one' } }]);
+    await ask(f, 'no Amazon, and keep it to one order');
+    expect(f.app.tab).toBe('one');
+    expect(lines()).toEqual(['Amazon.de isn’t part of this basket.', 'Showing 1 order.']);
+  });
+
   it('429 -> askBusy; budget refusal -> askUnavailable', async () => {
     askReply = () => new Response('{}', { status: 429 });
     const f = await setup();

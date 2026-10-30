@@ -377,6 +377,7 @@ export interface Messages {
   askPinsNotPossible: string;
   askUnsupported: string;
   askNotInBasket: string;
+  askOneNotPossible: string;
   askUnavailable: string;
   askBusy: string;
   askMadeByMuse: string;
@@ -686,6 +687,7 @@ export const MESSAGES: Record<Lang, Messages> = {
     askPinsNotPossible: 'Those exact editions cannot be bought together, so I left your editions as they were.',
     askUnsupported: 'I can’t do that yet.',
     askNotInBasket: '{shop} isn’t part of this basket.',
+    askOneNotPossible: 'One order isn’t possible: no single shop lists every book.',
     askUnavailable: 'Ask is not available right now.',
     askBusy: 'Too many questions at once. Try again in a minute.',
     askMadeByMuse: 'Understood by Muse',
@@ -991,6 +993,7 @@ export const MESSAGES: Record<Lang, Messages> = {
     askPinsNotPossible: 'Edițiile exacte nu se pot cumpăra împreună, așa că am lăsat edițiile cum erau.',
     askUnsupported: 'Încă nu pot face asta.',
     askNotInBasket: '{shop} nu face parte din acest coș.',
+    askOneNotPossible: 'O singură comandă nu este posibilă: niciun magazin nu are toate cărțile.',
     askUnavailable: 'Întrebările nu sunt disponibile acum.',
     askBusy: 'Prea multe întrebări deodată. Încearcă din nou peste un minut.',
     askMadeByMuse: 'Înțeles de Muse',
