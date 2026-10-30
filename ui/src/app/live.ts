@@ -97,9 +97,43 @@ export type Parsed =
   | { kind: 'text'; text: string }
   | { kind: 'link'; url: string; isbn: string | null };
 
+export interface PastedBook {
+  isbn: string;
+  title: string | null;
+  author: string | null;
+  /** The pasted page itself: the shop's own listing is read for its price. */
+  listing: string | null;
+}
+
+/**
+ * The book a pasted shop link resolved to. POST /input read the page, so a link
+ * with no ISBN in its address still names a book (R3). Null when nothing resolved.
+ */
+export function pastedBook(body: unknown): PastedBook | null {
+  if (!body || typeof body !== 'object') return null;
+  const b = body as {
+    status?: string;
+    isbn13?: string | null;
+    structured_query?: { title?: string | null; author?: string | null } | null;
+    shop_context?: { shop_id?: string | null; product_url?: string | null } | null;
+    candidates?: { title?: string | null; author?: string | null; isbn13?: string | null }[] | null;
+  };
+  if (b.status !== 'resolved') return null;
+  const listing = b.shop_context?.shop_id && b.shop_context?.product_url ? b.shop_context.product_url : null;
+  const isbn = b.isbn13 ? toIsbn13(String(b.isbn13)) : null;
+  if (isbn) {
+    return { isbn, title: b.structured_query?.title ?? null, author: b.structured_query?.author ?? null, listing };
+  }
+  for (const c of b.candidates || []) {
+    const picked = c && c.isbn13 ? toIsbn13(String(c.isbn13)) : null;
+    if (picked) return { isbn: picked, title: c.title ?? null, author: c.author ?? null, listing };
+  }
+  return null;
+}
+
 /**
  * What the box was given. A link is not fetched here: the only thing read from it
- * is a valid ISBN printed in the address. No ISBN means "no book found".
+ * is a valid ISBN printed in the address. With no ISBN the caller asks POST /input.
  */
 export function parseInput(raw: string): Parsed {
   const text = raw.trim();

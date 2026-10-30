@@ -313,3 +313,45 @@ def test_not_ranked_reasons_cover_the_honest_cases():
     assert not_ranked_reason(row(status="failed", reason="fetch_refused: timeout"), priced, set()) == "fetch_refused"
     assert not_ranked_reason(row(status="failed", reason="no_price_extracted"), priced, set()) == "no_price_extracted"
     assert not_ranked_reason(row(store_id="emag", status="ok", price_cents=100), priced, {"emag"}) == "delivery_rules_not_read"
+
+
+MATILDA_RO = "9786303684956"
+MATILDA_PAGE = "https://www.libris.ro/carte/matilda-roald-dahl/48068482"
+
+
+def test_a_pasted_shop_page_is_read_as_that_shops_listing(tmp_path):
+    """R3: the index has no entry for this ISBN, but the pasted Libris page is the listing."""
+    fetched = []
+
+    def fetch(url):
+        fetched.append(url)
+        html = _html(MATILDA_RO, "84.18")
+        return GuardedFetch(url, 200, "text/html", html.encode(), html, 0)
+
+    with patch("api.offers.fetch", side_effect=fetch), patch("api.offers.lookup_product_url", side_effect=lambda *_: None):
+        res = _client(tmp_path).get(
+            "/events",
+            params={
+                "source": "live",
+                "isbn13": MATILDA_RO,
+                "item_id": "matilda",
+                "title": "Matilda",
+                "listing": MATILDA_PAGE,
+            },
+        )
+
+    assert res.status_code == 200
+    assert fetched == [MATILDA_PAGE]
+    sol = _parse(res.text)[-1][1]
+    libris = next(r for r in sol["live_offers"] if r["store_id"] == "libris")
+    assert (libris["status"], libris["price_cents"], libris["ranked"]) == ("ok", 8418, True)
+    assert libris["listing_url"] == MATILDA_PAGE
+
+
+def test_a_listing_that_is_not_a_shop_page_is_refused(tmp_path):
+    res = _client(tmp_path).get(
+        "/events",
+        params={"source": "live", "isbn13": MATILDA_RO, "item_id": "m", "listing": "https://www.example.com/a-book"},
+    )
+    assert res.status_code == 400
+    assert "not a shop page" in res.json()["error"]

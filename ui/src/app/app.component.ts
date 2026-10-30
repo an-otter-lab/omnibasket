@@ -10,7 +10,7 @@ import { EventsService, liveUrl } from './events.service';
 const PHOTO_ROUTE_ARG = 'photo';
 import { InputBoxComponent } from './input-box.component';
 import { LiveProgressComponent } from './live-progress.component';
-import { Candidate, LiveOffer, Progress, parseInput } from './live';
+import { Candidate, LiveOffer, Progress, parseInput, pastedBook } from './live';
 import { PickListComponent, PickState } from './pick-list.component';
 import { ShopReadsComponent } from './shop-reads.component';
 import { buyListFromOrders, encodeBuyList } from './buy-list';
@@ -284,6 +284,8 @@ export class AppComponent implements OnDestroy {
   picked: Candidate | null = null;
   liveIsbn = '';
   liveTitle = '';
+  /** The page the shopper pasted, read as that shop's listing for this ISBN. */
+  private pastedListing: { isbn: string; url: string } | null = null;
   progress: Progress[] = [];
   liveFailed = false;
   liveOffers: LiveOffer[] = [];
@@ -486,11 +488,12 @@ export class AppComponent implements OnDestroy {
       this.pickState = 'empty';
       return;
     }
+    this.pickState = 'searching';
     if (parsed.kind === 'link' && !parsed.isbn) {
-      this.pickState = 'link_failed';
+      // The address carries no ISBN, so let /input read the page it points at.
+      await this.resolvePastedLink(text, parsed.url);
       return;
     }
-    this.pickState = 'searching';
     const isbn = parsed.kind === 'isbn' || parsed.kind === 'link' ? parsed.isbn : null;
     try {
       const res = await fetch('/search?limit=5&q=' + encodeURIComponent(isbn || text));
@@ -509,8 +512,44 @@ export class AppComponent implements OnDestroy {
     }
   }
 
+  /**
+   * A pasted shop link without an ISBN: /input reads the page and names the book.
+   * A resolved link goes straight to its live prices; only nothing-found says so.
+   */
+  private async resolvePastedLink(text: string, url: string): Promise<void> {
+    let body: unknown = null;
+    let answered = false;
+    try {
+      const res = await fetch('/input', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ raw_input: url }),
+      });
+      answered = res.ok;
+      if (res.ok) body = await res.json();
+    } catch {
+      answered = false;
+    }
+    if (this.route.name !== 'find' || this.route.arg !== text) return;
+    if (!answered) {
+      this.pickState = 'error';
+      return;
+    }
+    const book = pastedBook(body);
+    if (!book) {
+      this.pickState = 'link_failed';
+      return;
+    }
+    this.picked = { title: book.title || '', author: book.author, isbn: book.isbn, cover_url: null, shops: [] };
+    this.pastedListing = book.listing ? { isbn: book.isbn, url: book.listing } : null;
+    this.liveTitle = book.title || '';
+    this.liveIsbn = '';
+    this.go('live/' + book.isbn);
+  }
+
   pickBook(c: Candidate): void {
     if (!c.isbn) return;
+    this.pastedListing = null;
     this.picked = c;
     this.liveTitle = c.title;
     this.liveIsbn = '';
@@ -526,10 +565,11 @@ export class AppComponent implements OnDestroy {
     this.stopStream();
     this.liveIsbn = isbn;
     this.liveTitle = title || fill(this.m.pickIsbnTitle, { isbn });
+    const listing = this.pastedListing?.isbn === isbn ? this.pastedListing.url : null;
     this.progress = [];
     this.liveFailed = false;
     this.liveOffers = [];
-    this.stream = this.events.open(liveUrl(isbn, 'book-' + isbn, this.liveTitle, this.picked?.isbn === isbn ? this.picked.author : null)).subscribe({
+    this.stream = this.events.open(liveUrl(isbn, 'book-' + isbn, this.liveTitle, this.picked?.isbn === isbn ? this.picked.author : null, listing)).subscribe({
       next: (ev) => {
         if (ev.type === 'progress') {
           this.progress = [...this.progress, ev.progress];
@@ -849,6 +889,7 @@ export class AppComponent implements OnDestroy {
     this.progress = [];
     this.liveFailed = false;
     this.liveOffers = [];
+    this.pastedListing = null;
     this.liveIsbn = '';
     this.liveTitle = count(this.lang, resolved.length, 'photoBooks');
 

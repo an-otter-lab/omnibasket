@@ -244,6 +244,7 @@ def create_app(db_path: Path | None = None) -> FastAPI:
         title: str | None = Query(default=None),
         author: str | None = Query(default=None),
         stores: str | None = Query(default=None, description="comma list of shop ids; default is every indexed shop"),
+        listing: str | None = Query(default=None, description="a pasted shop page to read instead of the index entry"),
     ):
         if source == "live":
             from api.offers import default_live_stores, valid_live_stores
@@ -259,6 +260,15 @@ def create_app(db_path: Path | None = None) -> FastAPI:
             bad = [s for s in chosen if s not in valid_live_stores()]
             if bad or not chosen:
                 return JSONResponse(status_code=400, content={"error": "unknown shops: " + ", ".join(bad or ["(none)"])})
+            listing_urls = None
+            if listing:
+                from api.input_understanding import indexed_shop_for
+
+                pasted = indexed_shop_for(listing)
+                if pasted is None:
+                    return JSONResponse(status_code=400, content={"error": "listing is not a shop page"})
+                if pasted.id in chosen:
+                    listing_urls = {pasted.id: listing}
             book_id = (item_id or "").strip() or "book-" + isbn
             book_title = (title or "").strip() or book_id
 
@@ -276,6 +286,7 @@ def create_app(db_path: Path | None = None) -> FastAPI:
                         return await read_offers_parallel(
                             chosen, isbn, book_id, _cache(app), progress_callback,
                             title=(title or None), author=(author or None),
+                            listing_urls=listing_urls,
                         )
                     finally:
                         await progress_queue.put(None)
