@@ -1,5 +1,7 @@
 import { NgTemplateOutlet } from '@angular/common';
 import { Component, HostListener } from '@angular/core';
+import { BuyListComponent } from './buy-list.component';
+import { buyListFromOrders, encodeBuyList } from './buy-list';
 import { Lang, MESSAGES, fill } from './messages';
 
 type Tab = 'cheapest' | 'one' | 'custom';
@@ -182,7 +184,7 @@ interface Payload {
 }
 
 interface Route {
-  name: 'entry' | 'add' | 'result' | 'parcel' | 'book' | 'editions' | 'shop';
+  name: 'entry' | 'add' | 'result' | 'parcel' | 'book' | 'editions' | 'shop' | 'buy';
   arg: string;
 }
 
@@ -208,7 +210,7 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 
 @Component({
   selector: 'app-root',
-  imports: [NgTemplateOutlet],
+  imports: [NgTemplateOutlet, BuyListComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.css',
 })
@@ -254,6 +256,7 @@ export class AppComponent {
     else if (name === 'book') this.route = { name: 'book', arg };
     else if (name === 'editions') this.route = { name: 'editions', arg: '' };
     else if (name === 'shop') this.route = { name: 'shop', arg };
+    else if (name === 'buy') this.route = { name: 'buy', arg };
     else this.route = { name: 'entry', arg: '' };
   }
 
@@ -481,6 +484,15 @@ export class AppComponent {
 
   lei(cents: number | null | undefined): string {
     return this.money(cents) + ' lei';
+  }
+
+  // Feature 6: the entry link to the buy list for the orders on screen.
+  get buyEntryText(): string {
+    return MESSAGES[this.lang].buyListEntry;
+  }
+
+  buyHref(): string {
+    return '#/buy/' + encodeBuyList(buyListFromOrders(this.orders));
   }
 
   // The free-delivery gap line, straight from the payload. '' hides it.

@@ -74,7 +74,9 @@
   </header>
 </ng-template>
 
-@if (loadError) {
+@if (route.name === 'buy') {
+  <app-buy-list [code]="route.arg" [lang]="lang" />
+} @else if (loadError) {
   <header class="hdr"><a class="brand" href="#/">omnibasket</a></header>
   <main class="wrap">
     <h1 class="h2">We couldn’t load the shops.</h1>
@@ -480,6 +482,7 @@
             }
           }
         }
+        @if (orders.length) { <p class="s buyentry"><a class="lnk" [href]="buyHref()">{{ buyEntryText }}</a></p> }
       </main>
 
       @if (route.name === 'editions') {
