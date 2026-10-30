@@ -287,6 +287,8 @@ export interface Messages {
   editionsPinned: string;
   editionsAny: string;
   oneBookTitle: string;
+  /** {priced} {total} */
+  oneOfBooksPricedTitle: string;
   /** {amount} */
   oneBookPrice: string;
   /** {amount} */
@@ -587,6 +589,8 @@ export const MESSAGES: Record<Lang, Messages> = {
     editionsPinned: '{n} pinned',
     editionsAny: 'any',
     oneBookTitle: 'One book, one order. Which shop?',
+    /** {priced} {total} */
+    oneOfBooksPricedTitle: '{priced} of {total} books priced. Which shop?',
     oneBookPrice: 'book {amount} · delivery and fees included in the total',
     plusDelivery: '{amount} + delivery',
     notRankedBook: 'Not ranked: delivery not printed. Book {amount}, no total.',
@@ -869,6 +873,8 @@ export const MESSAGES: Record<Lang, Messages> = {
     editionsPinned: '{n} fixate',
     editionsAny: 'oricare',
     oneBookTitle: 'O carte, o comandă. Care magazin?',
+    /** {priced} {total} */
+    oneOfBooksPricedTitle: '{priced} din {total} cărți cu preț. Care magazin?',
     oneBookPrice: 'carte {amount} · livrarea și taxele sunt incluse în total',
     plusDelivery: '{amount} + livrare',
     notRankedBook: 'Neclasat: livrarea nu e afișată. Carte {amount}, fără total.',

@@ -948,6 +948,15 @@ export class AppComponent implements OnDestroy {
     return this.data?.degraded?.kind ?? null;
   }
 
+  /** Heading for one_book degraded state: honest about priced vs total basket books. */
+  get oneBookHeading(): string {
+    if (this.degraded !== 'one_book') return '';
+    const priced = this.data?.books.filter(b => b.shops.some(s => s.price_cents != null)).length ?? 0;
+    const total = this.basket.size;
+    if (total <= 1) return this.m.oneBookTitle;
+    return this.t('oneOfBooksPricedTitle', { priced, total });
+  }
+
   get orders(): Order[] {
     const d = this.data;
     if (!d) return [];
