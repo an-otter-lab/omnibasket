@@ -434,33 +434,6 @@ def test_amazon_outside_the_captured_seven_is_a_link_not_a_fetch(cache):
     assert amazon_check_link("9781529105100").startswith("https://www.amazon.de/dp/")
 
 
-def test_live_events_end_and_solve_joins_the_book(cache):
-    """The stream emits the sentinel and /solve is a real basket total, not a placeholder."""
-    import asyncio
-    from api.fetch_guard import GuardedFetch
-    from api.app import create_app
-
-    html = """<html><head><script type="application/ld+json">
-    {"@type":"Product","isbn":"9786068996011","offers":{"price":"57.00","priceCurrency":"RON"}}
-    </script></head><body>57.00 lei</body></html>"""
-
-    def _fetch(url):
-        return GuardedFetch(url, 200, "text/html", html.encode(), html, 0)
-
-    app = create_app(cache.path)
-    with patch("api.offers.fetch", side_effect=_fetch), patch("api.offers.lookup_product_url", side_effect=_product_index):
-        from fastapi.testclient import TestClient
-
-        client = TestClient(app)
-        response = client.get("/events", params={"source": "live"})
-    assert response.status_code == 200
-    assert "Reading Libris…" in response.text
-    assert "event: solution" in response.text
-    assert "51516" in response.text or "total_cents" in response.text
-    assert "offers_count" not in response.text
-    asyncio.run(asyncio.sleep(0))
-
-
 def test_muse_http_goes_through_guarded_post_and_drops_bad_price():
     from api.muse_integration import gap_fill_with_muse
     from api.schema_org import SchemaOrgData

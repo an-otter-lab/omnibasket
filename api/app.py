@@ -98,32 +98,49 @@ def create_app(db_path: Path | None = None) -> FastAPI:
         return JSONResponse(payload)
 
     @app.get("/events")
-    async def events(source: str = Query(default="cache")) -> StreamingResponse:
+    async def events(
+        source: str = Query(default="cache"),
+        isbn13: str | None = Query(default=None),
+        item_id: str | None = Query(default=None),
+        title: str | None = Query(default=None),
+        stores: str | None = Query(default=None, description="comma list of shop ids; default is every indexed shop"),
+    ):
         if source == "live":
-            # Live read mode: stream progress events during parallel reads
+            from api.offers import default_live_stores, valid_live_stores
+            from matching.isbn import normalize_isbn13
+
+            isbn = normalize_isbn13(isbn13)
+            if isbn is None:
+                return JSONResponse(
+                    status_code=400,
+                    content={"error": "isbn13 is required and must be a valid ISBN-13 (check digit)"},
+                )
+            chosen = [s.strip() for s in stores.split(",") if s.strip()] if stores else default_live_stores()
+            bad = [s for s in chosen if s not in valid_live_stores()]
+            if bad or not chosen:
+                return JSONResponse(status_code=400, content={"error": "unknown shops: " + ", ".join(bad or ["(none)"])})
+            book_id = (item_id or "").strip() or "book-" + isbn
+            book_title = (title or "").strip() or book_id
+
             async def generate_live():
                 from api.offers import read_offers_parallel, solve_with_live_offers, ReadProgress
                 import asyncio
-                
-                store_ids = ["libris", "bookzone", "emag", "amazon_de"]
-                isbn13 = "9786068996011"
-                item_id = "ghici"
-                
+
                 progress_queue: asyncio.Queue[ReadProgress | None] = asyncio.Queue()
-                
+
                 async def progress_callback(progress: ReadProgress):
                     await progress_queue.put(progress)
-                
+
                 async def _run():
                     try:
                         return await read_offers_parallel(
-                            store_ids, isbn13, item_id, _cache(app), progress_callback
+                            chosen, isbn, book_id, _cache(app), progress_callback
                         )
                     finally:
                         await progress_queue.put(None)
-                
+
                 read_task = asyncio.create_task(_run())
-                
+
                 while True:
                     progress = await progress_queue.get()
                     if progress is None:
@@ -137,15 +154,15 @@ def create_app(db_path: Path | None = None) -> FastAPI:
                             "message": progress.message,
                         },
                     )
-                
+
                 offers = await read_task
                 try:
-                    payload = solve_with_live_offers(offers, item_id, "Ghici cât de mult te iubesc", isbn13)
+                    payload = solve_with_live_offers(offers, book_id, book_title, isbn)
                 except SolverError as exc:
                     yield _sse("error", {"error": str(exc)})
                     return
                 yield _sse("solution", payload)
-            
+
             return StreamingResponse(generate_live(), media_type="text/event-stream")
         else:
             # Cache mode: existing behavior
@@ -238,7 +255,9 @@ def _cached_solution(
 
     _day, _currency, stores, _items, pages = load_locked()
     if source != "cache":
-        raise SolverError("live solve is not the demo path; use source=cache")
+        raise SolverError(
+            "POST /solve serves the cache only; a live solve runs over GET /events?source=live&isbn13=..."
+        )
     items, events = offers_from_cache(_cache(app), pages, source="cache")
     items = _drop_excluded_store_offers(stores, items)
     payload = solution_payload(

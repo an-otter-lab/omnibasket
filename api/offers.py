@@ -92,6 +92,21 @@ _SEARCH_BITS = ("cauta", "cautare", "/search", "?q=", "/s?k=")
 _INDEX_SHOP = {"books_express": "books-express"}
 
 
+def _indexed_profiles() -> list[ShopProfile]:
+    from shop_profiles.loader import load_all
+
+    return [p for p in load_all(ROOT / "data" / "shops") if p.domain]
+
+
+def default_live_stores() -> list[str]:
+    """Every indexed shop with a profile in data/shops (paste-only has no domain)."""
+    return [p.id for p in _indexed_profiles()]
+
+
+def valid_live_stores() -> set[str]:
+    return set(default_live_stores())
+
+
 def shop_label(store_id: str) -> str:
     return SHOP_LABEL.get(store_id, store_id)
 
@@ -466,7 +481,7 @@ async def _fetch_and_extract(
     # Gap-fill with Muse if needed
     muse_result = None
     if not schema_org.has_price or not schema_org.has_isbn:
-        muse_result = gap_fill_with_muse(result.text, schema_org)
+        muse_result = await asyncio.to_thread(gap_fill_with_muse, result.text, schema_org)
     
     # Build offer from extracted data
     price_cents = schema_org.price_cents
