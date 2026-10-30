@@ -7,15 +7,16 @@ from api.offers import read_offers_parallel, shop_is_indexed
 from api.cache import PageCache
 
 
-def test_shop_is_indexed():
+def test_shop_is_indexed(indexed_shops_db):
     """Verify which shops are indexed in the database."""
-    assert shop_is_indexed("libris") is True
-    assert shop_is_indexed("books_express") is True
-    assert shop_is_indexed("bookzone") is False
-    assert shop_is_indexed("emag") is False
+    db = indexed_shops_db
+    assert shop_is_indexed("libris", db) is True
+    assert shop_is_indexed("books_express", db) is True
+    assert shop_is_indexed("bookzone", db) is False
+    assert shop_is_indexed("emag", db) is False
 
 
-def test_non_indexed_shops_return_not_checked(tmp_path):
+def test_non_indexed_shops_return_not_checked(tmp_path, indexed_shops_db):
     """Non-indexed shops (bookzone, emag) must return not_checked, not skipped."""
     cache = PageCache(tmp_path / "cache.sqlite")
     
@@ -58,7 +59,7 @@ def test_non_indexed_shops_return_not_checked(tmp_path):
     # It should be skipped (no match) or failed, but not not_checked
 
 
-def test_indexed_shop_with_no_match_returns_skipped(tmp_path):
+def test_indexed_shop_with_no_match_returns_skipped(tmp_path, indexed_shops_db):
     """Indexed shops that were read but found no match return skipped, not not_checked."""
     cache = PageCache(tmp_path / "cache.sqlite")
     
