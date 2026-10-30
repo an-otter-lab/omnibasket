@@ -76,7 +76,8 @@ def test_non_ghici_isbn_is_read_joined_and_solved(tmp_path):
     assert any(row["item_id"] == "hp" for row in sol["assignment"])
     assert sol["total_cents"] != 51516  # the basket grew
     assert all(r["isbn13"] == HARRY for n, r in events if n == "read_progress")
-    assert GHICI not in res.text
+    assert all(GHICI not in json.dumps(d) for n, d in events if n == "read_progress")
+    assert sol["joined_isbn13"] != GHICI
 
 
 def test_read_progress_payload_shape_and_labels(tmp_path):
@@ -149,3 +150,125 @@ def test_muse_read_runs_off_the_event_loop_thread(tmp_path):
     with patch("api.offers.fetch", side_effect=fetch), patch("api.offers.gap_fill_with_muse", side_effect=slow_muse):
         read_offers_sync(["libris"], HARRY, "hp", cache, index_lookup=_index)
     assert seen["thread"] != threading.main_thread().name
+
+
+def _priced_fetch(prices):
+    def fetch(url):
+        price = next(p for host, p in prices.items() if host in url)
+        html = _html(HARRY, price)
+        return GuardedFetch(url, 200, "text/html", html.encode(), html, 0)
+
+    return fetch
+
+
+def _live_priced(client, prices, **params):
+    with patch("api.offers.fetch", side_effect=_priced_fetch(prices)), patch(
+        "api.offers.lookup_product_url", side_effect=_index
+    ):
+        return client.get("/events", params={"source": "live", "isbn13": HARRY, **params})
+
+
+def test_books_express_wins_when_it_is_cheaper_for_the_joined_book(tmp_path):
+    """Fails if offers from shops outside the locked store list are still dropped."""
+    prices = {"libris": "80.00", "bookzone": "90.00", "books-express": "30.00", "emag": "25.00"}
+    res = _live_priced(_client(tmp_path), prices, item_id="hp", title="Harry Potter", stores="libris,bookzone,books_express,emag")
+    sol = _parse(res.text)[-1][1]
+    row = next(r for r in sol["assignment"] if r["item_id"] == "hp")
+    assert row["store_id"] == "books_express"
+    assert row["price_cents"] == 3000
+    assert any(s["store_id"] == "books_express" for s in sol["stores"])
+    # eMAG's fees are unprinted, so it is listed as excluded rather than priced.
+    assert any(e["id"] == "emag" for e in sol["excluded_stores"])
+    assert all(r["store_id"] != "emag" for r in sol["assignment"])
+
+
+def test_joined_book_row_carries_title_and_isbn(tmp_path):
+    """Fails if books[] shows the raw item id and a null ISBN."""
+    res = _live(_client(tmp_path), isbn13=HARRY, item_id="hp", title="Harry Potter")
+    sol = _parse(res.text)[-1][1]
+    row = next(b for b in sol["books"] if b["item_id"] == "hp")
+    assert row["title"] == "Harry Potter"
+    assert row["isbn13"] == HARRY
+    assert sol["joined_title"] == "Harry Potter" and sol["joined_isbn13"] == HARRY
+
+
+def test_progress_labels_use_display_names(tmp_path):
+    from api.offers import read_offers_parallel
+    import asyncio
+
+    messages = []
+
+    async def cb(p):
+        messages.append(p.message)
+
+    cache = PageCache(tmp_path / "l.sqlite")
+
+    def refuse(url):
+        from api.fetch_guard import FetchRefused
+
+        raise FetchRefused("read")
+
+    page = _html(HARRY, "40.00")
+    with patch("api.offers.fetch", side_effect=lambda url: GuardedFetch(url, 200, "text/html", page.encode(), page, 0)):
+        asyncio.run(read_offers_parallel(["emag", "amazon_de"], HARRY, "hp", cache, cb, index_lookup=_index))
+    with patch("api.offers.fetch", side_effect=refuse):
+        asyncio.run(read_offers_parallel(["libris"], HARRY, "hp2", cache, cb, index_lookup=_index))
+    # second pass on the first book is served from the page cache
+    with patch("api.offers.fetch") as fetch:
+        asyncio.run(read_offers_parallel(["libris"], HARRY, "hp", cache, cb, index_lookup=_index))
+    assert "eMAG: ok" in messages
+    assert "Libris: read failed" in messages
+    assert "Amazon.de: not read live" in messages
+    assert "Reading Amazon.de\u2026" not in messages
+    assert not any(m.startswith(("emag", "libris", "bookzone")) for m in messages)
+
+
+def test_cache_hit_label(tmp_path):
+    from api.offers import read_offers_sync
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+
+    cache = PageCache(tmp_path / "h.sqlite")
+    day = datetime.now(ZoneInfo("Europe/Bucharest")).strftime("%Y-%m-%d")
+    cache.put({"store_id": "libris", "isbn13": HARRY, "item_id": "hp", "day": day,
+               "page_text": _html(HARRY, "40.00"), "model_json": None, "provenance": {}})
+    import asyncio
+    from api.offers import read_offers_parallel
+
+    messages = []
+
+    async def cb(p):
+        messages.append(p.message)
+
+    with patch("api.offers.fetch") as fetch:
+        asyncio.run(read_offers_parallel(["libris"], HARRY, "hp", cache, cb, index_lookup=_index))
+    assert messages == ["Libris: read from cache"]
+    assert fetch.call_count == 0
+
+
+def test_post_solve_live_with_a_body_gets_the_same_refusal(tmp_path):
+    client = _client(tmp_path)
+    plain = client.post("/solve", params={"source": "live"})
+    body = client.post(
+        "/solve",
+        json={
+            "source": "live",
+            "stores": [{"id": "a", "currency": "RON", "free_shipping_threshold_cents": 100,
+                        "shipping_fee_cents": 10, "per_order_fee_cents": 0}],
+            "items": [{"id": "b", "offers": [{"store_id": "a", "price_cents": 100, "seller_certainty": "direct"}]}],
+        },
+    )
+    assert plain.status_code == body.status_code == 400
+    assert plain.json()["error"] == body.json()["error"]
+    assert "GET /events?source=live&isbn13=" in body.json()["error"]
+
+
+def test_ro_v1_locked_solve_is_untouched(tmp_path):
+    """The sample basket stays 51516 / 55873 and is not changed by the live join code."""
+    sol = _client(tmp_path).post("/solve", params={"source": "cache"}).json()
+    assert sol["total_cents"] == 51516
+    assert sol["single_store_baseline"]["total_cents"] == 55873
+    from api.offers import solve_with_live_offers
+
+    unchanged = solve_with_live_offers([], "none", None, None)
+    assert unchanged["total_cents"] == 51516

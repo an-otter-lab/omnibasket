@@ -208,6 +208,16 @@ def _cache(app: FastAPI) -> PageCache:
     return cache
 
 
+LIVE_SOLVE_REFUSAL = (
+    "POST /solve serves the cache only; a live solve runs over GET /events?source=live&isbn13=..."
+)
+
+
+def _refuse_live(source: str) -> None:
+    if source == "live":
+        raise SolverError(LIVE_SOLVE_REFUSAL)
+
+
 def _solve(
     app: FastAPI,
     body: SolveIn | None,
@@ -216,6 +226,7 @@ def _solve(
     require_romanian_store: bool = False,
 ) -> dict:
     if body and body.stores and body.items:
+        _refuse_live(source)
         if source not in {"given", "cache"}:
             raise SolverError(f"unsupported solve source {source!r}")
         # A caller-supplied basket is arithmetic only. It does not fetch pages.
@@ -255,9 +266,8 @@ def _cached_solution(
 
     _day, _currency, stores, _items, pages = load_locked()
     if source != "cache":
-        raise SolverError(
-            "POST /solve serves the cache only; a live solve runs over GET /events?source=live&isbn13=..."
-        )
+        _refuse_live(source)
+        raise SolverError(f"unsupported solve source {source!r}")
     items, events = offers_from_cache(_cache(app), pages, source="cache")
     items = _drop_excluded_store_offers(stores, items)
     payload = solution_payload(

@@ -113,6 +113,10 @@ def shop_label(store_id: str) -> str:
 
 def progress_message(store_id: str, status: str) -> str:
     name = shop_label(store_id)
+    if status == "cache":
+        return f"{name}: read from cache"
+    if status == "failed" and store_id != "emag":
+        return f"{name}: read failed"
     if store_id == "emag" and status == "failed":
         return "eMAG couldn't be read, skipped"
     if store_id == "amazon_de" and status in {"skipped", "ok"}:
@@ -305,7 +309,7 @@ async def _read_one_page(
                     store_id=store_id,
                     isbn13=isbn13,
                     status=offer.status,
-                    message=f"{store_id}: cache hit",
+                    message=progress_message(store_id, "cache"),
                 ))
             return offer
     
@@ -326,18 +330,9 @@ async def _read_one_page(
                 store_id=store_id,
                 isbn13=isbn13,
                 status="failed",
-                message=f"{store_id}: unknown shop",
+                message=f"{shop_label(store_id)}: unknown shop",
             ))
         return offer
-    
-    # Emit reading progress
-    if progress_callback:
-        await _emit_progress(progress_callback, ReadProgress(
-            store_id=store_id,
-            isbn13=isbn13,
-            status="reading",
-            message=progress_message(store_id, "reading"),
-        ))
     
     # Special handling for Amazon.de (never read live)
     if store_id == "amazon_de":
@@ -359,6 +354,16 @@ async def _read_one_page(
                 message="Amazon.de: not read live",
             ))
         return offer
+    
+    # Amazon.de returned above, so it never announces a read.
+    # Emit reading progress
+    if progress_callback:
+        await _emit_progress(progress_callback, ReadProgress(
+            store_id=store_id,
+            isbn13=isbn13,
+            status="reading",
+            message=progress_message(store_id, "reading"),
+        ))
     
     # Special handling for eMAG (one honest try)
     if store_id == "emag":
@@ -382,7 +387,7 @@ async def _read_one_page(
                         store_id=store_id,
                         isbn13=isbn13,
                         status="ok",
-                        message=f"{store_id}: ok",
+                        message=progress_message(store_id, "ok"),
                     ))
             return offer
         except Exception as e:
@@ -433,7 +438,7 @@ async def _read_one_page(
                 store_id=store_id,
                 isbn13=isbn13,
                 status="failed",
-                message=f"{store_id}: read failed",
+                message=progress_message(store_id, "failed"),
             ))
         return offer
 
@@ -559,14 +564,80 @@ async def _emit_progress(callback: ProgressCallback, progress: ReadProgress) -> 
         await result
 
 
+def store_from_profile(store_id: str):
+    """Solver Store from a shop profile's printed rules, or None when a fee is unprinted.
+
+    A percent-based fee (eMAG) or a missing threshold is not turned into a number.
+    """
+    from solver.optimize import store_if_fees_resolved
+
+    profile = _load_shop_profile(store_id)
+    if profile is None or not profile.shipping_rules or profile.currency != "RON":
+        return None
+    rules = profile.shipping_rules
+    if any(r.get("kind") == "operational_fee_percent" for r in rules):
+        return None
+
+    def cents(kind):
+        for rule in rules:
+            if rule.get("kind") == kind and rule.get("amount") is not None:
+                return int(round(float(rule["amount"]) * 100))
+        return None
+
+    below = cents("below_threshold_fee")
+    if below is None:
+        below = cents("below_threshold_fee_floor")
+    per_order = cents("per_order_fee")
+    return store_if_fees_resolved(
+        {
+            "id": store_id,
+            "currency": profile.currency,
+            "free_shipping_threshold_cents": cents("free_threshold"),
+            "shipping_fee_cents": below,
+            "per_order_fee_cents": 0 if per_order is None else per_order,
+        }
+    )
+
+
 def solve_with_live_offers(offers: list[OfferRead], item_id: str, title: str | None, isbn13: str | None) -> dict:
-    """Join the chosen book onto the locked basket and return a real /solve payload."""
-    from api.basket import load_locked
-    from api.solve_service import solution_payload
+    """Join the chosen book onto the locked basket and return a real /solve payload.
+
+    The joined book may be assigned to any shop that returned an offer and whose
+    printed fees resolve (Libris, Bookzone, Books-Express, Amazon.de). A shop whose
+    fees are unprinted (eMAG) is listed in excluded_stores, not priced. The locked
+    ro-v1 solve does not use this function.
+    """
+    from dataclasses import replace
+
+    from api.basket import load_locked, locked_shop_rows
+    from api.solve_service import context_from_locked, solution_payload
     from solver.types import Item, Offer
 
-    _day, _currency, stores, items, _pages = load_locked()
-    allowed = {store.id for store in stores}
+    _day, _currency, stores, items, pages = load_locked()
+    locked_ids = {store.id for store in stores}
+    stores = list(stores)
+    extra_shops: list[dict] = []
+    excluded: list[dict] = []
+    for offer in offers:
+        if offer.status != "ok" or offer.price_cents is None or offer.store_id in locked_ids:
+            continue
+        if any(s.id == offer.store_id for s in stores) or any(e["id"] == offer.store_id for e in excluded):
+            continue
+        extra = store_from_profile(offer.store_id)
+        if extra is None:
+            excluded.append(
+                {
+                    "id": offer.store_id,
+                    "reason": "unresolved fee",
+                    "free_shipping_threshold_cents": None,
+                    "shipping_fee_cents": None,
+                    "per_order_fee_cents": None,
+                }
+            )
+        else:
+            stores.append(extra)
+            extra_shops.append({"id": extra.id, "solvable": True, "read_at": None, "fees": {}})
+    priced = {store.id for store in stores}
     live = tuple(
         Offer(
             offer.store_id,
@@ -574,7 +645,7 @@ def solve_with_live_offers(offers: list[OfferRead], item_id: str, title: str | N
             offer.seller_certainty if offer.seller_certainty in {"direct", "marketplace", "unknown"} else "unknown",
         )
         for offer in offers
-        if offer.status == "ok" and offer.price_cents is not None and offer.store_id in allowed
+        if offer.status == "ok" and offer.price_cents is not None and offer.store_id in priced
     )
     merged: list[Item] = []
     replaced = False
@@ -586,13 +657,34 @@ def solve_with_live_offers(offers: list[OfferRead], item_id: str, title: str | N
             merged.append(item)
     if not replaced and live:
         merged.append(Item(item_id, live))
-    if not live and not replaced:
-        # Still solve the locked basket so a refused shop does not stop the answer.
-        payload = solution_payload(stores, list(items))
-    else:
-        payload = solution_payload(stores, merged)
+    # Without any live offer the locked basket still solves, so a refused shop does not stop the answer.
+    solve_items = merged if live else list(items)
+
+    events = [
+        {"item_id": p["item_id"], "store_id": p["store_id"], "cache": "hit", "model_read": None}
+        for p in pages
+    ]
+    ctx = context_from_locked(stores, solve_items, pages, events, locked_shop_rows())
+    books = dict(ctx.books)
+    book_title = title or item_id
+    books[item_id] = {"title": book_title, "isbn13": isbn13}
+    meta = dict(ctx.offer_meta)
+    for offer in offers:
+        if offer.status == "ok" and offer.store_id in priced:
+            meta[(item_id, offer.store_id)] = {
+                "edition": offer.edition,
+                "listing_url": offer.listing_url,
+                "read_at": offer.read_at,
+                "in_stock": offer.in_stock,
+            }
+    shops = list(ctx.shops) + extra_shops + [
+        {"id": e["id"], "solvable": False, "read_at": None, "fees": {k: v for k, v in e.items() if k.endswith("_cents")}}
+        for e in excluded
+    ]
+    ctx = replace(ctx, items=solve_items, books=books, offer_meta=meta, shops=shops)
+    payload = solution_payload(stores, solve_items, excluded_stores=excluded, plan_ctx=ctx)
     payload["joined_item_id"] = item_id
-    payload["joined_title"] = title or item_id
+    payload["joined_title"] = book_title
     payload["joined_isbn13"] = isbn13
     payload["live_offers"] = [
         {
