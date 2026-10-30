@@ -52,6 +52,9 @@ class PageCache:
         with self._connect() as db:
             db.executescript(_SCHEMA)
             db.executescript(_CONFIRMATIONS)
+        # Purge stale negatives from older matcher versions on startup
+        from api.title_match import MATCHER_VERSION
+        self.purge_old_negatives(MATCHER_VERSION)
 
     def close(self) -> None:
         """Nothing is held open. Kept so older callers can still call close()."""
@@ -113,6 +116,37 @@ class PageCache:
                 "INSERT OR REPLACE INTO confirmations (key, payload, stored_at) VALUES (?, ?, ?)",
                 (key, json.dumps(payload, ensure_ascii=False), now or time.time()),
             )
+
+    def purge_old_negatives(self, current_version: int) -> int:
+        """Drop negative cache entries from older matcher versions.
+        
+        A negative entry is one with {"matched": false}. Since matcher version
+        is now embedded in the key as the second field, keys with a different
+        version are stale and should be removed.
+        
+        Returns the number of rows deleted.
+        """
+        with self._connect() as db:
+            # Find all keys, parse their version, delete negatives with old versions
+            rows = db.execute("SELECT key, payload FROM confirmations").fetchall()
+            deleted = 0
+            for row in rows:
+                key = row["key"]
+                payload = json.loads(row["payload"])
+                parts = key.split("|")
+                # Key format: printing|version|store|isbn|title|author
+                if len(parts) >= 2 and parts[0] == "printing":
+                    try:
+                        stored_version = int(parts[1])
+                        if stored_version != current_version and not payload.get("matched"):
+                            db.execute("DELETE FROM confirmations WHERE key = ?", (key,))
+                            deleted += 1
+                    except (ValueError, IndexError):
+                        # Old format without version - delete if negative
+                        if not payload.get("matched"):
+                            db.execute("DELETE FROM confirmations WHERE key = ?", (key,))
+                            deleted += 1
+            return deleted
 
     def count(self) -> int:
         with self._connect() as db:
