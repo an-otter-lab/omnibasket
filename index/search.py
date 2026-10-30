@@ -274,6 +274,25 @@ def search(query: str, limit: int = 10, db_path: Path | str = DB, opener=None) -
                 _record_match_error(query, exc)
                 rows = []
 
+        # Lazy author enrichment (Open Library, cached): only when no row's author already matches.
+        if not re.fullmatch(r"(?:97[89])?\d{9}[\dXx]", isbn_query) and 1 <= len(tokens) <= 4:
+            try:
+                from index import authors as _authors
+                qn = _authors._tnorm(query)
+                title_query = any(
+                    (tn := _authors._tnorm(r["title"])) == qn or tn.startswith(qn + " ") for r in rows
+                )  # a title query already found its book: no author lookup
+                if not title_query and not any(_authors.hint_matches(r["author_hint"], tokens) for r in rows):
+                    if _authors.enrich(db, query, tokens, opener):
+                        db.commit()
+                        rows = db.execute("""
+                            SELECT b.shop, b.url, b.title, b.author_hint, b.isbn
+                            FROM books_search s JOIN books b ON b.rowid = s.rowid
+                            WHERE books_search MATCH ?
+                        """, (" OR ".join(f'"{t}"*' for t in tokens),)).fetchall()
+            except Exception as exc:  # Open Library trouble never breaks search
+                log.warning("author enrichment failed for %r: %s", query, exc)
+
         # Group results by ISBN (when present) or by title+author
         # Strategy:
         # 1. First pass: group by ISBN or by title+author
