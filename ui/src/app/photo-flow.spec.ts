@@ -12,6 +12,7 @@ describe('Photo flow (Feature 2)', () => {
   let eventsService: jasmine.SpyObj<EventsService>;
 
   beforeEach(async () => {
+    localStorage.clear();
     window.location.hash = '';
     const eventsSpy = jasmine.createSpyObj('EventsService', ['open']);
     
@@ -274,7 +275,7 @@ describe('Photo flow (Feature 2)', () => {
     }));
 
     it('should leave basket untouched on read failure', fakeAsync(() => {
-      component.basket = new Set(['existing-book']);
+      component.basketSvc.addFromLive({}, '9780000000001', 'existing-book'); component.basketSvc.items[0].id = 'existing-book';
       component.onPhotoEvent({ kind: 'read', response: { error: 'read_failed' } });
       tick();
 
@@ -367,7 +368,7 @@ describe('Photo flow (Feature 2)', () => {
         subject3.asObservable()
       );
 
-      const solveSpy = spyOn(component, 'solve').and.returnValue(Promise.resolve());
+      const solveSpy = spyOn(component, 'refresh').and.returnValue(Promise.resolve());
 
       component.onPhotoContinue();
       tick();

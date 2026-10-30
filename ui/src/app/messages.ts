@@ -96,6 +96,14 @@ export interface Messages {
   readsNoOfferAnywhere: string;
   readsOther: string;
   sampleTitle: string;
+  basketTitle: string;
+  basketEmptyTitle: string;
+  basketEmptyNote: string;
+  basketAddBook: string;
+  basketRemove: string;
+  basketClear: string;
+  basketLeftOut: string;
+  basketBooksTitle: string;
   sampleNote: string;
   demoBadge: string;
   // Feature 5: declared memberships. {name} is the membership, {shop} the shop.
@@ -435,6 +443,14 @@ export const MESSAGES: Record<Lang, Messages> = {
     readsNoOfferAnywhere: 'No shop lists this ISBN.',
     readsOther: 'Not read',
     sampleTitle: 'Your sample basket',
+    basketTitle: 'Your basket',
+    basketEmptyTitle: 'Your basket is empty',
+    basketEmptyNote: 'Find a book by title, ISBN or link and it will appear here.',
+    basketAddBook: 'Add a book',
+    basketRemove: 'Remove',
+    basketClear: 'Clear basket',
+    basketLeftOut: 'Left out of the totals: no shop with known delivery rules lists it.',
+    basketBooksTitle: 'Your books, shop by shop',
     sampleNote: 'A demo basket of books. Its totals are for the whole basket, not the price of the book you picked. That is in the shop rows above.',
     demoBadge: 'Demo data',
     membershipsTitle: 'Memberships',
@@ -706,6 +722,14 @@ export const MESSAGES: Record<Lang, Messages> = {
     readsNoOfferAnywhere: 'Niciun magazin nu are acest ISBN.',
     readsOther: 'Necitit',
     sampleTitle: 'Coșul demo',
+    basketTitle: 'Coșul tău',
+    basketEmptyTitle: 'Coșul e gol',
+    basketEmptyNote: 'Caută o carte după titlu, ISBN sau link și apare aici.',
+    basketAddBook: 'Adaugă o carte',
+    basketRemove: 'Scoate',
+    basketClear: 'Golește coșul',
+    basketLeftOut: 'Nu intră în totaluri: niciun magazin cu reguli de livrare cunoscute nu o are.',
+    basketBooksTitle: 'Cărțile tale, magazin cu magazin',
     sampleNote: 'Un coș demo de cărți. Totalurile sunt pentru tot coșul, nu prețul cărții alese. Acela e în rândurile magazinelor de mai sus.',
     demoBadge: 'Date demo',
     membershipsTitle: 'Abonamente',

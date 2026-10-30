@@ -1,3 +1,4 @@
+import { demoSample } from './demo-sample';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { AppComponent } from './app.component';
 
@@ -70,6 +71,7 @@ const PAYLOAD = {
 
 async function showBook(status: Record<string, unknown>) {
   const fixture: ComponentFixture<AppComponent> = TestBed.createComponent(AppComponent);
+  demoSample();
   await fixture.componentInstance.load();
   fixture.componentInstance.route = { name: 'book', arg: 'ghici' };
   fixture.detectChanges();

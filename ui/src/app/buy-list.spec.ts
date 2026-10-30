@@ -1,3 +1,4 @@
+import { demoSample } from './demo-sample';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { AppComponent } from './app.component';
 import { BuyListComponent } from './buy-list.component';
@@ -177,6 +178,7 @@ describe('buy list entry link on the result', () => {
 
   it('links once to #/buy/<code> for the orders on screen', async () => {
     const fixture = TestBed.createComponent(AppComponent);
+    demoSample();
     await fixture.componentInstance.load();
     fixture.componentInstance.route = { name: 'result', arg: '' };
     fixture.componentInstance.tab = 'cheapest';
