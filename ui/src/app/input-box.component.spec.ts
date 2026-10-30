@@ -1,4 +1,3 @@
-import { demoSample } from './demo-sample';
 import { TestBed } from '@angular/core/testing';
 import { AppComponent } from './app.component';
 import { InputBoxComponent } from './input-box.component';
@@ -21,8 +20,6 @@ describe('the one-box first screen', () => {
   });
 
   it('makes the box the primary action and the photo button a secondary action', () => {
-    window.location.hash = '#/';
-    demoSample();
     const fixture = TestBed.createComponent(AppComponent);
     fixture.detectChanges();
     const el: HTMLElement = fixture.nativeElement;
