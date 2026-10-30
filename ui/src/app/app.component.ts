@@ -611,14 +611,78 @@ export class AppComponent implements OnDestroy {
         resolved.push({ read_title: a.line.read_title, read_author: a.line.read_author, candidate: a.picked });
       }
     }
-    // Reset photo state and start the live flow for the first resolved line.
-    this.photoState = { kind: 'idle' };
     if (resolved.length === 0) return;
-    // For now, trigger the live flow for each resolved line sequentially.
-    // The first one will start the SSE stream; subsequent ones will be added as the basket grows.
-    const first = resolved[0];
-    this.picked = { title: first.candidate.title, author: first.candidate.author, isbn: first.candidate.isbn, cover_url: first.candidate.cover_url, shops: [] };
-    this.startLive(first.candidate.isbn, first.candidate.title);
+    
+    // Reset photo state and start parallel live reads for ALL resolved ISBNs
+    this.photoState = { kind: 'idle' };
+    this.go('live/photo');
+    
+    // Open parallel SSE streams for all resolved ISBNs
+    this.progress = [];
+    this.liveFailed = false;
+    this.liveOffers = [];
+    this.liveIsbn = '';
+    this.liveTitle = `${resolved.length} book${resolved.length === 1 ? '' : 's'} from photo`;
+    
+    const collectedPayloads: Payload[] = [];
+    let completed = 0;
+    const total = resolved.length;
+    
+    resolved.forEach((line, idx) => {
+      const sub = this.events.open(liveUrl(line.candidate.isbn, `photo-${idx}`, line.candidate.title)).subscribe({
+        next: (ev) => {
+          if (ev.type === 'progress') {
+            this.progress = [...this.progress, ev.progress];
+          } else if (ev.type === 'solution') {
+            const payload = adapt(ev.payload as Payload);
+            collectedPayloads.push(payload);
+            completed++;
+            sub.unsubscribe();
+            
+            if (completed === total) {
+              // All streams done - merge results and solve
+              this.finishPhotoLive(collectedPayloads);
+            }
+          } else {
+            this.liveFailed = true;
+          }
+        },
+        error: () => {
+          this.liveFailed = true;
+        },
+      });
+    });
+  }
+
+  private finishPhotoLive(payloads: Payload[]): void {
+    // Merge all payloads into one combined snapshot
+    const allBooks: BookRow[] = [];
+    const allLiveOffers: LiveOffer[] = [];
+    for (const p of payloads) {
+      allBooks.push(...(p.books || []));
+      allLiveOffers.push(...(p.live_offers || []));
+    }
+    
+    // Build merged snapshot with all books, keep shops/other data from first payload
+    const firstPayload = payloads[0];
+    const merged: Payload = {
+      ...firstPayload,
+      books: allBooks,
+      live_offers: allLiveOffers,
+    };
+    
+    this.snapshot = merged;
+    this.basket = new Set(allBooks.map((b) => b.item_id));
+    this.picked = null;
+    this.pins = {};
+    this.selected = null;
+    this.dirty = false;
+    this.tab = 'cheapest';
+    
+    // Trigger one solve with all books in basket
+    void this.solve().then(() => {
+      this.go('result/cheapest');
+    });
   }
 
   async solve(): Promise<void> {
