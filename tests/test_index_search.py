@@ -1,11 +1,25 @@
+"""Open Library search + shop availability. Open Library is a stand-in opener (the suite blocks
+sockets); the Libris product page is a REAL local HTTP server read through the real fetch guard."""
 import json
 import sqlite3
-from email.message import Message
+import threading
+from http.server import BaseHTTPRequestHandler, HTTPServer
 
+import pytest
 from fastapi.testclient import TestClient
 
+from api import fetch_guard
 from api.app import create_app
+
 search_module = __import__("index.search", fromlist=["search"])
+
+HP_RO = "9789735832940"
+HP_EN = "9780747532699"
+HP_DOC = {"key": "/works/OL82563W", "title": "Harry Potter and the Philosopher's Stone",
+          "author_name": ["J. K. Rowling"], "cover_i": 15155833, "isbn": [HP_EN, "0747532699", HP_RO]}
+SAPIENS = {"title": "Sapiens", "author_name": ["Yuval Noah Harari"], "cover_i": 8634250, "isbn": ["9780062316097"]}
+GENES = {"title": "Genes, girls and gamow", "author_name": ["James D. Watson"], "cover_i": 130890,
+         "isbn": ["9780198606932"]}
 
 
 def make_db(path, rows):
@@ -14,263 +28,260 @@ def make_db(path, rows):
         db.executemany("INSERT INTO books VALUES(?,?,?,?,?,?)", [(*row, "2026-10-30") for row in rows])
 
 
-class Response:
-    def __init__(self, payload):
-        self.payload = payload
-        self.headers = Message()
-    def __enter__(self): return self
-    def __exit__(self, *args): return None
-    def read(self, size=-1): return json.dumps(self.payload).encode()
+class FakeOL:
+    """Callable opener; answers search.json with the docs registered for the query text."""
+
+    def __init__(self, answers=None, fail=False, editions=None):
+        self.answers = answers or {}
+        self.editions = editions or {}
+        self.fail = fail
+        self.calls = []
+
+    def __call__(self, req, timeout=None):
+        self.calls.append(req.full_url)
+        if self.fail:
+            raise OSError("open library down")
+        from urllib.parse import parse_qs, urlsplit
+        if "/isbn/" in req.full_url:
+            payload = self.editions.get(req.full_url.rsplit("/", 1)[1][:-5], {})
+        else:
+            q = search_module.normalize(parse_qs(urlsplit(req.full_url).query)["q"][0])
+            payload = {"docs": self.answers.get(q, [])}
+        outer = json.dumps(payload).encode()
+
+        class R:
+            def __enter__(s): return s
+            def __exit__(s, *a): return None
+            def read(s, n=-1): return outer
+        return R()
 
 
-def test_accent_insensitive_romanian_and_english(tmp_path):
-    path = tmp_path / "books.sqlite3"
-    make_db(path, [
-        ("libris", "https://libris.ro/p/piatra", "Piatra filozofală", "J. K. Rowling", None),
-        ("books-express", "https://books-express.ro/p/caterpillar", "The Very Hungry Caterpillar", "Eric Carle", "9780141367941"),
+@pytest.fixture(autouse=True)
+def _fast(monkeypatch):
+    monkeypatch.setattr(search_module, "MIN_REQUEST_INTERVAL", 0.0)
+
+
+@pytest.fixture
+def db_path(tmp_path):
+    p = tmp_path / "books.sqlite3"
+    make_db(p, [
+        ("libris", "https://www.libris.ro/harry-potter-si-piatra-filosofala-j-k-rowling", "harry potter si piatra filosofala j k rowling", None, None),
+        ("books-express", "https://www.books-express.ro/-/p/scjb,9787561932551", "scjb,", None, "9787561932551"),
+        ("books-express", "https://www.books-express.ro/harry-potter-and-the-philosopher-s-stone/p/yfh,9780747532699", "harry potter and the philosopher s stone", None, HP_EN),
+        ("books-express", "https://www.books-express.ro/-/p/9780198606932", "", None, "9780198606932"),
     ])
-    assert search_module.search("piatra filozofala", db_path=path, opener=lambda *a, **k: Response({"docs": []}))[0]["title"] == "Piatra filozofală"
-    result = search_module.search("VERY hungry", db_path=path, opener=lambda *a, **k: Response({"docs": []}))
-    assert result[0]["title"] == "The Very Hungry Caterpillar"
-    exact = search_module.search("The Very Hungry Caterpillar", db_path=path)
-    assert exact[0]["title"] == "The Very Hungry Caterpillar"
+    return p
 
 
-def test_exact_isbn_and_duplicate_merge(tmp_path):
-    path = tmp_path / "books.sqlite3"
-    make_db(path, [
-        ("books-express", "https://books-express.ro/p/a", "The Very Hungry Caterpillar", "Eric Carle", "9780141367941"),
-        ("amazon_de", "https://amazon.de/dp/a", "The Very Hungry Caterpillar", "Eric Carle", "9780141367941"),
-    ])
-    result = search_module.search("9780141367941", db_path=path)
-    assert len(result) == 1
-    assert result[0]["isbn"] == "9780141367941"
-    assert {shop["shop"] for shop in result[0]["shops"]} == {"books-express", "amazon_de"}
-    assert result[0]["cover_url"] == "https://covers.openlibrary.org/b/isbn/9780141367941-M.jpg"
+def run(db_path, q, ol, **kw):
+    return search_module.search(q, db_path=db_path, opener=ol, fetcher=kw.pop("fetcher", _no_fetch), **kw)
 
 
-def test_openlibrary_lookup_is_cached(tmp_path):
-    path = tmp_path / "books.sqlite3"
-    make_db(path, [("libris", "https://libris.ro/p/a", "A Book", "Author", None)])
-    calls = []
-    def opener(req, timeout):
-        calls.append((req.full_url, timeout, req.get_header("User-agent")))
-        return Response({"docs": [{"isbn": ["9780306406157"]}]})
-    one = search_module.search("A Book", db_path=path, opener=opener)
-    two = search_module.search("A Book", db_path=path, opener=opener)
-    assert one[0]["isbn"] == two[0]["isbn"] == "9780306406157"
-    assert len(calls) == 1 and calls[0][1] <= 10 and "Omnibasket" in calls[0][2]
+def _no_fetch(url, timeout=None):
+    raise AssertionError("no product page should be read: " + url)
 
 
-def test_search_endpoint_short_list_and_empty(tmp_path, monkeypatch):
-    path = tmp_path / "books.sqlite3"
-    make_db(path, [
-        ("libris", "https://libris.ro/p/a", "Piatra filozofală", None, None),
-        ("libris", "https://libris.ro/p/b", "Another Piatra", None, None),
-    ])
-
-    monkeypatch.setattr(search_module.urllib.request, "urlopen", lambda *a, **k: Response({"docs": []}))
-    app = create_app(db_path=tmp_path / "unrelated.sqlite3")
-    app.state.index_db_path = path
-    client = TestClient(app)
-    response = client.get("/search", params={"q": "piatra", "limit": 1})
-    assert response.status_code == 200
-    payload = response.json()
-    assert payload["query"] == "piatra" and len(payload["results"]) == 1
-    assert client.get("/search").json() == {"query": "", "results": []}
+def test_ro_title_with_and_without_diacritics_gives_same_top_result(db_path):
+    ol = FakeOL({"harry potter si piatra filozofala": [HP_DOC]},
+                editions={HP_RO: {"title": "Harry Potter și piatra filozofală", "covers": [12345]}})
+    with_d = run(db_path, "Harry Potter și piatra filozofală", ol, fetcher=lambda u, timeout=None: (_ for _ in ()).throw(OSError("x")))
+    without = run(db_path, "Harry Potter si piatra filozofala", ol, fetcher=lambda u, timeout=None: (_ for _ in ()).throw(OSError("x")))
+    assert with_d[0]["title"] == "Harry Potter și piatra filozofală" == without[0]["title"]  # the Romanian edition
+    assert with_d[0]["author"] == "J. K. Rowling"
+    assert with_d[0]["isbn"] == HP_RO  # the Romanian edition's ISBN is preferred
+    assert with_d[0]["cover_url"] == "https://covers.openlibrary.org/b/id/12345-M.jpg"
+    assert len(ol.calls) == 2  # one search + one edition read; the second search came from the cache
 
 
-def test_stop_words_filtered(tmp_path):
-    """Stop words like 'si' should not match unrelated titles."""
-    path = tmp_path / "books.sqlite3"
-    make_db(path, [
-        ("libris", "https://libris.ro/p/a", "Piatra filozofală", "Author", None),
-        ("libris", "https://libris.ro/p/b", "Si alte povesti", "Author", None),
-    ])
-    result = search_module.search("si piatra", db_path=path, opener=lambda *a, **k: Response({"docs": []}))
-    assert len(result) >= 1
-    assert result[0]["title"] == "Piatra filozofală"
-    assert all("alte povesti" not in r["title"] for r in result)
+def test_no_shop_rows_or_slug_titles_in_results(db_path):
+    ol = FakeOL({"harry potter": [dict(HP_DOC, isbn=[HP_EN])]})
+    res = run(db_path, "harry potter", ol, fetcher=lambda u, timeout=None: (_ for _ in ()).throw(OSError("x")))
+    titles = [r["title"] for r in res]
+    assert titles == ["Harry Potter and the Philosopher's Stone"]
+    assert all(t == t.strip() and t[0].isupper() for t in titles)
+    assert "scjb," not in json.dumps(res)
 
 
-def test_isbn_validation_rejects_invalid(tmp_path):
-    """Open Library lookup must validate ISBN check digits."""
-    path = tmp_path / "books.sqlite3"
-    make_db(path, [("libris", "https://libris.ro/p/a", "A Book", "Author", None)])
-    def opener(req, timeout):
-        # Return an invalid ISBN (bad check digit)
-        return Response({"docs": [{"isbn": ["9781234567890"]}]})
-    result = search_module.search("A Book", db_path=path, opener=opener)
-    assert result[0]["isbn"] is None
+def test_every_cover_is_open_library_or_none(db_path):
+    nocover = {"title": "No Cover Book", "author_name": ["A"], "isbn": []}
+    ol = FakeOL({"x": [HP_DOC, SAPIENS, GENES, nocover]})
+    res = run(db_path, "x", ol, fetcher=lambda u, timeout=None: (_ for _ in ()).throw(OSError("x")))
+    assert len(res) == 4
+    for r in res:
+        assert r["cover_url"] is None or r["cover_url"].startswith("https://covers.openlibrary.org/")
+    assert [r for r in res if r["title"] == "No Cover Book"][0]["cover_url"] is None
+    assert "books-express.ro/" not in json.dumps([r["cover_url"] for r in res])
 
 
-def test_merge_rows_with_missing_isbn(tmp_path):
-    """Rows with and without ISBN for same book should merge into one result."""
-    path = tmp_path / "books.sqlite3"
-    make_db(path, [
-        ("libris", "https://libris.ro/p/a", "The Very Hungry Caterpillar", "Eric Carle", None),
-        ("books-express", "https://books-express.ro/p/a", "The Very Hungry Caterpillar", "Eric Carle", "9780141367941"),
-    ])
-    result = search_module.search("very hungry caterpillar", db_path=path, opener=lambda *a, **k: Response({"docs": []}))
-    assert len(result) == 1
-    assert result[0]["isbn"] == "9780141367941"
-    assert len(result[0]["shops"]) == 2
-    assert {shop["shop"] for shop in result[0]["shops"]} == {"libris", "books-express"}
+def test_isbn_query_is_exact_and_books_express_offer_found(db_path):
+    ol = FakeOL({"9780198606932": [GENES]})
+    res = run(db_path, "978-0-19-860693-2", ol)
+    assert res[0]["isbn"] == "9780198606932" and res[0]["title"] == "Genes, girls and gamow"
+    assert res[0]["shops"] == [{"shop": "books-express", "url": "https://www.books-express.ro/-/p/9780198606932"}]
 
 
-def test_fts_works_offline(tmp_path):
-    """FTS search should work without Open Library calls."""
-    path = tmp_path / "books.sqlite3"
-    make_db(path, [
-        ("libris", "https://libris.ro/p/a", "Piatra filozofală", "Rowling", "9780064431781"),
-    ])
-    # Ensure FTS table exists
-    search_module.refresh_fts(path)
-    
-    # Search should work without calling opener
-    calls = []
-    def opener(req, timeout):
-        calls.append(1)
-        return Response({"docs": []})
-    
-    result = search_module.search("piatra filozofala", db_path=path, opener=opener)
-    assert len(result) == 1
-    assert result[0]["title"] == "Piatra filozofală"
-    assert result[0]["isbn"] == "9780064431781"
-    # No Open Library call needed since ISBN already present
-    assert len(calls) == 0
+def test_known_shop_offer_boosts_but_does_not_override_relevance(db_path):
+    other = {"title": "Another", "author_name": ["B"], "isbn": ["9781111111113"], "cover_i": 1}
+    nb = [{"title": f"Filler {i}", "author_name": ["F"], "isbn": [], "cover_i": 2} for i in range(6)]
+    ol = FakeOL({"q": [other, nb[0], GENES, *nb[1:]]})
+    res = run(db_path, "q", ol)
+    # GENES (Open Library #3, carried by Books-Express) moves up one place; #1 stays #1.
+    assert [r["title"] for r in res][:3] == ["Another", "Genes, girls and gamow", "Filler 0"]
+    assert res[-1]["title"] == "Filler 5"  # far results stay in Open Library order
+    top_carried = run(db_path, "q2", FakeOL({"q2": [GENES, other]}))
+    assert top_carried[0]["title"] == "Genes, girls and gamow"
+    not_displaced = run(db_path, "q3", FakeOL({"q3": [other, GENES]}))
+    assert not_displaced[0]["title"] == "Another"  # a shop never displaces the top result
 
 
-def test_relevance_ranking_all_tokens_match_first(tmp_path):
-    """Results matching all query tokens must rank higher than partial matches."""
-    path = tmp_path / "books.sqlite3"
-    make_db(path, [
-        ("libris", "https://libris.ro/p/a", "The Very Thought of You", "Author A", None),
-        ("libris", "https://libris.ro/p/b", "The Very Hungry Caterpillar", "Eric Carle", None),
-        ("libris", "https://libris.ro/p/c", "My Very First Book", "Author B", None),
-    ])
-    result = search_module.search("the very hungry caterpillar", db_path=path, opener=lambda *a, **k: Response({"docs": []}))
-    # The book matching all tokens should be first
-    assert "caterpillar" in result[0]["title"].lower()
-    # Partial matches should rank lower
-    assert any("thought" in r["title"].lower() for r in result[1:]) or len(result) > 1
+def test_bookzone_and_emag_are_links_with_honest_reason(db_path):
+    res = run(db_path, "sapiens", FakeOL({"sapiens": [SAPIENS]}))
+    other = {s["shop"]: s for s in res[0]["other_shops"]}
+    assert set(other) == {"bookzone", "emag"}
+    for s in other.values():
+        assert s["status"] == "not_checked" and s["reason"] == "Not checked here" and s["url"].startswith("https://www.")
+    assert "9780062316097" in other["emag"]["url"]
 
 
-def test_isbn_merge_same_isbn(tmp_path):
-    """Rows with the same ISBN must merge into one result with all shops."""
-    path = tmp_path / "books.sqlite3"
-    make_db(path, [
-        ("books-express", "https://books-express.ro/a", "Where the Wild Things Are", "Maurice Sendak", "9780064431781"),
-        ("amazon_de", "https://amazon.de/dp/a", "Where the Wild Things Are 50th Anniversary", "Maurice Sendak", "9780064431781"),
-    ])
-    result = search_module.search("9780064431781", db_path=path)
-    assert len(result) == 1, f"Expected 1 result, got {len(result)}"
-    assert result[0]["isbn"] == "9780064431781"
-    assert len(result[0]["shops"]) == 2
-    shop_names = {s["shop"] for s in result[0]["shops"]}
-    assert shop_names == {"books-express", "amazon_de"}
+def test_open_library_down_is_unavailable_not_empty(db_path):
+    with pytest.raises(search_module.SearchUnavailable):
+        run(db_path, "anything", FakeOL(fail=True))
+    app = create_app(db_path=db_path.parent / "u.sqlite3")
+    app.state.index_db_path = db_path
+    import index.search as s
+    old = s.urllib.request.urlopen
+    s.urllib.request.urlopen = FakeOL(fail=True)
+    try:
+        r = TestClient(app).get("/search", params={"q": "anything"})
+    finally:
+        s.urllib.request.urlopen = old
+    assert r.status_code == 503 and r.json() == {"query": "anything", "results": [], "error": "search_unavailable"}
 
 
-def test_shop_dedupe_by_shop_and_url(tmp_path):
-    """Results should not have duplicate (shop, url) pairs."""
-    path = tmp_path / "books.sqlite3"
-    make_db(path, [
-        ("libris", "https://libris.ro/p/a", "Test Book", "Author", None),
-        ("libris", "https://libris.ro/p/b", "Test Book Variant", "Author", None),
-        ("amazon", "https://amazon.com/dp/a", "Test Book", "Author", None),
-    ])
-    result = search_module.search("test book", db_path=path, opener=lambda *a, **k: Response({"docs": []}))
-    # Check that no result has duplicate (shop, url) pairs
-    for r in result:
-        shop_url_pairs = [(s["shop"], s["url"]) for s in r["shops"]]
-        assert len(shop_url_pairs) == len(set(shop_url_pairs)), f"Found duplicate shops in {r['title']}"
-        # Verify we have multiple shops when appropriate
-        if "variant" not in r["title"].lower():
-            assert len(r["shops"]) >= 1
+def test_failure_is_not_cached(db_path):
+    with pytest.raises(search_module.SearchUnavailable):
+        run(db_path, "retry me", FakeOL(fail=True))
+    ol = FakeOL({"retry me": [SAPIENS]})
+    assert run(db_path, "retry me", ol)[0]["title"] == "Sapiens"
 
 
-_PULL_UPSERT = (
-    "INSERT INTO books VALUES(?,?,?,?,?,?) ON CONFLICT(shop,url) DO UPDATE SET "
-    "title=excluded.title,author_hint=excluded.author_hint,"
-    "isbn=COALESCE(excluded.isbn,books.isbn),last_seen=excluded.last_seen"
-)
+def test_requests_are_spaced(db_path, monkeypatch):
+    import time
+    monkeypatch.setattr(search_module, "MIN_REQUEST_INTERVAL", 0.3)
+    search_module._last_request_time = 0.0
+    ol = FakeOL({"a": [SAPIENS], "b": [SAPIENS]})
+    t0 = time.monotonic()
+    run(db_path, "a", ol)
+    run(db_path, "b", ol)
+    assert time.monotonic() - t0 >= 0.3
 
 
-def test_pull_write_is_searchable_without_rebuild(tmp_path):
-    """A pull insert/update after FTS exists must show up with no explicit rebuild."""
+# ---- Libris: a REAL local server, the real fetch guard, one read, then cached ------------------
+
+PAGE = ('<html><head><script type="application/ld+json">' + json.dumps({
+    "@context": "https://schema.org", "@graph": [
+        {"@type": "Organization", "name": "Libris"},
+        {"@type": ["Product", "Book"], "name": "Harry Potter si piatra filosofala", "isbn": HP_RO,
+         "offers": {"@type": "Offer", "price": "49.90", "priceCurrency": "RON",
+                    "availability": "https://schema.org/InStock"}}]}) + "</script></head><body>x</body></html>").encode()
+
+
+class Page(BaseHTTPRequestHandler):
+    hits = 0
+    protocol_version = "HTTP/1.1"
+
+    def log_message(self, *a):
+        pass
+
+    def do_GET(self):
+        type(self).hits += 1
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(PAGE)))
+        self.send_header("Connection", "close")
+        self.end_headers()
+        self.wfile.write(PAGE)
+        self.close_connection = True
+
+
+@pytest.fixture
+def libris_server(monkeypatch, tmp_path):
+    real = fetch_guard.address_reason
+    monkeypatch.setattr(fetch_guard, "address_reason", lambda ip: None if ip == "127.0.0.1" else real(ip))
+    monkeypatch.setattr(fetch_guard, "_resolve_host", lambda host: ["127.0.0.1"])
+    assert real("127.0.0.1") == "loopback"  # production policy untouched
+    Page.hits = 0
+    srv = HTTPServer(("127.0.0.1", 0), Page)
+    port = srv.server_address[1]
+    monkeypatch.setattr(fetch_guard, "_ALLOWED_PORTS", frozenset({80, 443, port}))
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    p = tmp_path / "books.sqlite3"
+    make_db(p, [("libris", f"http://127.0.0.1:{port}/harry-potter-si-piatra-filosofala-j-k-rowling",
+                 "harry potter si piatra filosofala j k rowling", None, None)])
+    yield p
+    srv.shutdown()
+
+
+@pytest.fixture(autouse=True)
+def _no_network():
+    """Overrides the project-wide socket block for this module, as test_fetch_guard_real does: the
+    Libris server is a real loopback server. Open Library is always the FakeOL opener, never a socket;
+    production policy stays intact (the fetch guard still refuses loopback, asserted in the fixture)."""
+    yield
+
+
+@pytest.fixture
+def _sockets_allowed():
+    yield
+
+
+def test_libris_confirmed_from_schema_org_then_cached_with_no_second_fetch(libris_server, _sockets_allowed):
+    ol = FakeOL({"harry potter si piatra filozofala": [HP_DOC]},
+                editions={HP_RO: {"title": "Harry Potter și piatra filozofală"}})
+    first = search_module.search("Harry Potter și piatra filozofală", db_path=libris_server, opener=ol)
+    assert Page.hits == 1
+    libris = [s for s in first[0]["shops"] if s["shop"] == "libris"]
+    assert libris and first[0]["isbn"] == HP_RO
+    second = search_module.search("Harry Potter și piatra filozofală", db_path=libris_server, opener=ol)
+    third = search_module.search("harry potter si piatra filozofala", db_path=libris_server, opener=ol)
+    assert Page.hits == 1  # cached confirmation: no further fetch
+    assert second[0]["shops"] == first[0]["shops"] == third[0]["shops"]
+
+
+def test_libris_not_shown_when_page_isbn_is_not_this_book(libris_server, _sockets_allowed):
+    other = dict(HP_DOC, isbn=["9780747532699"])  # the page says HP_RO: not among this work's ISBNs
+    res = search_module.search("harry potter si piatra filozofala", db_path=libris_server,
+                               opener=FakeOL({"harry potter si piatra filozofala": [other]}))
+    assert not [s for s in res[0]["shops"] if s["shop"] == "libris"]
+
+
+# ---- helpers kept for the photo reader and the index pull --------------------------------------
+
+
+def test_isbn_validation_and_conversion():
+    assert search_module.validate_isbn("9780747532699") and not search_module.validate_isbn("9780747532698")
+    assert search_module.to_isbn13("0-7475-3269-9") == "9780747532699"
+    assert search_module.to_isbn13("12345") is None
+
+
+def test_pull_write_is_searchable_by_fts_without_rebuild(tmp_path):
     from index.pull import init
-
-    path = tmp_path / "books.sqlite3"
-    make_db(path, [
-        ("libris", "https://libris.ro/p/old", "Already Indexed", "Author", None),
-    ])
-    opener = lambda *a, **k: Response({"docs": []})
-    assert search_module.search("already indexed", db_path=path, opener=opener)[0]["title"] == "Already Indexed"
-    with sqlite3.connect(path) as db:
+    p = tmp_path / "books.sqlite3"
+    make_db(p, [("libris", "https://libris.ro/p/old", "Already Indexed", "Author", None)])
+    with sqlite3.connect(p) as db:
+        search_module.ensure_books_search(db)
         init(db)
-        db.execute(_PULL_UPSERT, (
-            "libris", "https://libris.ro/p/new-book", "Brand New Atlas", "Ann", None, "2026-10-30",
-        ))
+        db.execute("INSERT INTO books VALUES('libris','https://libris.ro/p/new','Brand New Atlas','Ann',NULL,'2026-10-30')")
         db.commit()
-    found = search_module.search("brand new atlas", db_path=path, opener=opener)
-    assert found and found[0]["title"] == "Brand New Atlas"
-    with sqlite3.connect(path) as db:
-        db.execute(_PULL_UPSERT, (
-            "libris", "https://libris.ro/p/new-book", "Renamed Atlas Volume", "Ann", None, "2026-10-30",
-        ))
-        db.commit()
-    renamed = search_module.search("renamed atlas volume", db_path=path, opener=opener)
-    assert renamed and renamed[0]["title"] == "Renamed Atlas Volume"
-    stale = search_module.search("brand new atlas", db_path=path, opener=opener)
-    assert all(item["title"] != "Brand New Atlas" for item in stale)
-
-
-def test_exact_title_ranks_above_spinoffs(tmp_path):
-    path = tmp_path / "books.sqlite3"
-    make_db(path, [
-        ("books-express", "https://books-express.ro/p/spin", "My Very First With The Very Hungry Caterpillar", "Eric Carle", None),
-        ("books-express", "https://books-express.ro/p/where", "Where Is The Very Hungry Caterpillar", "Eric Carle", None),
-        ("books-express", "https://books-express.ro/p/real", "The Very Hungry Caterpillar", "Eric Carle", "9780141367941"),
-        ("libris", "https://libris.ro/p/hp", "Harry Potter si piatra filosofala j k rowling", None, None),
-        ("books-express", "https://books-express.ro/p/hp-en", "Harry Potter and the Philosopher s Stone", "J K Rowling", None),
-    ])
-    opener = lambda *a, **k: Response({"docs": []})
-    caterpillar = search_module.search("the very hungry caterpillar", db_path=path, opener=opener)
-    assert caterpillar[0]["title"] == "The Very Hungry Caterpillar"
-    potter = search_module.search("harry potter piatra filozofala", db_path=path, opener=opener)
-    assert potter[0]["title"] == "Harry Potter si piatra filosofala j k rowling"
-
-
-def test_match_error_is_recorded_and_endpoint_stays_up(tmp_path, monkeypatch):
-    path = tmp_path / "books.sqlite3"
-    make_db(path, [("libris", "https://libris.ro/p/a", "Hello World", "Author", None)])
-    search_module.MATCH_ERRORS.clear()
-    result = search_module.search('hello"', db_path=path, opener=lambda *a, **k: Response({"docs": []}))
-    assert result == []
-    assert search_module.MATCH_ERRORS and "hello" in search_module.MATCH_ERRORS[-1]["query"]
-    monkeypatch.setattr(search_module.urllib.request, "urlopen", lambda *a, **k: Response({"docs": []}))
-    app = create_app(db_path=tmp_path / "unrelated.sqlite3")
-    app.state.index_db_path = path
-    client = TestClient(app)
-    response = client.get("/search", params={"q": 'hello"'})
-    assert response.status_code == 200
-    assert response.json()["results"] == []
+        assert db.execute("SELECT count(*) FROM books_search WHERE books_search MATCH 'atlas'").fetchone()[0] == 1
 
 
 def test_drifted_fts_is_rebuilt_on_next_call(tmp_path):
-    """Rows written while the triggers were absent must not stay invisible for ever."""
-    path = tmp_path / "books.sqlite3"
-    with sqlite3.connect(path) as db:
-        db.execute(
-            "CREATE TABLE books(shop TEXT NOT NULL,url TEXT NOT NULL,title TEXT,"
-            "author_hint TEXT,isbn TEXT,last_seen TEXT NOT NULL,PRIMARY KEY(shop,url))"
-        )
-        db.execute(
-            "INSERT INTO books VALUES('libris','https://libris.ro/p/a','Orphaned Title',NULL,NULL,'2026-10-30')"
-        )
-        db.commit()
-    # The very first call must heal the drifted index instead of returning nothing.
-    first = search_module.search("orphaned", db_path=path, opener=lambda *a, **k: Response({"docs": []}))
-    assert first and first[0]["title"] == "Orphaned Title"
-    second = search_module.search("orphaned", db_path=path, opener=lambda *a, **k: Response({"docs": []}))
-    assert second and second[0]["title"] == "Orphaned Title"
+    p = tmp_path / "books.sqlite3"
+    make_db(p, [("libris", "https://libris.ro/p/a", "Alpha", None, None)])
+    with sqlite3.connect(p) as db:
+        search_module.ensure_books_search(db)
+        db.execute("DROP TRIGGER books_fts_ai")
+        db.execute("INSERT INTO books VALUES('libris','https://libris.ro/p/b','Beta Gamma',NULL,NULL,'2026-10-30')")
+        search_module.ensure_books_search(db)
+        assert db.execute("SELECT count(*) FROM books_search WHERE books_search MATCH 'gamma'").fetchone()[0] == 1

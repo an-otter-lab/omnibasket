@@ -380,7 +380,12 @@ def candidates_for(query: dict, db_path: Path, opener=None, limit: int = MAX_CAN
     from index.search import search
 
     text = " ".join(part for part in (query.get("title"), query.get("author")) if part)
-    rows = search(text, limit=limit, db_path=db_path, opener=opener or _no_network_opener)
+    from index.search import SearchUnavailable
+
+    try:
+        rows = search(text, limit=limit, db_path=db_path, opener=opener or _no_network_opener)
+    except SearchUnavailable:
+        rows = []  # the box never waits on the catalogue; the photo/paste line is read without candidates
     out = []
     for row in rows:
         isbn = to_isbn13(row.get("isbn") or "")

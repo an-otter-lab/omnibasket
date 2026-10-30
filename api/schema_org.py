@@ -22,6 +22,8 @@ class SchemaOrgData:
     currency: str | None = None
     availability: str | None = None
     isbn13: str | None = None
+    name: str | None = None
+    authors: list | None = None
     source: str = "schema_org"
     raw: dict | None = None
     
@@ -67,6 +69,13 @@ def extract_schema_org(html: str) -> SchemaOrgData:
         
         # Handle both single objects and arrays
         items = data if isinstance(data, list) else [data]
+        flat: list = []
+        for entry in items:
+            if isinstance(entry, dict) and isinstance(entry.get("@graph"), list):
+                flat.extend(entry["@graph"])
+            else:
+                flat.append(entry)
+        items = flat
         
         for item in items:
             if not isinstance(item, dict):
@@ -112,6 +121,14 @@ def extract_schema_org(html: str) -> SchemaOrgData:
                     if availability and isinstance(availability, str):
                         result.availability = availability
             
+            if isinstance(item.get("name"), str) and result.name is None:
+                result.name = item["name"]
+            raw_authors = item.get("author")
+            if raw_authors is not None and result.authors is None:
+                listed = raw_authors if isinstance(raw_authors, list) else [raw_authors]
+                names = [a.get("name") if isinstance(a, dict) else a for a in listed]
+                result.authors = [n for n in names if isinstance(n, str)]
+
             # Extract ISBN
             isbn = item.get("isbn")
             if isbn and isinstance(isbn, str):

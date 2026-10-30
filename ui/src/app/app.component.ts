@@ -421,7 +421,7 @@ export class AppComponent implements OnDestroy {
     this.progress = [];
     this.liveFailed = false;
     this.liveOffers = [];
-    this.stream = this.events.open(liveUrl(isbn, 'book-' + isbn, this.liveTitle)).subscribe({
+    this.stream = this.events.open(liveUrl(isbn, 'book-' + isbn, this.liveTitle, this.picked?.isbn === isbn ? this.picked.author : null)).subscribe({
       next: (ev) => {
         if (ev.type === 'progress') {
           this.progress = [...this.progress, ev.progress];

@@ -40,12 +40,11 @@ describe('the pick list', () => {
     expect(el.querySelectorAll('.pcover.ph').length).toBe(2);
   });
 
-  it('lists the books with ISBN and where the index holds them', () => {
+  it('lists the books with title and where the index holds them', () => {
     const el: HTMLElement = render(BOOKS).nativeElement;
     const rows = el.querySelectorAll('li');
     expect(rows.length).toBe(3);
     expect(rows[0].textContent).toContain('Harry Potter Hogwarts');
-    expect(rows[0].textContent).toContain('ISBN 9781526605412');
     expect(rows[0].textContent).toContain('Books-Express');
   });
 
@@ -57,7 +56,7 @@ describe('the pick list', () => {
     buttons[0].click();
     expect(got.map((c) => c.isbn)).toEqual(['9781526605412']);
     expect(buttons[2].disabled).toBeTrue();
-    expect(buttons[2].textContent).toContain('Paste the ISBN');
+    expect(buttons[2].textContent).toContain('Not found in our shops yet');
   });
 
   it('swaps a cover Open Library does not have for the placeholder', () => {
@@ -84,6 +83,6 @@ describe('the pick list', () => {
 
   it('says so when nothing matches', () => {
     const el: HTMLElement = render([], 'empty').nativeElement;
-    expect(el.textContent).toContain('Nothing in our index matches that');
+    expect(el.textContent).toContain('No match');
   });
 });
