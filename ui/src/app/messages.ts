@@ -93,9 +93,11 @@ export interface Messages {
   /** {shop} */
   readsSearch: string;
   readsNoLink: string;
+  readsNoOfferAnywhere: string;
   readsOther: string;
   sampleTitle: string;
   sampleNote: string;
+  demoBadge: string;
   // Feature 5: declared memberships. {name} is the membership, {shop} the shop.
   membershipsTitle: string;
   membershipsIntro: string;
@@ -119,6 +121,7 @@ export interface Messages {
 
   // Feature 2: photo of a reading list.
   photoButton: string;
+  photoButtonFull: string;
   photoAriaLabel: string;
   photoReading: string;
   /** {size} */
@@ -429,9 +432,11 @@ export const MESSAGES: Record<Lang, Messages> = {
     readsOpen: 'Open {shop} ↗',
     readsSearch: 'Search {shop} for this ISBN ↗',
     readsNoLink: 'no link',
+    readsNoOfferAnywhere: 'No shop lists this ISBN.',
     readsOther: 'Not read',
     sampleTitle: 'Your sample basket',
     sampleNote: 'A demo basket of books. Its totals are for the whole basket, not the price of the book you picked. That is in the shop rows above.',
+    demoBadge: 'Demo data',
     membershipsTitle: 'Memberships',
     membershipsIntro: 'Tick the memberships you have. A membership changes your total only when the shop\'s own rules page says so.',
     membershipDeclare: 'I have {name}',
@@ -444,6 +449,7 @@ export const MESSAGES: Record<Lang, Messages> = {
     membershipSourceTried: 'Read tried: {url}, {date}',
     monthsShort: 'Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec',
     photoButton: 'Photo',
+    photoButtonFull: 'Photo of a list',
     photoAriaLabel: 'Take or choose a photo of a reading list',
     photoReading: 'Reading the photo\u2026',
     photoOversize: 'This photo is over {size}. Try a smaller one.',
@@ -697,9 +703,11 @@ export const MESSAGES: Record<Lang, Messages> = {
     readsOpen: 'Deschide {shop} ↗',
     readsSearch: 'Caută pe {shop} acest ISBN ↗',
     readsNoLink: 'fără link',
+    readsNoOfferAnywhere: 'Niciun magazin nu are acest ISBN.',
     readsOther: 'Necitit',
     sampleTitle: 'Coșul demo',
     sampleNote: 'Un coș demo de cărți. Totalurile sunt pentru tot coșul, nu prețul cărții alese. Acela e în rândurile magazinelor de mai sus.',
+    demoBadge: 'Date demo',
     membershipsTitle: 'Abonamente',
     membershipsIntro: 'Bifează abonamentele pe care le ai. Un abonament schimbă totalul doar când pagina de reguli a magazinului spune asta.',
     membershipDeclare: 'Am {name}',
@@ -712,6 +720,7 @@ export const MESSAGES: Record<Lang, Messages> = {
     membershipSourceTried: 'Citire încercată: {url}, pe {date}',
     monthsShort: 'ian. feb. mar. apr. mai iun. iul. aug. sept. oct. nov. dec.',
     photoButton: 'Fotografie',
+    photoButtonFull: 'Fotografie a unei liste',
     photoAriaLabel: 'Fă sau alege o fotografie a unei liste de cărți',
     photoReading: 'Citesc fotografia\u2026',
     photoOversize: 'Fotografia depășește {size}. Încearcă una mai mică.',

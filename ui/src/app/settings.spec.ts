@@ -60,7 +60,7 @@ describe('language (feature 8)', () => {
     el.querySelector<HTMLButtonElement>('button[lang="ro"]')!.click();
     fixture.detectChanges();
     expect(box()).toBe(MESSAGES.ro.boxPlaceholder);
-    expect(el.querySelector('.photo-btn')!.textContent!.trim()).toBe(MESSAGES.ro.photoButton);
+    expect(el.querySelector('app-photo-input .btn2')!.textContent!.trim()).toBe(MESSAGES.ro.photoButtonFull);
     expect(pressed(el)).toContain('RO');
     expect(document.documentElement.lang).toBe('ro');
     expect(localStorage.getItem(LANG_KEY)).toBe('ro');

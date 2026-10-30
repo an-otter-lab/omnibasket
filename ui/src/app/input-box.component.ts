@@ -29,7 +29,7 @@ import { Lang, MESSAGES } from './messages';
 export class InputBoxComponent {
   @Input() lang: Lang = 'en';
   @Input() value = '';
-  @Input() showSample = true;
+  @Input() showSample = false;
   @Output() submitted = new EventEmitter<string>();
 
   get m() {

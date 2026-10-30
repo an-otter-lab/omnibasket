@@ -20,9 +20,19 @@ export type PhotoInputEvent =
       [attr.aria-label]="m.photoAriaLabel"
       (change)="onFile($event)"
     />
-    <button class="btn photo-btn" type="button" [disabled]="busy" (click)="fileInput.click()">
-      {{ m.photoButton }}
-    </button>
+    @if (mode === 'inline') {
+      <button class="btn2 full" type="button" [disabled]="busy" (click)="fileInput.click()">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+          <circle cx="12" cy="13" r="4"></circle>
+        </svg>
+        <span>{{ m.photoButtonFull }}</span>
+      </button>
+    } @else {
+      <button class="btn photo-btn" type="button" [disabled]="busy" (click)="fileInput.click()">
+        {{ m.photoButton }}
+      </button>
+    }
   `,
   styles: [
     `
@@ -44,6 +54,7 @@ export class PhotoInputComponent {
   @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
   @Input() lang: Lang = 'en';
   @Input() busy = false;
+  @Input() mode: 'inline' | 'standalone' = 'standalone';
   @Output() photoEvent = new EventEmitter<PhotoInputEvent>();
 
   get m() {

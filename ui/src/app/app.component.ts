@@ -17,6 +17,7 @@ import { MembershipRow, loadDeclared, saveDeclared } from './memberships';
 import { AskApplied, AskBoxComponent } from './ask-box.component';
 import { PhotoInputComponent, PhotoInputEvent } from './photo-input.component';
 import { PhotoResultComponent } from './photo-result.component';
+import { ConfigService } from './config.service';
 import {
   PhotoCandidate,
   PhotoLine,
@@ -259,6 +260,7 @@ const STATUS_KEY: Record<string, keyof Messages> = {
 export class AppComponent implements OnDestroy {
   private readonly events = inject(EventsService);
   private readonly i18n = inject(I18nService);
+  private readonly config = inject(ConfigService);
   private stream: Subscription | null = null;
   // Feature 1 state.
   boxText = '';
@@ -271,6 +273,7 @@ export class AppComponent implements OnDestroy {
   liveFailed = false;
   liveOffers: LiveOffer[] = [];
   loading = false;
+  isDemoMode = false;
 
   readonly encodeURIComponent = encodeURIComponent;
   route: Route = { name: 'entry', arg: '' };
@@ -309,6 +312,9 @@ export class AppComponent implements OnDestroy {
   constructor() {
     const sample = new URLSearchParams(window.location.search).get('sample');
     if (sample && !window.location.hash) window.location.hash = '#/result/cheapest';
+    this.config.getConfig().subscribe((config) => {
+      this.isDemoMode = config.demo;
+    });
     this.readRoute();
     this.routeChanged();
     // A language switch re-asks for the split explanation in the new language.
