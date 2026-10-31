@@ -12,7 +12,7 @@ import { Candidate, LiveOffer, Progress, parseInput, pastedBook } from './live';
 import { PickListComponent, PickState } from './pick-list.component';
 import { ShopReadsComponent } from './shop-reads.component';
 import { buyListFromOrders, encodeBuyList } from './buy-list';
-import { Lang, MESSAGES, Messages, count, editionName, fieldName, fill } from './messages';
+import { Lang, MESSAGES, Messages, ReasonArgs, count, editionName, fieldName, fill, reasonText } from './messages';
 import { I18nService } from './i18n';
 import { ThemePref, ThemeService } from './theme';
 import { MembershipsComponent } from './memberships.component';
@@ -87,6 +87,8 @@ interface NotRanked {
 interface Answer {
   status: 'ranked' | 'not_ranked' | 'not_possible';
   reason: string | null;
+  reason_code?: string | null;
+  reason_args?: ReasonArgs;
   total_cents: number | null;
   books_subtotal_cents: number | null;
   order_count: number | null;
@@ -193,6 +195,8 @@ interface Payload {
   one_order: {
     status: string;
     reason: string | null;
+    reason_code?: string | null;
+    reason_args?: ReasonArgs;
     best_store_id: string | null;
     answer: Answer | null;
     per_book_delta: { item_id: string; title: string; price_cents: number; cheapest_price_cents: number | null; cheapest_store_id: string | null; delta_cents: number | null }[];
@@ -204,6 +208,8 @@ interface Payload {
     unknown_pins: string[];
     status: string;
     reason: string | null;
+    reason_code?: string | null;
+    reason_args?: ReasonArgs;
     unpinned_total_cents: number | null;
     total_cents: number | null;
     delta_cents: number | null;
@@ -1293,6 +1299,16 @@ export class AppComponent implements OnDestroy {
   }
 
   // ------------------------------------------------------------ formatting
+
+  /** S23: a plan "why not" line in the shopper's language (the API sends a code and its arguments). */
+  why(a: { reason: string | null; reason_code?: string | null; reason_args?: ReasonArgs } | null | undefined): string {
+    return a ? reasonText(this.lang, a.reason_code, a.reason_args, a.reason, (id) => this.shopName(id)) : '';
+  }
+
+  /** S23: why a shop cannot take a book (shop rows) or cannot be chosen (lock), by code. */
+  shopWhy(kind: 'shop' | 'lock', code: string | null | undefined, fallback: string | null | undefined): string {
+    return reasonText(this.lang, code ? kind + ':' + code : null, {}, fallback, (id) => this.shopName(id));
+  }
 
   shopName(id: string | null | undefined): string {
     return id ? SHOP_NAME[id] || id : '';

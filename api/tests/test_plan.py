@@ -309,3 +309,26 @@ def test_only_one_shop_returns_the_one_parcel_answer_and_not_possible_elsewhere(
     assert body["one_parcel"]["answer"]["total_cents"] == 3000
     assert body["cheapest"]["status"] == "not_possible" and body["cheapest"]["total_cents"] is None
     assert body["custom"]["status"] == "not_possible" and body["custom"]["total_cents"] is None
+
+
+def test_s23_not_possible_answers_carry_a_reason_code(client: TestClient) -> None:
+    """S23: the UI renders reason_code/reason_args in the shopper's language; reason stays English."""
+    body = client.post("/solve", json={"selected_store_ids": ["amazon_de"]}).json()
+    custom = body["custom"]
+    assert custom["reason_code"] == "no_chosen_shop_lists"
+    assert custom["reason_args"]["title"] in custom["reason"]
+    one = body["one_parcel"]
+    if one["status"] != "ranked":
+        assert one["reason_code"] in {"no_single_shop_lists_all", "no_single_shop_fees", "no_shop_lists"}
+    else:
+        assert one["reason_code"] is None
+    assert client.post("/solve", json={"selected_store_ids": []}).json()["custom"]["reason_code"] == "choose_a_shop"
+
+
+def test_s23_pin_nobody_sells_names_the_edition_by_code(client: TestClient) -> None:
+    stores = [_store("a", threshold=0)]
+    items = [_item("x", [("a", 3000, {"edition": "paperback"})], title="X")]
+    body = _post(client, stores, items, edition_pins={"x": "board_book"})
+    for key in ("cheapest", "one_parcel", "edition"):
+        assert body[key]["reason_code"] == "no_shop_prints_as", key
+        assert body[key]["reason_args"] == {"title": "X", "edition": "board_book"}, key

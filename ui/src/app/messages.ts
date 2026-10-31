@@ -428,6 +428,30 @@ export interface Messages {
   pickClear: string;
   /** S19: the Photo of a list button while the photo is read. */
   photoReadingList: string;
+  /** S23: the API's "why not" lines, rendered from reason_code (plan) or code (shop rows). */
+  rsNoShopLists: string;
+  rsNoChosenShopLists: string;
+  rsNoShopPrintsAs: string;
+  rsNoChosenShopPrintsAs: string;
+  rsFeeNotPrintedSplit: string;
+  rsNoSingleShopFees: string;
+  rsNoSingleShopListsAll: string;
+  rsChooseAShop: string;
+  rsChosenShopUnusable: string;
+  rsNoSplitForChosen: string;
+  rsChosenFeesNotPrinted: string;
+  rsNoRankedSplit: string;
+  rsOneBook: string;
+  rsOneShop: string;
+  rsShopNotListed: string;
+  rsShopOutOfStock: string;
+  rsShopFeesNotPrinted: string;
+  rsShopCouldntRead: string;
+  rsShopOtherEdition: string;
+  rsLockFeesNotPrinted: string;
+  rsLockCouldntRead: string;
+  rsLockNotListed: string;
+  rsLockUnknownShop: string;
 }
 
 export const MESSAGES: Record<Lang, Messages> = {
@@ -750,6 +774,29 @@ export const MESSAGES: Record<Lang, Messages> = {
     addDuplicateKeep: 'Keep one',
     pickClear: 'Clear',
     photoReadingList: 'Reading your list\u2026',
+    rsNoShopLists: 'no shop lists {title}',
+    rsNoChosenShopLists: 'no shop chosen lists {title}',
+    rsNoShopPrintsAs: 'no shop prints {title} as {edition}',
+    rsNoChosenShopPrintsAs: 'no shop chosen prints {title} as {edition}',
+    rsFeeNotPrintedSplit: 'a delivery fee is not printed for this split',
+    rsNoSingleShopFees: 'no single shop has a known delivery fee for every book',
+    rsNoSingleShopListsAll: 'no single shop lists every book',
+    rsChooseAShop: 'choose at least one shop',
+    rsChosenShopUnusable: 'a chosen shop cannot be used: {shops}',
+    rsNoSplitForChosen: 'no split gives every chosen shop at least one book',
+    rsChosenFeesNotPrinted: 'every split for these shops needs a delivery fee that is not printed',
+    rsNoRankedSplit: 'no ranked split',
+    rsOneBook: 'one book: shops are ranked by known total',
+    rsOneShop: 'only one shop can be priced for these books',
+    rsShopNotListed: 'not listed here',
+    rsShopOutOfStock: 'out of stock',
+    rsShopFeesNotPrinted: 'its delivery or per-order fee is not printed',
+    rsShopCouldntRead: 'the page could not be read',
+    rsShopOtherEdition: 'not in the pinned edition',
+    rsLockFeesNotPrinted: 'its delivery or per-order fee is not printed, so it cannot be priced',
+    rsLockCouldntRead: 'its pages could not be read',
+    rsLockNotListed: 'it lists none of these books',
+    rsLockUnknownShop: 'this shop is not part of the basket',
   },
   ro: {
     deliveryGapShort: 'Mai ai {amount} lei până la livrarea gratuită la {shop}',
@@ -1070,6 +1117,29 @@ export const MESSAGES: Record<Lang, Messages> = {
     addDuplicateKeep: 'Păstrează una',
     pickClear: 'Șterge',
     photoReadingList: 'Citesc lista\u2026',
+    rsNoShopLists: 'niciun magazin nu are {title}',
+    rsNoChosenShopLists: 'niciunul dintre magazinele alese nu are {title}',
+    rsNoShopPrintsAs: 'niciun magazin nu are {title} în ediția {edition}',
+    rsNoChosenShopPrintsAs: 'niciunul dintre magazinele alese nu are {title} în ediția {edition}',
+    rsFeeNotPrintedSplit: 'o taxă de livrare nu este afișată pentru această împărțire',
+    rsNoSingleShopFees: 'niciun magazin nu are o taxă de livrare cunoscută pentru toate cărțile',
+    rsNoSingleShopListsAll: 'niciun magazin nu are toate cărțile',
+    rsChooseAShop: 'alege cel puțin un magazin',
+    rsChosenShopUnusable: 'un magazin ales nu poate fi folosit: {shops}',
+    rsNoSplitForChosen: 'nicio împărțire nu dă fiecărui magazin ales măcar o carte',
+    rsChosenFeesNotPrinted: 'orice împărțire între aceste magazine are nevoie de o taxă de livrare care nu este afișată',
+    rsNoRankedSplit: 'nicio împărțire clasată',
+    rsOneBook: 'o singură carte: magazinele sunt ordonate după totalul cunoscut',
+    rsOneShop: 'doar un magazin poate fi calculat pentru aceste cărți',
+    rsShopNotListed: 'nu apare aici',
+    rsShopOutOfStock: 'stoc epuizat',
+    rsShopFeesNotPrinted: 'taxa de livrare sau de comandă nu este afișată',
+    rsShopCouldntRead: 'pagina nu a putut fi citită',
+    rsShopOtherEdition: 'nu în ediția aleasă',
+    rsLockFeesNotPrinted: 'taxa de livrare sau de comandă nu este afișată, deci nu poate fi calculat',
+    rsLockCouldntRead: 'paginile nu au putut fi citite',
+    rsLockNotListed: 'nu are niciuna dintre aceste cărți',
+    rsLockUnknownShop: 'magazinul nu face parte din coș',
   },
 };
 
@@ -1116,4 +1186,52 @@ export function fieldName(lang: Lang, code: string): string {
   if (code === 'isbn13') return 'ISBN';
   const key = FIELD_KEY[code];
   return key ? MESSAGES[lang][key] : code;
+}
+
+// S23: the API's "why not" codes, named in the shopper's language. An unknown code shows the
+// API's English line rather than nothing.
+export type ReasonArgs = Record<string, string | string[] | null | undefined>;
+
+const REASON_KEY: Record<string, keyof Messages> = {
+  no_shop_lists: 'rsNoShopLists',
+  no_chosen_shop_lists: 'rsNoChosenShopLists',
+  no_shop_prints_as: 'rsNoShopPrintsAs',
+  no_chosen_shop_prints_as: 'rsNoChosenShopPrintsAs',
+  fee_not_printed_split: 'rsFeeNotPrintedSplit',
+  no_single_shop_fees: 'rsNoSingleShopFees',
+  no_single_shop_lists_all: 'rsNoSingleShopListsAll',
+  choose_a_shop: 'rsChooseAShop',
+  chosen_shop_unusable: 'rsChosenShopUnusable',
+  no_split_for_chosen: 'rsNoSplitForChosen',
+  chosen_fees_not_printed: 'rsChosenFeesNotPrinted',
+  no_ranked_split: 'rsNoRankedSplit',
+  one_book: 'rsOneBook',
+  one_shop: 'rsOneShop',
+  'shop:not_listed': 'rsShopNotListed',
+  'shop:out_of_stock': 'rsShopOutOfStock',
+  'shop:fees_not_printed': 'rsShopFeesNotPrinted',
+  'shop:couldnt_read': 'rsShopCouldntRead',
+  'shop:other_edition': 'rsShopOtherEdition',
+  'lock:fees_not_printed': 'rsLockFeesNotPrinted',
+  'lock:couldnt_read': 'rsLockCouldntRead',
+  'lock:not_listed': 'rsLockNotListed',
+  'lock:unknown_shop': 'rsLockUnknownShop',
+};
+
+export function reasonText(
+  lang: Lang,
+  code: string | null | undefined,
+  args: ReasonArgs | null | undefined,
+  fallback: string | null | undefined,
+  shopName: (id: string) => string,
+): string {
+  const key = code ? REASON_KEY[code] : undefined;
+  if (!key) return fallback ?? '';
+  const a = args ?? {};
+  const shops = Array.isArray(a['shops']) ? a['shops'].map(shopName).join(', ') : String(a['shops'] ?? '');
+  return fill(MESSAGES[lang][key], {
+    title: String(a['title'] ?? ''),
+    edition: editionName(lang, a['edition'] as string | null | undefined),
+    shops,
+  });
 }
