@@ -584,8 +584,14 @@ export class AppComponent implements OnDestroy {
   }
 
   /** R0: the field asks for a search and is empty again at once; the query is only in #/find/<q>. */
+  /** S14 (D2): a search is running; Find book shows it and takes no second search meanwhile. */
+  get findSearching(): boolean {
+    return this.route.name === 'find' && this.pickState === 'searching';
+  }
+
   onFieldSubmit(event: Event): void {
     event.preventDefault();
+    if (this.findSearching) return;
     const text = this.fieldText.trim();
     if (!text) return;
     if (badIsbn(text)) {
