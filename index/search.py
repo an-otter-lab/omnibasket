@@ -35,6 +35,10 @@ ERROR_TTL = 600  # a failed Libris read is not retried for 10 min
 MIN_REQUEST_INTERVAL = 1.0  # polite: at most one Open Library request per second, process-wide
 LIBRIS_READS = 3  # product pages read per search (the top results only)
 LIBRIS_TIMEOUT = 4.0
+# S30: the most one Libris title match may take. A photo read runs it once per line, so a slow
+# match must give up (no Libris link for that line) rather than hold the whole read.
+LIBRIS_MATCH_SECONDS = 1.0
+LIBRIS_MATCH_CHECK_EVERY = 1000  # SQLite steps between two looks at the clock
 OL_FIELDS = "key,title,author_name,cover_i,isbn,first_publish_year"
 BOOST = 1.5  # a result with a known shop offer moves up one place; Open Library's top result stays first
 
@@ -255,15 +259,26 @@ def _libris_candidate(db: sqlite3.Connection, titles: list[str]) -> str | None:
         stems = [s for s in stems if s]
         if not stems:
             continue
+        # S30: CROSS JOIN keeps the full-text match as the outer loop. With a plain JOIN SQLite
+        # walked every Libris row (about 54k) and ran the MATCH once per row: 3-4 s for
+        # "Matilda", minutes for "Guess How Much I Love You" (its "i"* prefix matches 100k+ words).
+        deadline = time.monotonic() + LIBRIS_MATCH_SECONDS
+        db.set_progress_handler(lambda: time.monotonic() > deadline, LIBRIS_MATCH_CHECK_EVERY)
         try:
             rows = db.execute(
-                """SELECT b.url, b.title FROM books_search s JOIN books b ON b.rowid = s.rowid
+                """SELECT b.url, b.title FROM books_search s CROSS JOIN books b ON b.rowid = s.rowid
                    WHERE books_search MATCH ? AND b.shop = 'libris' LIMIT 200""",
                 (" AND ".join(f'"{s}"*' for s in stems),),
             ).fetchall()
         except sqlite3.OperationalError as exc:
-            MATCH_ERRORS.append({"query": title, "error": str(exc)})
+            if time.monotonic() > deadline:
+                log.warning("libris title match over %.1f s, skipped: %s", LIBRIS_MATCH_SECONDS, title)
+                MATCH_ERRORS.append({"query": title, "error": "time cap"})
+            else:
+                MATCH_ERRORS.append({"query": title, "error": str(exc)})
             return None
+        finally:
+            db.set_progress_handler(None, 0)
         want = {_fold(w) for w in words}
         fits = [(len(normalize(t)), u) for u, t in rows if want <= {_fold(w) for w in _words(t)}]
         if fits:
