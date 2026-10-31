@@ -355,6 +355,15 @@ def _other_shops(isbn: str | None, title: str) -> list[dict]:
 # ---------------------------------------------------------------- the search
 
 
+# P3: a children's-books demo does not list titles with strong profanity ("the Subtle Art of Not
+# Giving a F*ck" for "sapiens") unless the shopper typed such a word. An ISBN search is never filtered.
+_PROFANE = re.compile(r"\b(?:\w*fuck\w*|shit|shits|shitty|bullshit|cunt\w*)\b", re.IGNORECASE)
+
+
+def _profane(text: object) -> bool:
+    return isinstance(text, str) and bool(_PROFANE.search(text))
+
+
 def search(query: str, limit: int = 10, db_path: Path | str = DB, opener=None, fetcher=None) -> list[dict]:
     """Books for a title, author or ISBN (RO or EN, diacritics ignored), ranked by Open Library
     relevance and boosted when a shop is known to carry the ISBN. Raises SearchUnavailable when
@@ -391,6 +400,8 @@ def search(query: str, limit: int = 10, db_path: Path | str = DB, opener=None, f
             for it in ranked:
                 if asked not in it["isbns"]:
                     it["isbns"].insert(0, asked)
+        if not asked and not _profane(query):
+            ranked = [it for it in ranked if not (_profane(it["doc"].get("title")) or _profane(it["doc"].get("subtitle")))]
         every_isbn = sorted({i for it in ranked for i in it["isbns"]})
         index_titles = _index_titles(db, every_isbn)
         carried = _books_express(db, every_isbn)
