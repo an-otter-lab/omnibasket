@@ -678,6 +678,11 @@ export class AppComponent implements OnDestroy {
     const isbn = parsed.kind === 'isbn' || parsed.kind === 'link' ? parsed.isbn : null;
     try {
       const res = await fetch('/search?limit=5&q=' + encodeURIComponent(isbn || text));
+      // H3: a 503 means Open Library is busy or down; say so and offer the same search again.
+      if (res.status === 503) {
+        if (this.route.name === 'find' && this.route.arg === text) this.pickState = 'busy';
+        return;
+      }
       if (!res.ok) throw new Error('search failed');
       const body = (await res.json()) as { results: Candidate[] };
       let found = (body.results || []).slice(0, 5);
