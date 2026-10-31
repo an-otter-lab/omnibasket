@@ -372,6 +372,10 @@ async def _read_one_page(
             
             # Try schema.org extraction from cached HTML
             schema_org = extract_schema_org(page_text)
+            # S3: the link and read time come from the first read of the day.
+            provenance = cached.get("provenance") or {}
+            cached_url = provenance.get("url") or (provenance.get("meta") or {}).get("final_url")
+            availability = schema_org.availability
             
             # Build offer from cached data
             offer = OfferRead(
@@ -383,9 +387,9 @@ async def _read_one_page(
                 availability=schema_org.availability,
                 edition=None,
                 seller_certainty="unknown",
-                listing_url=None,
-                read_at=None,
-                in_stock=None,
+                listing_url=cached_url,
+                read_at=provenance.get("read_at"),
+                in_stock=("instock" in availability.lower()) if availability else None,
                 schema_org=schema_org,
                 muse_result=None,
                 status="ok" if schema_org.price_cents else "failed",
@@ -408,6 +412,7 @@ async def _read_one_page(
                     offer.isbn13 = fields["isbn13"]
                 offer.seller_certainty = fields.get("seller_certainty") or "unknown"
                 offer.edition = fields.get("format")
+                offer.in_stock = fields.get("in_stock")
                 if offer.price_cents is None:
                     offer.status = "failed"
                     offer.reason = "muse_price_dropped"
