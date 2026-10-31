@@ -44,7 +44,7 @@ import { PhotoCandidate, PhotoLineAmbiguous, PhotoLineNotFound, PhotoState, Reso
         @if (state.ambiguous.length) {
           <section class="photo-section">
             <h2 class="h3">{{ ambiguousCountMessage }}</h2>
-            @for (item of state.ambiguous; track $index) {
+            @for (item of state.ambiguous; track $index; let line = $index) {
               <div class="photo-ambiguous">
                 <p class="pt">{{ item.line.read_title }}</p>
                 @if (item.line.read_author) { <p class="s">{{ item.line.read_author }}</p> }
@@ -52,7 +52,7 @@ import { PhotoCandidate, PhotoLineAmbiguous, PhotoLineNotFound, PhotoState, Reso
                 <ul class="picks">
                   @for (c of item.line.candidates; track c.isbn) {
                     <li>
-                      <button class="pick" type="button" [class.sel]="item.picked?.isbn === c.isbn" (click)="pick.emit({ index: $index, candidate: c })">
+                      <button class="pick" type="button" [class.sel]="item.picked?.isbn === c.isbn" (click)="pick.emit({ index: line, candidate: c })">
                         @if (coverOf(c); as src) {
                           <img class="pcover" [src]="src" alt="" width="56" height="80" loading="lazy" referrerpolicy="no-referrer" />
                         } @else {
@@ -139,6 +139,22 @@ import { PhotoCandidate, PhotoLineAmbiguous, PhotoLineNotFound, PhotoState, Reso
       }
       .pick .pmeta {
         flex: 1;
+        min-width: 0;
+        overflow-wrap: anywhere;
+      }
+      /* S20: at phone width the read line sits above its picks, and the picks are full width. */
+      @media (max-width: 599.98px) {
+        .photo-ambiguous {
+          flex-direction: column;
+          gap: 0.25rem;
+        }
+        .photo-ambiguous > * {
+          min-width: 0;
+        }
+        .photo-ambiguous .picks,
+        .photo-ambiguous .pick {
+          width: 100%;
+        }
       }
       .pick .pgo {
         color: var(--brand-ink);
