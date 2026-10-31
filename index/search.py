@@ -375,7 +375,9 @@ def search(query: str, limit: int = 10, db_path: Path | str = DB, opener=None, f
         db.row_factory = sqlite3.Row
         _cache_init(db)
         ensure_books_search(db)
-        docs = _ol_search(db, asked or query, opener)[:limit]
+        # S7: rank every doc Open Library returned (it is asked for 10), and cut to `limit`
+        # only at the end, so a smaller limit is always a prefix of a larger one.
+        docs = _ol_search(db, asked or query, opener)
 
         # The catalogue's order is for its whole corpus: rank it for this shopper first,
         # then choose the ISBN of each work (never a dialect or foreign printing).
