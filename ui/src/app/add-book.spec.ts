@@ -5,8 +5,7 @@ import { EVENT_SOURCE, SourceLike } from './events.service';
 import { Candidate } from './live';
 
 // R0 / R4: the add-book state. The field starts and stays empty (the query lives in #/find/<q>),
-// a pick adds the book here without leaving the screen, and the first-run copy belongs to an
-// empty basket at #/ only.
+// a pick adds the book here without leaving the screen, and the entry screen is the same with or without books (only How it works gives way to the chips).
 
 const A = '9781526605412';
 const CAND: Candidate = {
@@ -105,27 +104,32 @@ describe('the add-book state (R0, R4)', () => {
     expect(el.querySelectorAll('.addchip').length).toBe(0);
   });
 
-  it('"Add a book" with a non-empty basket shows the add state, never the first-run headline', () => {
-    TestBed.inject(BasketService).addUnpriced(A, 'Book A', 'Author A');
+  const SAME = ['One order, or the cheapest?', 'Book title or ISBN', 'Find book', 'Photo of a list', 'We read and index shop data'];
+
+  it('with 2 books #/ is the same page: all entry elements, two chips and See orders, no How it works', () => {
+    const b = TestBed.inject(BasketService);
+    b.addUnpriced(A, 'Book A', 'Author A');
+    b.addUnpriced('9780000000002', 'Book B', 'Author B');
     const { el } = boot();
 
-    expect(el.querySelector('[data-screen="first"]')).toBeNull();
-    expect(el.querySelector('[data-screen="add"]')).not.toBeNull();
-    expect(el.textContent).not.toContain('One order, or the cheapest?');
+    for (const t of SAME) expect(el.textContent).toContain(t);
+    expect(el.querySelector('h1')).not.toBeNull();
     expect(el.textContent).not.toContain('How it works');
-    expect(el.textContent).toContain('Find a book');
-    expect(el.querySelector('[data-header-count]')!.textContent).toContain('1 book · See orders');
-    expect(el.querySelectorAll('.addchip').length).toBe(1);
+    expect(el.textContent).not.toContain('Find a book');
+    expect(el.querySelector('[data-header-count]')!.textContent).toContain('2 books · See orders');
+    expect(el.querySelectorAll('.addchip').length).toBe(2);
+    expect(el.querySelector('[data-action="see-orders"]')).not.toBeNull();
     expect(el.querySelector('.addtitle')!.textContent).toContain('Book A · Author A');
   });
 
-  it('keeps the first-run copy for an empty basket at #/', () => {
+  it('with 0 books #/ shows all entry elements and How it works, no chips', () => {
     const { el } = boot();
     expect(el.querySelector('[data-screen="first"]')).not.toBeNull();
-    expect(el.textContent).toContain('One order, or the cheapest?');
+    for (const t of SAME) expect(el.textContent).toContain(t);
     expect(el.textContent).toContain('How it works');
     expect(el.querySelector('[data-header-count]')).toBeNull();
     expect(el.querySelectorAll('.addchip').length).toBe(0);
+    expect(el.querySelector('[data-action="see-orders"]')).toBeNull();
   });
 
   it('routes #/add to the add state with the field already empty', () => {
