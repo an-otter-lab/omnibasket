@@ -399,6 +399,26 @@ def _absent_reply(text, state, names, absent) -> AskResult:
     return AskResult("unsupported", [], NOT_IN_BASKET, shop, [], "fast")
 
 
+def _is_one_tab(a) -> bool:
+    return isinstance(a, dict) and a.get("name") == "set_tab" and (a.get("args") or {}).get("tab") == "one"
+
+
+def _one_order_check(res: AskResult, state: dict) -> AskResult:
+    """S24: a validated 'one order' (fast path or Muse) on a basket no single shop can fill says so,
+    with the same reply as the absent-shop path, instead of switching to the one-order tab."""
+    if res.status != "ok" or not any(_is_one_tab(a) for a in res.actions):
+        return res
+    if _one_order_possible(state) is not False:
+        return res
+    keep = [a for a in res.actions if not _is_one_tab(a)]
+    replies = [r for r in (res.replies or [{"reply_key": res.reply_key, "reply_args": res.reply_args}])
+               if not (r.get("reply_key") == "askDoneTab" and (r.get("reply_args") or {}).get("tab") == "one")]
+    replies.append({"reply_key": ONE_NOT_POSSIBLE, "reply_args": {}})
+    if not keep:
+        return AskResult("unsupported", [], ONE_NOT_POSSIBLE, {}, [], res.via)
+    return AskResult("ok", keep, replies[0]["reply_key"], replies[0]["reply_args"], replies, res.via)
+
+
 def answer(text: str, lang: str, state: dict, muse=None, names: dict | None = None) -> AskResult:
     """Fast path, else one guarded Muse call; always validated; never raises."""
     try:
@@ -421,7 +441,7 @@ def _answer(text, state, muse, names) -> AskResult:
     if fast is not None:
         res = validate({"actions": fast}, state, names)
         res.via = "fast"
-        return res
+        return _one_order_check(res, state)
     if muse is None:
         from api import input_understanding as iu
 
@@ -437,4 +457,4 @@ def _answer(text, state, muse, names) -> AskResult:
         return unsupported(UNAVAILABLE if budget else UNSUPPORTED, "muse")
     res = validate(parsed, state, names)
     res.via = "muse"
-    return res
+    return _one_order_check(res, state)
