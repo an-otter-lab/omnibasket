@@ -14,7 +14,9 @@ import logging
 import re
 import sys
 import threading
+from collections import OrderedDict
 from pathlib import Path
+from typing import Callable
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
@@ -61,7 +63,8 @@ def sentence_ended(text: str) -> bool:
     return bool(trimmed) and trimmed[-1] in ".!?"
 
 
-_cache: dict[str, dict] = {}
+MAX_CACHE = 256  # H1: answers kept in memory; the least recently used is dropped first
+_cache: OrderedDict[str, dict] = OrderedDict()
 _inflight: dict[str, threading.Event] = {}
 _lock = threading.Lock()
 
@@ -70,6 +73,116 @@ def payload_hash(payload: dict, lang: str) -> str:
     """Stable sha256 of the canonical payload and language."""
     canonical = json.dumps({"lang": lang, "payload": payload}, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+# H1: /why accepts only a body shaped like a /solve result, so an arbitrary JSON body never reaches Muse.
+_STATUSES = {"ranked", "not_ranked", "not_possible"}
+_STORE_ID = re.compile(r"^[A-Za-z0-9_.-]{1,40}$")
+MAX_BOOKS = 100
+MAX_ORDERS = 20
+MAX_TITLE = 500
+MAX_CENTS = 100_000_000
+_CENTS_KEYS = (
+    "total_cents",
+    "books_subtotal_cents",
+    "delivery_cents",
+    "order_fee_cents",
+    "order_total_cents",
+    "free_delivery_threshold_cents",
+    "short_of_threshold_cents",
+    "delta_vs_cheapest_cents",
+    "price_cents",
+)
+
+
+def _cents_problem(row: dict, where: str) -> str | None:
+    for key in _CENTS_KEYS:
+        value = row.get(key)
+        if value is None:
+            continue
+        if isinstance(value, bool) or not isinstance(value, int) or abs(value) > MAX_CENTS:
+            return f"{where}.{key} is not an amount in cents"
+    return None
+
+
+def _order_problem(order: object, where: str) -> str | None:
+    if not isinstance(order, dict):
+        return f"{where} is not an object"
+    store = order.get("store_id")
+    if not isinstance(store, str) or not _STORE_ID.match(store):
+        return f"{where}.store_id is not a shop id"
+    books = order.get("books")
+    if not isinstance(books, list) or len(books) > MAX_BOOKS:
+        return f"{where}.books is not a list of at most {MAX_BOOKS}"
+    for i, book in enumerate(books):
+        if not isinstance(book, dict):
+            return f"{where}.books[{i}] is not an object"
+        title = book.get("title")
+        if title is not None and (not isinstance(title, str) or len(title) > MAX_TITLE):
+            return f"{where}.books[{i}].title is not a short string"
+        problem = _cents_problem(book, f"{where}.books[{i}]")
+        if problem:
+            return problem
+    known = order.get("delivery_known")
+    if known is not None and not isinstance(known, bool):
+        return f"{where}.delivery_known is not true or false"
+    return _cents_problem(order, where)
+
+
+def solve_result_problem(payload: object) -> str | None:
+    """None when the body is shaped like a /solve result the UI would describe, else what is wrong."""
+    if not isinstance(payload, dict):
+        return "payload is not an object"
+    books = payload.get("books")
+    if not isinstance(books, list) or not 1 <= len(books) <= MAX_BOOKS:
+        return f"books is not a list of 1 to {MAX_BOOKS}"
+    if not all(isinstance(b, dict) for b in books):
+        return "books holds a non-object"
+    currency = payload.get("currency")
+    if currency is not None and (not isinstance(currency, str) or len(currency) > 8):
+        return "currency is not a currency code"
+    problem = _cents_problem(payload, "payload")
+    if problem:
+        return problem
+    cheapest = payload.get("cheapest")
+    if not isinstance(cheapest, dict) or cheapest.get("status") not in _STATUSES:
+        return "cheapest is not a split with a known status"
+    orders = cheapest.get("orders")
+    if not isinstance(orders, list) or not 1 <= len(orders) <= MAX_ORDERS:
+        return f"cheapest.orders is not a list of 1 to {MAX_ORDERS}"
+    count = cheapest.get("order_count")
+    if count is not None and (isinstance(count, bool) or not isinstance(count, int) or not 0 <= count <= MAX_ORDERS):
+        return "cheapest.order_count is not a count"
+    problem = _cents_problem(cheapest, "cheapest")
+    for i, order in enumerate(orders):
+        problem = problem or _order_problem(order, f"cheapest.orders[{i}]")
+    if problem:
+        return problem
+    for key in ("one_order", "one_parcel"):
+        one = payload.get(key)
+        if one is None:
+            continue
+        if not isinstance(one, dict) or one.get("status") not in _STATUSES:
+            return f"{key} is not a one-order answer with a known status"
+        best = one.get("best_store_id")
+        if best is not None and (not isinstance(best, str) or not _STORE_ID.match(best)):
+            return f"{key}.best_store_id is not a shop id"
+        answer = one.get("answer")
+        if answer is not None:
+            if not isinstance(answer, dict):
+                return f"{key}.answer is not an object"
+            problem = _cents_problem(answer, f"{key}.answer")
+            if problem:
+                return problem
+    return None
+
+
+def _remember(key: str, result: dict) -> None:
+    """Store one answer; the caller holds _lock. Past MAX_CACHE the oldest-used answer goes."""
+    _cache[key] = result
+    _cache.move_to_end(key)
+    while len(_cache) > MAX_CACHE:
+        _cache.popitem(last=False)
 
 
 def clear_cache() -> None:
@@ -169,17 +282,29 @@ def _template(payload: dict, lang: str, reason: str) -> dict:
     return {"text": ro if lang == "ro" else en, "source": "template", "lang": lang, "model": None, "reason": reason}
 
 
-def explain(payload: dict, lang: str = "en", *, use_cache: bool = True) -> dict:
-    """Return {text, source, lang, model[, reason]}. Never raises for model trouble."""
+def explain(
+    payload: dict,
+    lang: str = "en",
+    *,
+    use_cache: bool = True,
+    may_call: Callable[[], bool] | None = None,
+) -> dict:
+    """Return {text, source, lang, model[, reason]}. Never raises for model trouble.
+
+    H1: may_call is asked only when Muse would be called (not for a cached answer or a request
+    waiting on an identical one). When it says no, the template sentence is returned, uncached."""
     lang = "ro" if str(lang).lower().startswith("ro") else "en"
     key = payload_hash(payload, lang)
     if not use_cache:
+        if may_call is not None and not may_call():
+            return _template(payload, lang, "per-IP /why limit")
         return dict(_ask(payload, lang))
     # S17: one in-flight call per payload hash. A page load that posts the same /why three times
     # in the same second pays for one call; the others wait for its answer.
     with _lock:
         hit = _cache.get(key)
         if hit is not None:
+            _cache.move_to_end(key)
             return dict(hit)
         pending = _inflight.get(key)
         if pending is None:
@@ -195,9 +320,11 @@ def explain(payload: dict, lang: str = "en", *, use_cache: bool = True) -> dict:
             return dict(hit)
         return _template(payload, lang, "identical request still in flight")
     try:
+        if may_call is not None and not may_call():
+            return _template(payload, lang, "per-IP /why limit")
         result = _ask(payload, lang)
         with _lock:
-            _cache[key] = result
+            _remember(key, result)
     finally:
         with _lock:
             _inflight.pop(key, None)

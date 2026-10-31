@@ -5,7 +5,15 @@ from api.rate_limit import LIMITS, PerIPRateLimitMiddleware
 
 
 def test_configured_limits_are_loaded():
-    assert LIMITS == {"requests": 60, "window_seconds": 60, "pastes_per_day": 20, "new_domains_per_day": 5}
+    assert LIMITS == {
+        "requests": 60,
+        "window_seconds": 60,
+        "pastes_per_day": 20,
+        "new_domains_per_day": 5,
+        "why_calls_per_window": 10,
+        "why_window_seconds": 600,
+        "why_calls_per_day": 40,
+    }
 
 
 def test_burst_from_one_ip_is_limited():

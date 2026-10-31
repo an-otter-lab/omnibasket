@@ -17,7 +17,7 @@ from pydantic import BaseModel, Field
 from api.basket import excluded_for_unresolved_fees, load_locked, locked_shop_rows
 from api.cache import PageCache, open_seeded
 from api.memberships import apply_memberships, check_declared, load_profiles, memberships_payload
-from api.rate_limit import DailyPasteLimiter, PerIPRateLimitMiddleware
+from api.rate_limit import DailyPasteLimiter, PerIPRateLimitMiddleware, WhyCallLimiter
 from api.solve_service import (
     context_from_body,
     context_from_locked,
@@ -133,6 +133,7 @@ def create_app(db_path: Path | None = None) -> FastAPI:
     from index.search import DB as INDEX_DB
     app.state.index_db_path = INDEX_DB
     app.state.paste_limiter = DailyPasteLimiter()
+    app.state.why_limiter = WhyCallLimiter()
     app.state.demo = demo_enabled()
     app.state.commit = _commit_sha()
 
@@ -224,10 +225,14 @@ def create_app(db_path: Path | None = None) -> FastAPI:
         return JSONResponse(payload)
 
     @app.post("/why")
-    def why_route(body: WhyIn) -> JSONResponse:
-        from api.why import explain
+    def why_route(body: WhyIn, request: Request) -> JSONResponse:
+        from api.why import explain, solve_result_problem
 
-        public = explain(body.payload, body.lang)
+        # H1: only a solve result reaches Muse, and each IP has its own small cap on Muse calls.
+        if solve_result_problem(body.payload):
+            return JSONResponse(status_code=422, content={"error": "not a solve result"})
+        ip = request.client.host if request.client else "unknown"
+        public = explain(body.payload, body.lang, may_call=lambda: app.state.why_limiter.allow(ip))
         public.pop("reason", None)
         return JSONResponse(public)
 
