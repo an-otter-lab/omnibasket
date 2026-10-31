@@ -15,16 +15,26 @@ with _CONFIG.open(encoding="utf-8") as stream:
     LIMITS = json.load(stream)
 
 
+# H2: the paths that count toward the per-IP limit: every API route in api/app.py.
+# tests/test_rate_limit_h2.py fails when a route is added there and not here.
+API_PATHS = frozenset(
+    {"/health", "/config", "/sample", "/search", "/photo", "/input", "/solve", "/why", "/ask", "/events"}
+    | {"/openapi.json", "/docs", "/docs/oauth2-redirect", "/redoc"}
+)
+
+
 class PerIPRateLimitMiddleware:
     """ASGI3 middleware that enforces per-IP request rate limits.
 
     Tracks request timestamps per IP in a sliding window. When the limit
     is exceeded, returns 429 with a Retry-After header. Normal requests
-    pass through to the wrapped app without buffering.
+    pass through to the wrapped app without buffering. Only API paths
+    count; static files pass through uncounted.
     """
 
-    def __init__(self, app, limit=None, window_seconds=None):
+    def __init__(self, app, limit=None, window_seconds=None, api_paths=None):
         self.app = app
+        self.api_paths = frozenset(api_paths if api_paths is not None else API_PATHS)
         self.limit = int(limit if limit is not None else LIMITS["requests"])
         self.window_seconds = int(
             window_seconds if window_seconds is not None else LIMITS["window_seconds"]
@@ -38,11 +48,17 @@ class PerIPRateLimitMiddleware:
             await self.app(scope, receive, send)
             return
 
+        # H2: only API paths count; the UI's static files (index.html, scripts, fixtures) never do.
+        if scope.get("path") not in self.api_paths:
+            await self.app(scope, receive, send)
+            return
+
         # Extract client IP from ASGI scope
         client = scope.get("client")
         ip = client[0] if client else "unknown"
 
-        # Check rate limit using sliding window
+        # Check rate limit using sliding window. H2: the lock only guards the counts; it is
+        # released before anything is awaited, so a slow client never stalls the event loop.
         now = time.monotonic()
         with self._lock:
             hits = self._hits[ip]
@@ -50,14 +66,15 @@ class PerIPRateLimitMiddleware:
             # Remove expired timestamps
             while hits and hits[0] <= cutoff:
                 hits.popleft()
-            
-            if len(hits) >= self.limit:
-                # Rate limit exceeded - send 429 response directly
-                await self._send_rate_limit_response(send)
-                return
-            
-            # Record this request
-            hits.append(now)
+            limited = len(hits) >= self.limit
+            if not limited:
+                # Record this request
+                hits.append(now)
+
+        if limited:
+            # Rate limit exceeded - send 429 response directly
+            await self._send_rate_limit_response(send)
+            return
 
         # Not rate limited - pass through to the wrapped app
         await self.app(scope, receive, send)
