@@ -12,13 +12,13 @@ def test_burst_from_one_ip_is_limited():
     app = FastAPI()
     app.add_middleware(PerIPRateLimitMiddleware, limit=3, window_seconds=60)
 
-    @app.get("/")
+    @app.get("/solve")
     def ok():
         return {"ok": True}
 
     client = TestClient(app)
-    assert [client.get("/").status_code for _ in range(3)] == [200, 200, 200]
-    response = client.get("/")
+    assert [client.get("/solve").status_code for _ in range(3)] == [200, 200, 200]
+    response = client.get("/solve")
     assert response.status_code == 429
     assert response.json() == {"error": "rate limit exceeded"}
     assert response.headers["retry-after"] == "60"
