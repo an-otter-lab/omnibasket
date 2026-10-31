@@ -471,6 +471,8 @@ export interface Messages {
   leftOutNoShop: string;
   leftOutNoRules: string;
   leftOutNotHere: string;
+  /** S28: the buy list's delivery when the order ships free. */
+  buyListFree: string;
 }
 
 export const MESSAGES: Record<Lang, Messages> = {
@@ -831,6 +833,7 @@ export const MESSAGES: Record<Lang, Messages> = {
     leftOutNoShop: 'no shop we read has it',
     leftOutNoRules: 'no shop with known delivery rules lists it',
     leftOutNotHere: 'none of the shops in these orders has a price for it',
+    buyListFree: 'Free',
   },
   ro: {
     deliveryGapShort: 'Mai ai {amount} lei până la livrarea gratuită la {shop}',
@@ -1189,6 +1192,7 @@ export const MESSAGES: Record<Lang, Messages> = {
     leftOutNoShop: 'niciun magazin pe care l-am citit nu o are',
     leftOutNoRules: 'niciun magazin cu reguli de livrare cunoscute nu o are',
     leftOutNotHere: 'niciunul dintre magazinele din aceste comenzi nu are un preț pentru ea',
+    buyListFree: 'Gratuită',
   },
 };
 
