@@ -1434,7 +1434,8 @@ export class AppComponent implements OnDestroy {
   stamp(): string {
     const r = this.data?.read_at_range;
     if (!r?.newest) return '';
-    if (!r.oldest || r.oldest === r.newest) return this.t('pricesRead', { date: this.day(r.newest) });
+    // S12: a range within one day is that day, not "31–31 Oct".
+    if (!r.oldest || this.day(r.oldest) === this.day(r.newest)) return this.t('pricesRead', { date: this.day(r.newest) });
     const a = this.day(r.oldest).split(' ');
     const b = this.day(r.newest).split(' ');
     return this.t('pricesRead', { date: (a[1] === b[1] ? a[0] : a.join(' ')) + '–' + b.join(' ') });

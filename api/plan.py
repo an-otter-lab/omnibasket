@@ -659,10 +659,9 @@ def _degraded(ctx: PlanContext, items: list[Item]) -> dict | None:
 
 
 def _read_range(ctx: PlanContext) -> dict:
-    stamps = sorted(
-        {m["read_at"] for m in ctx.offer_meta.values() if m.get("read_at")}
-        | {s["read_at"] for s in ctx.shops if s.get("read_at")}
-    )
+    # S12: the "Prices read" stamp covers book prices only. The shops' read_at is when their delivery
+    # rules were captured (days earlier for a locked basket), not when a book was priced.
+    stamps = sorted({m["read_at"] for m in ctx.offer_meta.values() if m.get("read_at")})
     return {"oldest": stamps[0] if stamps else None, "newest": stamps[-1] if stamps else None}
 
 
