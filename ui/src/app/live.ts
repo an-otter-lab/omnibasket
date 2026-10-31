@@ -170,11 +170,12 @@ export function outcomeOf(o: LiveOffer): Outcome {
 
 /**
  * R11: the only links a shopper follows go to a shop's listing page. A shop search page
- * (`/search`, `/cautare?q=`) or any URL carrying a query is never a link.
+ * (`/search`, `/cautare?q=`, Amazon's `/s?k=`) or any URL carrying a query is never a link.
  */
 export function listingUrl(u: string | null | undefined): string | null {
   if (!u || !/^https?:\/\//i.test(u)) return null;
   if (/\/(search|cautare)([/?]|$)/i.test(u) || /[?&]q=/i.test(u)) return null;
+  if (/\/s\?/i.test(u)) return null; // S5: Amazon's search page (/s?k=…)
   return u;
 }
 
