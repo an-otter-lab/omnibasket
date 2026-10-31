@@ -499,42 +499,28 @@ def understand(
 def _understand_link(url, *, ip, limiter, db, opener, rates_loader, today) -> dict:
     shop = indexed_shop_for(url)
     if shop is not None:
-        return _indexed_link(url, shop, db)
-
-    host = host_of(url)
-    if limiter is not None:
-        reason = limiter.check(ip, host)
-        if reason:
-            raise LimitTripped(reason)
-    try:
-        page = fetch(url)
-    except FetchRefused as exc:
-        return _failure("link", "refused", "I couldn't open that link (" + exc.reason + ").")
-    schema = extract_schema_org(page.text)
-    if is_book_on_sale(schema):
-        title, author = _schema_title_author(schema)
-        query = {"title": title, "author": author, "language": None}
-        out = _resolved("link", schema.isbn13, query, shop_id=None, product_url=page.final_url)
-        out["paste_offer"] = paste_offer(page.final_url, schema, today, rates_loader)
-        return out
-    try:
-        query = book_on_page(visible_text(page.text))
-    except Exception:
-        query = None
-    cands = candidates_for(query, db, opener) if query else []
-    if not cands:
+        return _indexed_link(url, shop, db, ip=ip, limiter=limiter)
+    # S25c (Adrian, 1 Nov): a link to any other site, foreign shops included, is never fetched.
+    # Its ISBN names the book from our index; an ISBN we do not index is not_found, and the UI
+    # then searches that ISBN. A link with no ISBN in it names no book.
+    isbn = _isbn_in_url(url)
+    if isbn is None:
         return _failure("link", "not_found", NO_BOOK_MESSAGE)
-    out = _base("link")
-    out["structured_query"] = query
-    out["shop_context"] = {"shop_id": None, "product_url": page.final_url}
-    if len(cands) == 1 and cands[0]["isbn13"]:
-        return {**_resolved("link", cands[0]["isbn13"], query, product_url=page.final_url)}
-    out["status"] = "candidates"
-    out["candidates"] = cands
-    return out
+    query = _query_for_isbn(isbn, db)
+    if not query.get("title"):
+        return _failure("link", "not_found", NO_BOOK_MESSAGE)
+    return _resolved("link", isbn, query)
 
 
-def _indexed_link(url: str, shop, db: Path) -> dict:
+def _isbn_in_url(url: str) -> str | None:
+    for found in _URL_ISBN_RE.findall(urllib.parse.unquote(urllib.parse.urlsplit(url).path)):
+        isbn = to_isbn13(found)
+        if isbn:
+            return isbn
+    return None
+
+
+def _indexed_link(url: str, shop, db: Path, *, ip=None, limiter=None) -> dict:
     """A link to one of the five shops: ISBN from our index, the URL, or the page; name and author from
     the page when it has them (S25b). Exactly one page read, never Amazon."""
     isbn = None
@@ -543,16 +529,18 @@ def _indexed_link(url: str, shop, db: Path) -> dict:
     if row and row.get("isbn"):
         isbn = to_isbn13(row["isbn"])
     if isbn is None:
-        for found in _URL_ISBN_RE.findall(urllib.parse.unquote(urllib.parse.urlsplit(url).path)):
-            isbn = to_isbn13(found)
-            if isbn:
-                break
+        isbn = _isbn_in_url(url)
     if isbn is None and shop.id == "amazon_de":
         m = _ASIN_RE.search(urllib.parse.urlsplit(url).path)
         isbn = isbn10_to_13(m.group(1)) if m else None
     if shop.id != "amazon_de":
         # One guarded read of the shop's own product page (never Amazon): the ISBN when the index
         # and the URL lack it, and (S25b) the book's name and author for every pasted shop link.
+        # S25c: that read is the only page read a paste makes, so it counts toward the paste limit.
+        if limiter is not None:
+            reason = limiter.check(ip, host_of(url))
+            if reason:
+                raise LimitTripped(reason)
         try:
             page = fetch(url)
         except FetchRefused as exc:

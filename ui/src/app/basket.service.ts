@@ -59,10 +59,11 @@ export function itemId(isbn: string): string {
  */
 /**
  * R12/S26: two entries are the same book under another ISBN when the title (without a trailing
- * "(…)" such as "(Colour Edition)") and the author normalise the same.
+ * "(…)" such as "(Colour Edition)", and S25c: without a trailing ": subtitle") and the author
+ * normalise the same.
  */
 export function sameBook(a: { isbn: string; title: string | null; author: string | null }, b: { isbn: string; title: string | null; author: string | null }): boolean {
-  const core = (t: string | null) => normalisedKey((t || '').replace(/\s*\([^()]*\)\s*$/, ''));
+  const core = (t: string | null) => normalisedKey((t || '').replace(/\s*\([^()]*\)\s*$/, '').replace(/^(.*?\S)\s*:\s.*$/, '$1'));
   const t = core(a.title);
   return !!t && a.isbn !== b.isbn && t === core(b.title) && normalisedKey(a.author) === normalisedKey(b.author);
 }

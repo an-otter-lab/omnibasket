@@ -164,63 +164,31 @@ def test_indexed_shop_page_read_once_when_url_has_no_isbn(index_db):
     assert out["isbn13"] == HUNGRY and out["shop_context"]["shop_id"] == "bookzone"
 
 
-# ---- foreign links
+# ---- foreign links (S25c: never fetched; the ISBN in the address names the book)
 
-def test_refused_fetch_is_refused_not_bypassed(index_db):
-    # The real fetch_guard refuses a loopback target before any connect.
-    with patch(MUSE, _no_muse):
+def _no_fetch(url, **k):
+    raise AssertionError("no page read expected: " + url)
+
+
+def test_loopback_link_is_never_fetched(index_db):
+    with patch(MUSE, _no_muse), patch.object(iu, "fetch", _no_fetch):
         out = iu.understand("http://127.0.0.1/secret", index_db=index_db)
-    assert out["status"] == "refused" and "loopback" in out["message"]
-    assert out["isbn13"] is None
+    assert out["status"] == "not_found" and out["isbn13"] is None
 
 
-def test_foreign_link_goes_through_fetch_guard(index_db):
-    seen = []
-
-    def guarded(url, **k):
-        seen.append(url)
-        return _page(_product_html(), url)
-
-    with patch(MUSE, _no_muse), patch.object(iu, "fetch", guarded):
-        iu.understand("https://other-shop.example/p/1", index_db=index_db, rates_loader=lambda d: _rates(), today=TODAY)
-    assert seen == ["https://other-shop.example/p/1"]
-
-
-def test_schema_org_book_on_sale_recognised_without_a_model(index_db):
-    with patch(MUSE, _no_muse), patch.object(iu, "fetch", lambda url, **k: _page(_product_html(), url)):
-        out = iu.understand("https://other-shop.example/p/1", index_db=index_db, rates_loader=lambda d: _rates(), today=TODAY)
+def test_foreign_link_with_indexed_isbn_resolves_without_a_read(index_db):
+    with patch(MUSE, _no_muse), patch.object(iu, "fetch", _no_fetch):
+        out = iu.understand("https://other-shop.example/p/" + HUNGRY, index_db=index_db, rates_loader=lambda d: _rates(), today=TODAY)
     assert out["status"] == "resolved" and out["isbn13"] == HUNGRY
-    assert out["paste_offer"]["badge"] == "new shop, not checked"
-    assert out["shop_context"]["shop_id"] is None
+    assert out["structured_query"]["title"] == "The Very Hungry Caterpillar"
+    assert out["shop_context"] == {"shop_id": None, "product_url": None} and out["paste_offer"] is None
 
 
-def test_page_without_schema_gets_exactly_one_muse_call(index_db):
-    fake, calls = _muse('{"title": "The Very Hungry Caterpillar", "author": "Eric Carle", "language": "en"}')
-    html = "<html><body><h1>Our favourite reads</h1><p>Try The Very Hungry Caterpillar by Eric Carle.</p></body></html>"
-    with patch(MUSE, fake), patch.object(iu, "fetch", lambda url, **k: _page(html, url)):
+def test_page_without_isbn_is_not_read_and_makes_no_model_call(index_db):
+    with patch(MUSE, _no_muse), patch.object(iu, "fetch", _no_fetch):
         out = iu.understand("https://blog.example/post", index_db=index_db, opener=ol_opener)
-    assert len(calls) == 1 and calls[0]["note"] == "input-page-book"
-    assert "tools" not in calls[0]["body"]
-    assert out["status"] in {"resolved", "candidates"}
-    assert out["isbn13"] == HUNGRY or out["candidates"][0]["isbn13"] == HUNGRY
+    assert out["status"] == "not_found" and out["message"] == iu.NO_BOOK_MESSAGE
     assert out["paste_offer"] is None
-
-
-def test_page_naming_no_book_says_so_and_stores_nothing(index_db):
-    fake, calls = _muse('{"title": null, "author": null, "language": null}')
-    before = _count(index_db)
-    with patch(MUSE, fake), patch.object(iu, "fetch", lambda url, **k: _page("<html><body>Weather today</body></html>", url)):
-        out = iu.understand("https://blog.example/weather", index_db=index_db)
-    assert out["status"] == "not_found"
-    assert out["message"] == "I couldn't find a book on that page."
-    assert len(calls) == 1 and _count(index_db) == before
-
-
-def test_page_book_not_in_index_is_also_the_honest_message(index_db):
-    fake, _ = _muse('{"title": "Zzyzx Unknown Tome", "author": null, "language": "en"}')
-    with patch(MUSE, fake), patch.object(iu, "fetch", lambda url, **k: _page("<html><body>x</body></html>", url)):
-        out = iu.understand("https://blog.example/x", index_db=index_db)
-    assert out["message"] == iu.NO_BOOK_MESSAGE
 
 
 # ---- free text
@@ -263,12 +231,15 @@ def test_muse_numbers_not_on_the_page_are_dropped():
     assert q == {"title": "X", "author": None, "language": None}
 
 
-# ---- paste-only shops and fx
+# ---- paste-only offers: paste_offer() is kept, though a foreign page is no longer read (S25c)
 
-def test_paste_only_non_ron_price_converts_at_bnr_rate(index_db):
-    with patch(MUSE, _no_muse), patch.object(iu, "fetch", lambda url, **k: _page(_product_html(price="12.50", cur="EUR"), url)):
-        out = iu.understand("https://other-shop.example/p/1", index_db=index_db, rates_loader=lambda d: _rates("EUR", "5.0000"), today=TODAY)
-    offer = out["paste_offer"]
+def _offer(cur, price="12.50", loader=None):
+    schema = iu.extract_schema_org(_product_html(price=price, cur=cur))
+    return iu.paste_offer("https://other-shop.example/p/1", schema, TODAY, loader)
+
+
+def test_paste_only_non_ron_price_converts_at_bnr_rate():
+    offer = _offer("EUR", loader=lambda d: _rates("EUR", "5.0000"))
     assert offer["badge"] == "new shop, not checked"
     assert offer["store_id"] == "paste:other-shop.example"
     assert offer["ron_cents"] == 6250  # 12.50 EUR x 5.0000
@@ -278,20 +249,18 @@ def test_paste_only_non_ron_price_converts_at_bnr_rate(index_db):
     assert offer["shipping_fee_cents"] is None and offer["free_shipping_threshold_cents"] is None
 
 
-def test_paste_only_non_ron_without_rate_is_not_ranked(index_db):
+def test_paste_only_non_ron_without_rate_is_not_ranked():
     for loader in (lambda d: None, lambda d: _rates("USD")):
-        with patch(MUSE, _no_muse), patch.object(iu, "fetch", lambda url, **k: _page(_product_html(cur="EUR"), url)):
-            out = iu.understand("https://other-shop.example/p/1", index_db=index_db, rates_loader=loader, today=TODAY)
-        offer = out["paste_offer"]
+        offer = _offer("EUR", loader=loader)
         assert offer["ron_cents"] is None and offer["ranked"] is False
         assert offer["not_ranked_reason"] == "no_bnr_rate"
 
 
-def test_paste_only_shop_is_never_added_to_the_index(index_db):
+def test_foreign_link_is_never_added_to_the_index(index_db):
     before = _count(index_db)
-    with patch(MUSE, _no_muse), patch.object(iu, "fetch", lambda url, **k: _page(_product_html(cur="RON"), url)):
-        out = iu.understand("https://other-shop.example/p/1", index_db=index_db, today=TODAY)
-    assert out["paste_offer"]["ron_cents"] == 1250 and _count(index_db) == before
+    with patch(MUSE, _no_muse), patch.object(iu, "fetch", _no_fetch):
+        iu.understand("https://other-shop.example/p/" + HUNGRY, index_db=index_db, today=TODAY)
+    assert _count(index_db) == before
 
 
 # ---- limits
@@ -326,9 +295,10 @@ def test_post_input_endpoint_shape_and_limits(tmp_path, index_db):
         body = r.json()
         assert set(body) >= {"type", "isbn13", "structured_query", "shop_context", "status", "candidates", "paste_offer", "events_url", "message"}
         assert body["type"] == "isbn" and body["shop_context"] == {"shop_id": None, "product_url": None}
+        # S25c: the one page read of a known shop's link counts toward the paste limit.
         with patch.object(iu, "fetch", lambda url, **k: _page(_product_html(cur="RON"), url)):
-            assert client.post("/input", json={"raw_input": "https://other-shop.example/p/1"}).status_code == 200
-            tripped = client.post("/input", json={"raw_input": "https://other-shop.example/p/2"})
+            assert client.post("/input", json={"raw_input": "https://bookzone.ro/produs/a"}).status_code == 200
+            tripped = client.post("/input", json={"raw_input": "https://bookzone.ro/produs/b"})
         assert tripped.status_code == 429 and tripped.json()["error"] == "paste_limit"
         # The sample basket and plain searches are not touched by the paste limit.
         assert client.post("/input", json={"raw_input": HUNGRY}).status_code == 200
