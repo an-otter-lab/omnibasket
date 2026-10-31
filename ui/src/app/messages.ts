@@ -379,7 +379,6 @@ export interface Messages {
   askSubmit: string;
   askExample1: string;
   askExample2: string;
-  askExample3: string;
   askDoneTab: string;
   askDoneExclude: string;
   askDoneInclude: string;
@@ -705,7 +704,6 @@ export const MESSAGES: Record<Lang, Messages> = {
     askSubmit: 'Ask',
     askExample1: 'Keep it to one order',
     askExample2: 'No Amazon',
-    askExample3: 'I have Genius',
     askDoneTab: 'Showing {tab}.',
     askDoneExclude: 'Left out {shop}.',
     askDoneInclude: 'Added {shop} back.',
@@ -1023,7 +1021,6 @@ export const MESSAGES: Record<Lang, Messages> = {
     askSubmit: 'Întreabă',
     askExample1: 'O singură comandă',
     askExample2: 'Fără Amazon',
-    askExample3: 'Am Genius',
     askDoneTab: 'Afișez: {tab}.',
     askDoneExclude: 'Am scos {shop}.',
     askDoneInclude: 'Am adăugat {shop} la loc.',

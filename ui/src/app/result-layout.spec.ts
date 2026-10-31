@@ -1,7 +1,9 @@
 import { TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { demoSample } from './demo-sample';
 import { AppComponent } from './app.component';
-import { MembershipRow } from './memberships';
+import { AskBoxComponent } from './ask-box.component';
+import { MEMBERSHIPS_KEY, MembershipRow } from './memberships';
 
 // R10: the result's dead controls. A membership for a shop with no book in the basket is
 // hidden; the editions control exists only when a book has a second edition; a locked
@@ -64,11 +66,16 @@ function payload(opts: { editions: boolean; shops: ShopIn[] }) {
   };
 }
 
-async function render(opts: { editions: boolean; shops: ShopIn[] }) {
+async function render(opts: { editions: boolean; shops: ShopIn[]; ask?: unknown[]; solves?: Record<string, unknown>[] }) {
   demoSample();
   const body = payload(opts);
-  spyOn(window, 'fetch').and.callFake(async (url: RequestInfo | URL) => {
-    if (String(url).endsWith('/why')) return new Response(JSON.stringify({ text: 'Sentence.', source: 'template' }), { status: 200 });
+  spyOn(window, 'fetch').and.callFake(async (url: RequestInfo | URL, init?: RequestInit) => {
+    const u = String(url);
+    if (u.endsWith('/why')) return new Response(JSON.stringify({ text: 'Sentence.', source: 'template' }), { status: 200 });
+    if (u.endsWith('/ask')) {
+      return new Response(JSON.stringify({ status: 'ok', actions: opts.ask ?? [], reply_key: 'askDoneMembership', reply_args: { name: 'eMAG Genius' } }), { status: 200 });
+    }
+    if (u.endsWith('/solve')) (opts.solves ?? []).push(JSON.parse(String(init?.body || '{}')) as Record<string, unknown>);
     return new Response(JSON.stringify(body), { status: 200 });
   });
   const fixture = TestBed.createComponent(AppComponent);
@@ -110,5 +117,27 @@ describe('result dead controls (R10)', () => {
     expect(reason).toBe('Only shop with Harry Potter');
     const desc = (fixture.nativeElement as HTMLElement).querySelector('[data-shop-switch="libris"] input')!.getAttribute('aria-describedby');
     expect(desc).toContain('libris');
+  });
+
+  it('offers the membership ask chip only when that shop can take a book, and the chip acts', async () => {
+    localStorage.removeItem(MEMBERSHIPS_KEY);
+    const none = (await render({ editions: false, shops: [{ store_id: 'libris' }] })).nativeElement as HTMLElement;
+    const noneChips = Array.from(none.querySelectorAll('app-ask-box .ask-chips .chip')).map((c) => c.textContent!.trim());
+    expect(noneChips.length).toBeGreaterThan(0);
+    expect(noneChips.some((t) => t.includes('Genius'))).toBeFalse();
+
+    const solves: Record<string, unknown>[] = [];
+    const fixture = await render({ editions: false, shops: [{ store_id: 'libris' }, { store_id: 'emag' }], ask: [{ name: 'set_membership', args: { membership_id: 'emag_genius', on: true } }], solves });
+    const el = fixture.nativeElement as HTMLElement;
+    const chip = Array.from(el.querySelectorAll<HTMLButtonElement>('app-ask-box .ask-chips .chip')).find((c) => c.textContent!.includes('Genius'));
+    expect(chip).not.toBeUndefined();
+    expect(chip!.textContent!.trim()).toBe('I have eMAG Genius');
+
+    chip!.click();
+    const box = fixture.debugElement.query(By.directive(AskBoxComponent)).componentInstance as AskBoxComponent;
+    for (let i = 0; i < 200 && (box.working || box.busy || fixture.componentInstance.busy); i++) { await new Promise((r) => setTimeout(r, 10)); fixture.detectChanges(); }
+    expect(solves.some((s) => Array.isArray(s['memberships']) && (s['memberships'] as string[]).includes('emag_genius'))).toBeTrue();
+    expect(fixture.componentInstance.declaredMemberships).toContain('emag_genius');
+    expect(el.querySelector<HTMLInputElement>('app-memberships [data-membership="emag_genius"] input')!.checked).toBeTrue();
   });
 });

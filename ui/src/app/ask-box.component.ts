@@ -1,6 +1,7 @@
 import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
 import { AskData, AskInputs, AskNext, AskTab, applyActions, askState, uiState } from './ask';
 import { Lang, MESSAGES, Messages, fill } from './messages';
+import { shopsThatTakeBooks } from './memberships';
 
 /** What the host applies: set the fields, solve, route, then call done(ok). ok=false: the pins were not possible and were rolled back. */
 export interface AskApplied {
@@ -31,7 +32,7 @@ interface AskResponse extends Reply { status: 'ok' | 'unsupported'; actions: unk
           <p class="s ask-hint" id="ask-hint">{{ m.askHint }}</p>
         </form>
         <div class="chips ask-chips">
-          @for (ex of examples; track ex) {
+          @for (ex of examples; track $index) {
             <button class="chip" type="button" [disabled]="working || busy" (click)="value = ex; send(ex)">{{ ex }}</button>
           }
         </div>
@@ -74,7 +75,27 @@ export class AskBoxComponent implements OnChanges {
   lines: string[] = [];
 
   get m(): Messages { return MESSAGES[this.lang]; }
-  get examples(): string[] { return [this.m.askExample1, this.m.askExample2, this.m.askExample3]; }
+  /** R10: only what this basket can actually do — a membership chip needs a shop that can take a book. */
+  get examples(): string[] {
+    const out = [this.m.askExample1, this.m.askExample2];
+    for (const r of this.membershipExamples) out.push(fill(this.m.membershipDeclare, { name: r.name }));
+    return out;
+  }
+  private get membershipExamples(): { id: string; name: string }[] {
+    const d = this.data;
+    if (!d) return [];
+    const can = shopsThatTakeBooks(d.shops || [], this.tabOrders);
+    return (d.memberships || [])
+      .filter((r) => !!r.store_id && can.has(r.store_id))
+      .map((r) => ({ id: r.id, name: r.name || r.id }));
+  }
+  private get tabOrders(): { store_id?: string }[] {
+    const d = this.data;
+    if (!d) return [];
+    if (this.tab === 'one') return d.one_order.answer?.orders || [];
+    if (this.tab === 'custom') return d.custom?.orders || [];
+    return d.cheapest.orders || [];
+  }
 
   // R14: an answer written in the old language is cleared on a switch; the field keeps its focus.
   ngOnChanges(changes: SimpleChanges): void {

@@ -81,14 +81,14 @@ export function applyActions(actions: unknown, ui: AskUiState): AskNext {
 
 /** Structural view of the /solve payload: only what Ask reads. */
 export interface AskData {
-  shops: { store_id: string; selectable?: boolean }[];
+  shops: { store_id: string; selectable?: boolean; books_listed?: number }[];
   books: { item_id: string; editions: { edition: string }[]; shops?: { store_id: string; price_cents?: number | null }[] }[];
-  memberships?: { id: string }[];
+  memberships?: { id: string; store_id?: string; name?: string }[];
   cheapest: { orders?: AskOrder[] };
   one_order: { answer: { orders?: AskOrder[] } | null };
   custom: { orders?: AskOrder[] } | null;
 }
-interface AskOrder { books: { item_id: string; edition: string | null }[] }
+interface AskOrder { store_id?: string; books: { item_id: string; edition: string | null }[] }
 
 export interface AskInputs { tab: AskTab; selected: string[] | null; pins: Record<string, string>; memberships: string[] }
 

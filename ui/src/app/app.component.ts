@@ -16,7 +16,7 @@ import { Lang, MESSAGES, Messages, count, editionName, fieldName, fill } from '.
 import { I18nService } from './i18n';
 import { ThemePref, ThemeService } from './theme';
 import { MembershipsComponent } from './memberships.component';
-import { MembershipRow, loadDeclared, saveDeclared } from './memberships';
+import { MembershipRow, loadDeclared, saveDeclared, shopsThatTakeBooks } from './memberships';
 import { AskApplied, AskBoxComponent } from './ask-box.component';
 import { PhotoInputComponent, PhotoInputEvent } from './photo-input.component';
 import { PhotoResultComponent } from './photo-result.component';
@@ -1360,9 +1360,7 @@ export class AppComponent implements OnDestroy {
 
   /** R10: a membership belongs to a shop that can take a book in this basket. */
   get membershipRows(): MembershipRow[] {
-    const can = new Set<string>();
-    for (const s of this.data?.shops || []) if (s.selectable || s.books_listed > 0) can.add(s.store_id);
-    for (const o of this.orders) can.add(o.store_id);
+    const can = shopsThatTakeBooks(this.data?.shops || [], this.orders);
     return (this.data?.memberships || []).filter((r) => can.has(r.store_id));
   }
 
