@@ -167,8 +167,9 @@ def test_a_failed_call_releases_the_waiters(payload, monkeypatch):
     assert why._inflight == {}
 
 
-def test_max_output_tokens_is_unchanged():
-    assert why.MAX_OUTPUT_TOKENS == 1600
+def test_max_output_tokens_is_the_approved_budget():
+    # Card V2: Adrian approved 3000 (31 Oct); 1600 left reasoning runs with an empty answer.
+    assert why.MAX_OUTPUT_TOKENS == 3000
 
 
 # --- #12 review: what the browser posts to /why. The UI's adapt() (app.component.ts) renames

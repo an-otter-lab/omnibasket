@@ -24,7 +24,7 @@ from api.explain_check import check_explanation, display_name, fallback_sentence
 
 log = logging.getLogger("omnibasket.why")
 
-MAX_OUTPUT_TOKENS = 1600  # reasoning shares this budget; never below 1200
+MAX_OUTPUT_TOKENS = 3000  # reasoning shares this budget; Adrian approved 3000 (card V2, 31 Oct)
 EFFORT = "low"
 INFLIGHT_WAIT_S = 30  # a second identical request waits for the first call instead of paying again
 
