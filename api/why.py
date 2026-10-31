@@ -20,7 +20,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
 
 import meta_budget  # noqa: E402
-from api.explain_check import check_explanation, display_name, fallback_sentences  # noqa: E402
+from api.explain_check import check_explanation, display_name, fallback_sentences, one_order_of  # noqa: E402
 
 log = logging.getLogger("omnibasket.why")
 
@@ -141,7 +141,7 @@ def facts_of(payload: dict) -> dict:
             "orders": [_order_facts(o) for o in orders if isinstance(o, dict)],
         },
     }
-    one = payload.get("one_parcel") if isinstance(payload.get("one_parcel"), dict) else None
+    one = one_order_of(payload)
     if one is not None:
         answer = one.get("answer") if isinstance(one.get("answer"), dict) else {}
         one_facts: dict = {"status": one.get("status"), "shop": _shop(one.get("best_store_id"))}

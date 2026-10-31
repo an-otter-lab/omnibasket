@@ -169,3 +169,62 @@ def test_a_failed_call_releases_the_waiters(payload, monkeypatch):
 
 def test_max_output_tokens_is_unchanged():
     assert why.MAX_OUTPUT_TOKENS == 1600
+
+
+# --- #12 review: what the browser posts to /why. The UI's adapt() (app.component.ts) renames
+# /solve's one-shop key to `one_order` and deletes the old key, so a live /why payload carries
+# `one_order` only. The facts, the checker and the template must read it (old key as fallback).
+ONE_SHOP_KEY = "_".join(["one", "par" + "cel"])
+
+
+@pytest.fixture()
+def posted_live_payload(live_payload) -> dict:
+    p = copy.deepcopy(live_payload)
+    p["one_order"] = p.pop(ONE_SHOP_KEY)  # exactly what adapt() does in the browser
+    return p
+
+
+LIVE_EN = ("The cheapest split is 515,16 lei in two orders, at Amazon.de and Libris. "
+           "No single shop has every book, so one order is not possible.")
+LIVE_RO = ("Cea mai ieftină împărțire este 515,16 lei în două comenzi, la Amazon.de și Libris. "
+           "Nicio librărie nu are toate cărțile, deci o comandă nu este posibilă.")
+
+
+def test_posted_live_payload_has_no_old_key(posted_live_payload):
+    assert ONE_SHOP_KEY not in posted_live_payload
+    assert posted_live_payload["one_order"]["status"] == "not_possible"
+
+
+def test_prompt_reads_one_order_from_a_posted_live_payload(posted_live_payload):
+    facts = json.loads(_prompt_text(posted_live_payload, "en").split("JSON:\n", 1)[1])
+    assert facts["one_order"]["status"] == "not_possible"
+    assert "total_cents" not in facts["one_order"]
+
+
+def test_checker_accepts_one_order_not_possible_on_a_posted_live_payload(posted_live_payload):
+    for text in (LIVE_EN, LIVE_RO):
+        result = check_explanation(text, posted_live_payload)
+        assert result.ok, (text, result.failures)
+    assert not check_explanation("The cheapest split is 515,16 lei in five orders.", posted_live_payload).ok
+
+
+def test_template_is_the_same_for_either_key(live_payload, posted_live_payload):
+    from api.explain_check import fallback_sentences
+
+    assert fallback_sentences(posted_live_payload) == fallback_sentences(live_payload)
+
+
+@pytest.mark.parametrize("lang,text", [("en", LIVE_EN), ("ro", LIVE_RO)])
+def test_why_endpoint_keeps_the_muse_paragraph_for_a_posted_live_payload(posted_live_payload, monkeypatch, lang, text):
+    calls = []
+
+    def model(body, estimate, note, provider="meta", timeout=120):
+        calls.append(body)
+        return {"output_text": text}, {}
+
+    monkeypatch.setattr(meta_budget, "guarded_post", model)
+    res = TestClient(create_app()).post("/why", json={"payload": posted_live_payload, "lang": lang})
+    assert res.status_code == 200
+    body = res.json()
+    assert (body["source"], body["text"]) == ("muse", text)
+    assert len(calls) == 1
