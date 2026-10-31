@@ -73,6 +73,7 @@ a.pt{display:inline-flex;align-items:center;min-height:44px}
 .btn:disabled{background:var(--disabled-bg);color:var(--ink-soft);cursor:not-allowed}
 .btn2{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;border-radius:999px;background:var(--surface);border:1.5px solid var(--control);color:var(--ink);font:500 15px Inter,sans-serif;padding:0 18px;text-decoration:none}
 .btn2:hover{color:var(--ink);border-color:var(--ink)}
+.btn2:disabled{background:var(--surface-4);border-color:var(--line);color:var(--muted);cursor:progress}
 .btn2.off{background:var(--surface-4);border-color:var(--line);color:var(--muted)}
 .full{width:100%}
 .btnrow{display:flex;gap:8px;flex-wrap:wrap}

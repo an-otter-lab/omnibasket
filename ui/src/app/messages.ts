@@ -426,6 +426,8 @@ export interface Messages {
   addDuplicateAdd: string;
   addDuplicateKeep: string;
   pickClear: string;
+  /** S19: the Photo of a list button while the photo is read. */
+  photoReadingList: string;
 }
 
 export const MESSAGES: Record<Lang, Messages> = {
@@ -747,6 +749,7 @@ export const MESSAGES: Record<Lang, Messages> = {
     addDuplicateAdd: 'Add anyway',
     addDuplicateKeep: 'Keep one',
     pickClear: 'Clear',
+    photoReadingList: 'Reading your list\u2026',
   },
   ro: {
     deliveryGapShort: 'Mai ai {amount} lei până la livrarea gratuită la {shop}',
@@ -1066,6 +1069,7 @@ export const MESSAGES: Record<Lang, Messages> = {
     addDuplicateAdd: 'Adaugă oricum',
     addDuplicateKeep: 'Păstrează una',
     pickClear: 'Șterge',
+    photoReadingList: 'Citesc lista\u2026',
   },
 };
 
