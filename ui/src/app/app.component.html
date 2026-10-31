@@ -220,7 +220,7 @@
     }
 
     @if (route.name === 'find') {
-      <app-pick-list [lang]="lang" [state]="pickState" [items]="candidates" (picked)="pickBook($event)" (cleared)="clearSearch()" />
+      <app-pick-list [lang]="lang" [state]="pickState" [items]="candidates" (picked)="pickBook($event)" (cleared)="clearSearch()" (retried)="runSearch(boxText)" />
     }
 
     @if (firstRun) {

@@ -2,7 +2,7 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { Candidate, coverFallback, coverUrl, initials, listingUrl, shopLabel } from './live';
 import { Lang, MESSAGES, Messages, fill } from './messages';
 
-export type PickState = 'idle' | 'searching' | 'results' | 'empty' | 'error' | 'link_failed';
+export type PickState = 'idle' | 'searching' | 'results' | 'empty' | 'error' | 'busy' | 'link_failed';
 
 /** A short list of candidate books. Covers come from Open Library only. */
 @Component({
@@ -17,6 +17,13 @@ export type PickState = 'idle' | 'searching' | 'results' | 'empty' | 'error' | '
       }
       @case ('error') {
         <p class="p" role="alert" data-state="search-error">{{ m.pickSearchError }}</p>
+      }
+      @case ('busy') {
+        <!-- H3: the search answered 503; the same search can be asked again. -->
+        <div class="box" role="alert" data-state="search-busy">
+          <p class="p">{{ m.pickSearchBusy }}</p>
+          <button class="lnk" type="button" data-action="retry-search" (click)="retried.emit()">{{ m.tryAgain }}</button>
+        </div>
       }
       @case ('link_failed') {
         <div class="box" role="alert" data-state="link-failed">
@@ -75,6 +82,8 @@ export class PickListComponent {
   @Input() state: PickState = 'results';
   @Input() items: Candidate[] = [];
   @Output() picked = new EventEmitter<Candidate>();
+  /** H3: Try again on the busy message. */
+  @Output() retried = new EventEmitter<void>();
   /** R0: the no-match message's Clear button, handled by the add-book state. */
   @Output() cleared = new EventEmitter<void>();
 

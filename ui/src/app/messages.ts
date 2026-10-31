@@ -473,6 +473,8 @@ export interface Messages {
   leftOutNotHere: string;
   /** S28: the buy list's delivery when the order ships free. */
   buyListFree: string;
+  /** H3: Find book when the search answers 503 (Open Library busy or down). */
+  pickSearchBusy: string;
 }
 
 export const MESSAGES: Record<Lang, Messages> = {
@@ -834,6 +836,7 @@ export const MESSAGES: Record<Lang, Messages> = {
     leftOutNoRules: 'no shop with known delivery rules lists it',
     leftOutNotHere: 'none of the shops in these orders has a price for it',
     buyListFree: 'Free',
+    pickSearchBusy: 'Search is busy right now. Try again in a moment.',
   },
   ro: {
     deliveryGapShort: 'Mai ai {amount} lei până la livrarea gratuită la {shop}',
@@ -1193,6 +1196,7 @@ export const MESSAGES: Record<Lang, Messages> = {
     leftOutNoRules: 'niciun magazin cu reguli de livrare cunoscute nu o are',
     leftOutNotHere: 'niciunul dintre magazinele din aceste comenzi nu are un preț pentru ea',
     buyListFree: 'Gratuită',
+    pickSearchBusy: 'Căutarea este ocupată acum. Încearcă din nou peste câteva clipe.',
   },
 };
 
