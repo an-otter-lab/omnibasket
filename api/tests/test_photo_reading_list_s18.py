@@ -111,11 +111,13 @@ def test_reading_list_no_line_resolves_to_a_special_format(db_path):
             for c, special in zip(res.get("candidates", []), flags):
                 assert bool(c.get("edition")) == special or not special
     matched = {r["read_title"]: r["candidate"]["isbn"] for r in out if r["status"] == "matched"}
+    # S18 review: only a plain printing a shop lists is matched. The plain Very Hungry Caterpillar
+    # (9780140569322) and Guess How Much I Love You (9781406390742) are in no shop's index rows, so
+    # those lines are choices; The Boy, the Mole... is matched to the printing Books-Express lists.
     assert matched == {
         "Owl Babies": "9780763679613",
-        "The Very Hungry Caterpillar": "9780140569322",
-        "Guess How Much I Love You": "9781406390742",
         "Charlotte's Web": "9780141354828",
+        "The Boy, the Mole, the Fox and the Horse": "9781786144577",
         "Matilda": "9780142402535",
     }
     assert not SPECIAL_ISBNS & {c["isbn"] for r in out for c in _picked(r) if r["status"] == "matched"}
@@ -163,3 +165,66 @@ def test_reading_list_plain_titles_are_not_special():
 def test_reading_list_plain_printing_outranks_a_carried_special_one():
     titles = {"9780141352220": "the very hungry caterpillar a pull out pop up"}
     assert ranking.pick_isbn(["9780141352220", "9780140569322"], titles) == "9780140569322"
+
+
+# --- S18 review (Claude): a matched printing no shop lists leaves the whole basket with
+# "No ranked answer". Prefer a plain printing a shop lists; with none, the line is a choice.
+
+def _listed(db_path, isbns):
+    return photo_read._listed(db_path, list(isbns))
+
+
+def test_review_unlisted_plain_printing_is_a_choice_with_the_listed_specials(db_path):
+    """Guess How Much I Love You: the plain printing is in no shop's rows, so the line is a
+    choice: the plain printing first, then the special printings shops list, each labelled."""
+    out = photo_read.match_line(READING_LIST[2], db_path, opener=Recorded())
+    assert out["status"] == "ambiguous"
+    cands = out["candidates"]
+    assert cands[0]["isbn"] == "9781406390742" and "edition" not in cands[0]
+    assert cands[0]["isbn"] not in _listed(db_path, [cands[0]["isbn"]])
+    rest = cands[1:]
+    assert rest and all(c.get("edition") for c in rest)
+    assert {c["isbn"] for c in rest} <= _listed(db_path, [c["isbn"] for c in rest])
+    assert all(c["title"] == "Guess How Much I Love You" for c in cands)  # never a shop slug
+
+
+def test_review_listed_plain_printing_is_preferred_over_an_unlisted_one(db_path):
+    """The Boy, the Mole...: two plain printings in the index, one only an Amazon.de capture
+    (never read live), one listed by Books-Express. The listed one is the match."""
+    out = photo_read.match_line(READING_LIST[4], db_path, opener=Recorded())
+    assert out["status"] == "matched"
+    assert out["candidate"]["isbn"] == "9781786144577"
+    assert _listed(db_path, ["9781529105100", "9781786144577"]) == {"9781786144577"}
+
+
+def test_review_no_listed_printing_at_all_is_still_a_choice(db_path):
+    """Only plain printings are known and no shop lists any of them: offered, not matched."""
+    with sqlite3.connect(db_path) as db:
+        db.execute("DELETE FROM books WHERE isbn = ?", ("9780763679613",))
+        db.execute("DELETE FROM books WHERE isbn = ?", ("9780763612832",))
+    out = photo_read.match_line(READING_LIST[0], db_path, opener=Recorded())
+    assert out["status"] == "ambiguous"
+    isbns = [c["isbn"] for c in out["candidates"]]
+    assert isbns and all(c["title"] == "Owl Babies" for c in out["candidates"])
+    assert not _listed(db_path, isbns)
+    assert not any(c.get("edition") for c in out["candidates"])
+
+
+def test_review_reading_list_basket_can_rank(db_path):
+    """Every line ends on a printing a shop lists: matched lines directly, choice lines with a
+    listed printing among the choices. "No ranked answer" comes only from a book no shop lists,
+    so a basket of these printings can be ranked (the live price itself is a live read)."""
+    out = [photo_read.match_line(line, db_path, opener=Recorded()) for line in READING_LIST]
+    basket = []
+    for line, res in zip(READING_LIST, out):
+        if res["status"] == "matched":
+            assert res["candidate"]["isbn"] in _listed(db_path, [res["candidate"]["isbn"]]), line["title"]
+            basket.append(res["candidate"]["isbn"])
+        else:
+            assert res["status"] == "ambiguous", (line["title"], res)
+            isbns = [c["isbn"] for c in res["candidates"]]
+            listed = [i for i in isbns if i in _listed(db_path, isbns)]
+            assert listed, (line["title"], isbns)
+            basket.append(listed[0])
+    assert len(basket) == 6
+    assert set(basket) == _listed(db_path, basket)

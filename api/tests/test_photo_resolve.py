@@ -66,6 +66,9 @@ def db(tmp_path, monkeypatch):
     with sqlite3.connect(path) as c:
         c.execute("CREATE TABLE books(shop TEXT NOT NULL,url TEXT NOT NULL,title TEXT,author_hint TEXT,isbn TEXT,last_seen TEXT NOT NULL,PRIMARY KEY(shop,url))")
         c.execute("INSERT INTO books VALUES('books-express','https://be/1','The clean coder','Robert C. Martin','9780137081073','2026-10-30')")
+        # S18 review: a line is matched only to a printing a shop lists (here by ISBN, title unparsed).
+        c.execute("INSERT INTO books VALUES('libris','https://lb/2','x,','','9789735832940','2026-10-30')")
+        c.execute("INSERT INTO books VALUES('libris','https://lb/3','x,','','9786060339229','2026-10-30')")
     return path
 
 
@@ -74,6 +77,15 @@ def test_three_fixture_lines_become_pickable_books(db):
     assert [o["status"] for o in out] == ["matched", "matched", "matched"]
     assert [o["candidate"]["isbn"] for o in out] == ["9789735832940", "9786060339229", "9780137081073"]
     assert all(o["candidate"]["cover_url"] for o in out)
+
+
+def test_a_printing_no_shop_lists_is_a_choice_not_a_match(db):
+    """S18 review: matching a printing no shop lists leaves the basket with no ranked answer."""
+    with sqlite3.connect(db) as c:
+        c.execute("DELETE FROM books WHERE url = 'https://lb/2'")
+    out = photo_read.match_line(LINES[0], db, opener=FakeOL())
+    assert out["status"] == "ambiguous"
+    assert [c["isbn"] for c in out["candidates"]][0] == "9789735832940"
 
 
 def test_unrelated_line_stays_not_found(db):
