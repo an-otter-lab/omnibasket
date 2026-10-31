@@ -20,7 +20,7 @@ import { MembershipRow, loadDeclared, saveDeclared, shopsThatTakeBooks } from '.
 import { AskApplied, AskBoxComponent } from './ask-box.component';
 import { PhotoInputComponent, PhotoInputEvent } from './photo-input.component';
 import { PhotoResultComponent } from './photo-result.component';
-import { MAX_PHOTO_BYTES } from './photo';
+import { MAX_PHOTO_BYTES, shrinkPhoto } from './photo';
 import { ConfigService } from './config.service';
 import {
   PhotoCandidate,
@@ -583,18 +583,18 @@ export class AppComponent implements OnDestroy {
     if (!file || this.photoReading) return;
     input.value = '';
 
-    if (file.size > MAX_PHOTO_BYTES) {
-      this.onPhotoEvent({ kind: 'oversize', size: file.size });
+    this.photoState = { kind: 'reading' };
+    const upload = await shrinkPhoto(file); // S22: a phone photo goes up at most 2000 px
+    if (upload.body.size > MAX_PHOTO_BYTES) {
+      this.onPhotoEvent({ kind: 'oversize', size: upload.body.size });
       return;
     }
 
-    this.photoState = { kind: 'reading' };
     try {
-      const buffer = await file.arrayBuffer();
       const res = await fetch('/photo', {
         method: 'POST',
-        headers: { 'content-type': file.type || 'application/octet-stream' },
-        body: buffer,
+        headers: { 'content-type': upload.type },
+        body: await upload.body.arrayBuffer(),
       });
       const json = (await res.json()) as PhotoReadResponse;
       this.onPhotoEvent({ kind: 'read', response: json });
