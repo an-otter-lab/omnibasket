@@ -493,6 +493,11 @@ def _facts(payload: dict) -> _Facts:
                     walk(item)
 
     walk(payload)
+    # S17: "one order is not possible" / "nicio comandă unică" names the one-order option, whose
+    # count is 1 by definition, even when the payload has no one-order answer to carry that count.
+    one = payload.get("one_parcel") if isinstance(payload, dict) else None
+    if isinstance(one, dict) and one.get("status") == "not_possible":
+        orders.add(1)
     # A saving the payload does not store as its own field is still allowed
     # when it is the exact difference of two totals.
     total_list = [value for value in totals]

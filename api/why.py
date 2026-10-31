@@ -20,13 +20,13 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
 
 import meta_budget  # noqa: E402
-from api.explain_check import check_explanation, fallback_sentences  # noqa: E402
+from api.explain_check import check_explanation, display_name, fallback_sentences  # noqa: E402
 
 log = logging.getLogger("omnibasket.why")
 
 MAX_OUTPUT_TOKENS = 1600  # reasoning shares this budget; never below 1200
 EFFORT = "low"
-_DROPPED_KEYS = {"pages", "events"}
+INFLIGHT_WAIT_S = 30  # a second identical request waits for the first call instead of paying again
 
 PROMPT = """You explain one shopping result to a shopper. Write ONE short paragraph (2 to 4 sentences) in {language}.
 
@@ -36,7 +36,7 @@ Rules:
 - Write amounts with a comma decimal and lei after the number, in both languages (515,16 lei). Never a dot decimal: 515.16 is wrong.
 - Write shop names as Libris, Amazon.de, eMAG, Bookzone, never as ids like amazon_de.
 - Name only shops that appear in the JSON. Say "order" (RO: "comandă"), never "parcel".
-- Say why the cheapest split is cheapest for this basket and how it compares with buying everything in one order, if the JSON has that comparison.
+- Say why the cheapest split is cheapest for this basket and how it compares with buying everything in one order, if the JSON has that comparison. If one_order.status is "not_possible", say that no single shop has every book, and do not invent a one-order total.
 - No headings, no lists, no markdown, no advice to buy.
 - Output only the paragraph.
 
@@ -62,6 +62,7 @@ def sentence_ended(text: str) -> bool:
 
 
 _cache: dict[str, dict] = {}
+_inflight: dict[str, threading.Event] = {}
 _lock = threading.Lock()
 
 
@@ -74,6 +75,7 @@ def payload_hash(payload: dict, lang: str) -> str:
 def clear_cache() -> None:
     with _lock:
         _cache.clear()
+        _inflight.clear()
 
 
 def _text_of(response: dict) -> str:
@@ -96,9 +98,64 @@ def _text_of(response: dict) -> str:
     return ""
 
 
+def _shop(store_id: object) -> str | None:
+    return display_name(store_id) if isinstance(store_id, str) and store_id else None
+
+
+def _order_facts(order: dict) -> dict:
+    books = order.get("books") if isinstance(order.get("books"), list) else []
+    row = {
+        "shop": _shop(order.get("store_id")),
+        "books": [b.get("title") for b in books if isinstance(b, dict) and b.get("title")],
+    }
+    for key in (
+        "books_subtotal_cents",
+        "delivery_cents",
+        "delivery_known",
+        "order_fee_cents",
+        "order_total_cents",
+        "free_delivery_threshold_cents",
+        "threshold_crossed",
+        "short_of_threshold_cents",
+    ):
+        if key in order:
+            row[key] = order[key]
+    return row
+
+
+def facts_of(payload: dict) -> dict:
+    """S17: only what the paragraph needs. A live payload carries every shop row, offer and read
+    reason; sending all of it made Muse spend its whole output budget reasoning. The checker still
+    judges the paragraph against the full payload."""
+    cheapest = payload.get("cheapest") if isinstance(payload.get("cheapest"), dict) else {}
+    orders = cheapest.get("orders") if isinstance(cheapest.get("orders"), list) else []
+    books = payload.get("books") if isinstance(payload.get("books"), list) else []
+    facts: dict = {
+        "currency": cheapest.get("currency") or payload.get("currency") or "RON",
+        "book_count": len(books) if books else sum(len(o.get("books") or []) for o in orders if isinstance(o, dict)),
+        "cheapest": {
+            "status": cheapest.get("status"),
+            "total_cents": cheapest.get("total_cents", payload.get("total_cents")),
+            "books_subtotal_cents": cheapest.get("books_subtotal_cents"),
+            "order_count": cheapest.get("order_count", len(orders)),
+            "orders": [_order_facts(o) for o in orders if isinstance(o, dict)],
+        },
+    }
+    one = payload.get("one_parcel") if isinstance(payload.get("one_parcel"), dict) else None
+    if one is not None:
+        answer = one.get("answer") if isinstance(one.get("answer"), dict) else {}
+        one_facts: dict = {"status": one.get("status"), "shop": _shop(one.get("best_store_id"))}
+        if answer:
+            one_facts["total_cents"] = answer.get("total_cents")
+            one_facts["more_than_cheapest_cents"] = answer.get("delta_vs_cheapest_cents")
+        if one.get("status") == "not_possible" and one.get("reason"):
+            one_facts["reason"] = one.get("reason")
+        facts["one_order"] = one_facts
+    return facts
+
+
 def _facts(payload: dict) -> str:
-    kept = {k: v for k, v in payload.items() if k not in _DROPPED_KEYS}
-    return json.dumps(kept, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return json.dumps(facts_of(payload), ensure_ascii=False, sort_keys=True, separators=(",", ":"))
 
 
 def build_prompt(payload: dict, lang: str) -> str:
@@ -116,15 +173,35 @@ def explain(payload: dict, lang: str = "en", *, use_cache: bool = True) -> dict:
     """Return {text, source, lang, model[, reason]}. Never raises for model trouble."""
     lang = "ro" if str(lang).lower().startswith("ro") else "en"
     key = payload_hash(payload, lang)
-    if use_cache:
+    if not use_cache:
+        return dict(_ask(payload, lang))
+    # S17: one in-flight call per payload hash. A page load that posts the same /why three times
+    # in the same second pays for one call; the others wait for its answer.
+    with _lock:
+        hit = _cache.get(key)
+        if hit is not None:
+            return dict(hit)
+        pending = _inflight.get(key)
+        if pending is None:
+            pending = _inflight[key] = threading.Event()
+            leader = True
+        else:
+            leader = False
+    if not leader:
+        pending.wait(INFLIGHT_WAIT_S)
         with _lock:
             hit = _cache.get(key)
         if hit is not None:
             return dict(hit)
-    result = _ask(payload, lang)
-    if use_cache:
+        return _template(payload, lang, "identical request still in flight")
+    try:
+        result = _ask(payload, lang)
         with _lock:
             _cache[key] = result
+    finally:
+        with _lock:
+            _inflight.pop(key, None)
+        pending.set()
     return dict(result)
 
 
