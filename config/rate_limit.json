@@ -2,5 +2,8 @@
   "requests": 60,
   "window_seconds": 60,
   "pastes_per_day": 20,
-  "new_domains_per_day": 5
+  "new_domains_per_day": 5,
+  "why_calls_per_window": 10,
+  "why_window_seconds": 600,
+  "why_calls_per_day": 40
 }

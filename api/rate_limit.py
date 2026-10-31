@@ -120,6 +120,45 @@ class DailyPasteLimiter:
             return None
 
 
+class WhyCallLimiter:
+    """H1: per-IP caps on /why requests that would call Muse.
+
+    Only a request that would pay for a Muse call is counted: a cached answer, a request waiting
+    on an identical one and a body that is not a solve result never count. Over either cap the
+    shopper gets the plain template sentence instead. The day rolls at Bucharest midnight.
+    """
+
+    def __init__(self, per_window=None, window_seconds=None, per_day=None, clock=None, today=None):
+        self.per_window = int(per_window if per_window is not None else LIMITS["why_calls_per_window"])
+        self.window_seconds = int(
+            window_seconds if window_seconds is not None else LIMITS["why_window_seconds"]
+        )
+        self.per_day = int(per_day if per_day is not None else LIMITS["why_calls_per_day"])
+        self._clock = clock or time.monotonic
+        self._today = today or _bucharest_today
+        self._day = None
+        self._recent = defaultdict(deque)
+        self._daily = defaultdict(int)
+        self._lock = Lock()
+
+    def allow(self, ip):
+        """Record one Muse call for this IP and return True, or return False when a cap is reached."""
+        with self._lock:
+            day = self._today()
+            if day != self._day:
+                self._day = day
+                self._daily.clear()
+            now = self._clock()
+            recent = self._recent[ip]
+            while recent and recent[0] <= now - self.window_seconds:
+                recent.popleft()
+            if len(recent) >= self.per_window or self._daily[ip] >= self.per_day:
+                return False
+            recent.append(now)
+            self._daily[ip] += 1
+            return True
+
+
 def _bucharest_today():
     from datetime import datetime
     from zoneinfo import ZoneInfo
