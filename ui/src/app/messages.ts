@@ -422,6 +422,10 @@ export interface Messages {
   addedToBasket: string;
   /** {title} */
   addReadFailed: string;
+  /** R12: a pick of the same normalised title and author under another ISBN. */
+  addDuplicateAsk: string;
+  addDuplicateAdd: string;
+  addDuplicateKeep: string;
   pickClear: string;
 }
 
@@ -741,6 +745,9 @@ export const MESSAGES: Record<Lang, Messages> = {
     addFindLabel: 'Find a book',
     addedToBasket: 'Added {title}. {books} in your basket.',
     addReadFailed: 'Couldn’t read prices for {title}. Try again.',
+    addDuplicateAsk: 'You already have this book (different edition). Add it anyway?',
+    addDuplicateAdd: 'Add anyway',
+    addDuplicateKeep: 'Keep one',
     pickClear: 'Clear',
   },
   ro: {
@@ -1058,6 +1065,9 @@ export const MESSAGES: Record<Lang, Messages> = {
     addFindLabel: 'Caută o carte',
     addedToBasket: 'Adăugat {title}. {books} în coș.',
     addReadFailed: 'Nu am putut citi prețurile pentru {title}. Încearcă din nou.',
+    addDuplicateAsk: 'Ai deja cartea aceasta (altă ediție). O adaugi oricum?',
+    addDuplicateAdd: 'Adaugă oricum',
+    addDuplicateKeep: 'Păstrează una',
     pickClear: 'Șterge',
   },
 };

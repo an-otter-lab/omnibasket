@@ -197,12 +197,15 @@ a.row:hover{color:var(--ink);background:var(--surface-2)}
 .sample .lnk{font-weight:500;font-size:15px;text-decoration:underline;text-underline-offset:3px;justify-content:center;min-width:44px}
 .picks{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
 .pick{width:100%;display:flex;align-items:center;gap:14px;text-align:left;background:var(--surface);border:1px solid var(--line-strong);border-radius:24px;padding:12px 16px;min-height:96px;cursor:pointer;color:var(--ink);font:inherit}
-.pick:hover:not(:disabled){border-color:var(--brand-ink)}
+.pick:hover:not(:disabled){border-color:var(--brand-ink);background:var(--surface-2)}
+.pick:active:not(:disabled){background:var(--surface-3)}
 .pick:disabled{background:var(--surface-2);cursor:default}
+.pick:focus-visible{outline:3px solid var(--brand-ink);outline-offset:2px}
 .pcover{flex:none;width:56px;height:80px;border-radius:6px;object-fit:cover;background:var(--kraft);border:1px solid var(--kraft-line);display:block}
 .pcover.ph{display:flex;align-items:center;justify-content:center;font:600 18px Inter,sans-serif;color:var(--brand-ink);letter-spacing:.04em}
 .pmeta{display:flex;flex-direction:column;gap:3px;min-width:0;flex:1}
 .pgo{flex:none;font:600 14px Inter,sans-serif;color:var(--brand-ink);white-space:nowrap}
+.pchev{pointer-events:none}
 .plog{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
 .plog li{display:flex;align-items:center;gap:12px;min-height:48px;border-bottom:1px solid var(--line);font:15px/1.4 Inter,sans-serif}
 .plog .pmsg{flex:1;min-width:0}

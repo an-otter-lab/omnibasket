@@ -40,6 +40,19 @@
 .addbar.empty { border-top: 0; padding-top: 0; margin-top: 0; }
 .addbar .addlive:empty { display: none; }
 .addbar .btn { width: 100%; }
+/* R12: the same title and author under another ISBN asks, in the warning colours, above the chips. */
+.dupask {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--warn-bg);
+  border: 1px solid var(--warn-line);
+  border-radius: 16px;
+  padding: 12px 14px;
+}
+.dupask .dupq { margin: 0; color: var(--ink); font: 500 15px/1.4 Inter, sans-serif; }
+.dupask .duprow { display: flex; flex-wrap: wrap; gap: 8px; }
+.dupask .btn, .dupask .btn2 { width: auto; min-height: 44px; padding: 0 18px; }
 .addchips { display: flex; flex-wrap: wrap; gap: 8px; }
 .addchip {
   display: inline-flex;
