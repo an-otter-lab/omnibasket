@@ -86,6 +86,8 @@ export interface Messages {
   readsNoOffer: string;
   readsNotChecked: string;
   pickOpenShop: string;
+  pickOpenListing: string;
+  notCheckedLabel: string;
   readsNoPrice: string;
   /** {shop} */
   readsNotLive: string;
@@ -330,6 +332,9 @@ export interface Messages {
   leftOutCantPrice: string;
   noRanked: string;
   editionsTitle: string;
+  optionsTitle: string;
+  onlyShopWith: string;
+  onlyLastShop: string;
   cancel: string;
   any: string;
   notPossibleTitle: string;
@@ -481,6 +486,8 @@ export const MESSAGES: Record<Lang, Messages> = {
     readsNoOffer: 'No offer found for this ISBN',
     readsNotChecked: 'Not checked here',
     pickOpenShop: 'Open shop ↗',
+    pickOpenListing: 'Open {shop} listing, new tab',
+    notCheckedLabel: 'Not checked:',
     readsNoPrice: 'Found the page, couldn’t read a price',
     readsNotLive: '{shop} isn’t read live.',
     readsCheckAmazon: 'Check on Amazon.de',
@@ -658,6 +665,9 @@ export const MESSAGES: Record<Lang, Messages> = {
     leftOutCantPrice: 'Checked, can’t be priced: {reason}',
     noRanked: 'No ranked answer',
     editionsTitle: 'Editions',
+    optionsTitle: 'Options',
+    onlyShopWith: 'Only shop with {titles}',
+    onlyLastShop: 'The only shop you chose',
     cancel: 'Cancel',
     any: 'Any',
     notPossibleTitle: 'Not possible',
@@ -794,6 +804,8 @@ export const MESSAGES: Record<Lang, Messages> = {
     readsNoOffer: 'Nicio ofertă găsită pentru acest ISBN',
     readsNotChecked: 'Nu a fost verificat aici',
     pickOpenShop: 'Deschide magazinul ↗',
+    pickOpenListing: 'Deschide anunțul {shop}, filă nouă',
+    notCheckedLabel: 'Neverificate:',
     readsNoPrice: 'Am găsit pagina, dar nu am putut citi un preț',
     readsNotLive: '{shop} nu se citește pe loc.',
     readsCheckAmazon: 'Verifică pe Amazon.de',
@@ -971,6 +983,9 @@ export const MESSAGES: Record<Lang, Messages> = {
     leftOutCantPrice: 'Verificat, nu poate fi calculat: {reason}',
     noRanked: 'Niciun răspuns clasat',
     editionsTitle: 'Ediții',
+    optionsTitle: 'Opțiuni',
+    onlyShopWith: 'Singurul magazin cu {titles}',
+    onlyLastShop: 'Singurul magazin ales',
     cancel: 'Anulează',
     any: 'Oricare',
     notPossibleTitle: 'Imposibil',

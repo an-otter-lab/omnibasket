@@ -215,6 +215,7 @@ interface Payload {
   joined_item_id?: string;
   joined_title?: string;
   joined_isbn13?: string;
+  // Feature 5: the parent shows only the shops that can take a book in this basket.
   memberships?: MembershipRow[];
   error?: string;
 }
@@ -1347,6 +1348,48 @@ export class AppComponent implements OnDestroy {
     return this.t('editionsPill', { value: n ? this.t('editionsPinned', { n }) : this.m.editionsAny });
   }
 
+  /** R10: an editions control only when at least one book has a second edition. */
+  get hasEditions(): boolean {
+    return this.books.some((b) => (b.editions?.length ?? 0) > 1);
+  }
+
+  /** R10: the editions dialog lists only books that have a choice. */
+  get editionBooks(): BookRow[] {
+    return this.books.filter((b) => (b.editions?.length ?? 0) > 1);
+  }
+
+  /** R10: a membership belongs to a shop that can take a book in this basket. */
+  get membershipRows(): MembershipRow[] {
+    const can = new Set<string>();
+    for (const s of this.data?.shops || []) if (s.selectable || s.books_listed > 0) can.add(s.store_id);
+    for (const o of this.orders) can.add(o.store_id);
+    return (this.data?.memberships || []).filter((r) => can.has(r.store_id));
+  }
+
+  /** R10: why a chosen shop's switch is locked (it is the only shop with a book). */
+  lockedReason(s: Shop): string | null {
+    if (!s.selectable) return null; // the shop's own reason is shown instead
+    const chosen = this.data?.custom?.selected_store_ids?.length ?? 0;
+    if (!this.isChosen(s.store_id) || chosen > 1) return null;
+    const titles = this.onlyShopTitles(s.store_id);
+    return titles ? this.t('onlyShopWith', { titles }) : this.m.onlyLastShop;
+  }
+
+  private onlyShopTitles(storeId: string): string {
+    const titles = this.books
+      .filter((b) => {
+        const priced = b.shops.filter((o) => o.price_cents != null);
+        return priced.length > 0 && priced.every((o) => o.store_id === storeId);
+      })
+      .map((b) => b.title);
+    return titles.length > 2 ? titles.slice(0, 2).join(', ') + '…' : titles.join(', ');
+  }
+
+  /** The id of a locked switch's reason line, so the switch can point at it. */
+  lockId(storeId: string): string {
+    return 'lockid-' + storeId;
+  }
+
   get oneDelta(): number | null {
     return this.data?.one_order.answer?.delta_vs_cheapest_cents ?? null;
   }
@@ -1354,6 +1397,13 @@ export class AppComponent implements OnDestroy {
   /** R7: the cheapest split is a single order, so one tab stands for both "1 order" and "cheapest". */
   get cheapestIsOneOrder(): boolean {
     return this.data?.cheapest.order_count === 1;
+  }
+
+  /** R9: the total card exists only when the active tab has a total to show (no empty card). */
+  get showsTotal(): boolean {
+    if (this.tab === 'one') return !!this.data?.one_order.answer;
+    if (this.tab === 'custom') return this.data?.custom?.status === 'ranked';
+    return this.data?.cheapest.status === 'ranked';
   }
 
   /** R5: the header count — the shopper's books, or the demo sample's books in demo mode. */

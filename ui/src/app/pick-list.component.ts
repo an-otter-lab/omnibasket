@@ -1,5 +1,5 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
-import { Candidate, coverUrl, initials, shopLabel } from './live';
+import { Candidate, coverUrl, initials, listingUrl, shopLabel } from './live';
 import { Lang, MESSAGES, Messages, fill } from './messages';
 
 export type PickState = 'idle' | 'searching' | 'results' | 'empty' | 'error' | 'link_failed';
@@ -34,7 +34,7 @@ export type PickState = 'idle' | 'searching' | 'results' | 'empty' | 'error' | '
         <h2 class="h2">{{ m.pickTitle }}</h2>
         <ul class="picks">
           @for (c of items; track $index) {
-            <li>
+            <li class="pickcard">
               <button class="pick" type="button" [disabled]="!c.isbn" (click)="picked.emit(c)">
                 @if (cover(c); as src) {
                   <img class="pcover" [src]="src" [attr.data-initials]="initialsOf(c)" alt="" width="56" height="80" loading="lazy" referrerpolicy="no-referrer" (error)="broken($event)" />
@@ -50,14 +50,17 @@ export type PickState = 'idle' | 'searching' | 'results' | 'empty' | 'error' | '
                 @if (c.isbn) { <span class="pgo">{{ m.pickRead }} ›</span> }
               </button>
               @if (unchecked(c).length) {
-                <div class="not-checked">
-                  @for (x of unchecked(c); track x.shop) {
-                    <span class="not-checked-chip">
-                      {{ label(x.shop) }}
-                      @if (x.url) { · <a [href]="x.url" target="_blank" rel="noopener" [attr.aria-label]="t('pickOpenShop', { shop: label(x.shop) })">{{ m.pickOpenShop }}</a> }
-                    </span>
+                <p class="not-checked" data-not-checked>
+                  <span class="nclabel">{{ m.notCheckedLabel }}</span>
+                  @for (x of unchecked(c); track x.shop; let last = $last) {
+                    @if (listing(x); as href) {
+                      <a class="nclink" [href]="href" target="_blank" rel="noopener" [attr.aria-label]="t('pickOpenListing', { shop: label(x.shop) })">{{ label(x.shop) }} ↗</a>
+                    } @else {
+                      <span class="ncshop">{{ label(x.shop) }}</span>
+                    }
+                    @if (!last) {<span class="ncsep" aria-hidden="true">,</span>}
                   }
-                </div>
+                </p>
               }
             </li>
           }
@@ -88,6 +91,11 @@ export class PickListComponent {
 
   unchecked(c: Candidate) {
     return (c.other_shops || []).filter((x) => x.status === 'not_checked');
+  }
+
+  /** R11: only a listing page is linked; a shop search URL never is. */
+  listing(x: { url?: string | null }): string | null {
+    return listingUrl(x.url);
   }
 
   label(id: string): string {

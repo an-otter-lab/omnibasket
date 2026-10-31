@@ -121,15 +121,15 @@ describe('live flow: progress then per-shop reads', () => {
     expect(link.textContent).toContain('Open eMAG');
   });
 
-  it('failure state: Check on Amazon.de links the ISBN search', async () => {
+  it('failure state: Amazon.de is never read live, and no shop search page is linked', async () => {
     const fixture = await start();
     source.emit('solution', solution(OFFERS));
     fixture.componentInstance.route = { name: 'result', arg: '' };
     fixture.detectChanges();
     const row = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('.rrow[data-shop="amazon_de"]')!;
-    const link = row.querySelector<HTMLAnchorElement>('a')!;
-    expect(link.textContent).toContain('Check on Amazon.de');
-    expect(link.getAttribute('href')).toBe('https://www.amazon.de/s?k=' + ISBN);
+    expect(row.textContent).toContain('isn’t read live');
+    // R11: a shop is linked only when we hold its listing page; a search page never is.
+    expect(row.querySelector('a')).toBeNull();
   });
 
   it('failure state: a link with no book on the page says so', async () => {
