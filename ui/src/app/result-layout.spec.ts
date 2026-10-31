@@ -3,6 +3,7 @@ import { By } from '@angular/platform-browser';
 import { demoSample } from './demo-sample';
 import { AppComponent } from './app.component';
 import { AskBoxComponent } from './ask-box.component';
+import { BasketService } from './basket.service';
 import { MEMBERSHIPS_KEY, MembershipRow } from './memberships';
 
 // R10: the result's dead controls. A membership for a shop with no book in the basket is
@@ -139,5 +140,57 @@ describe('result dead controls (R10)', () => {
     expect(solves.some((s) => Array.isArray(s['memberships']) && (s['memberships'] as string[]).includes('emag_genius'))).toBeTrue();
     expect(fixture.componentInstance.declaredMemberships).toContain('emag_genius');
     expect(el.querySelector<HTMLInputElement>('app-memberships [data-membership="emag_genius"] input')!.checked).toBeTrue();
+  });
+});
+
+// S31 + S32: "Your books, shop by shop" sits in the left column under the order cards, and the
+// header book count on the result page jumps to it instead of linking to the page it is on.
+describe('S31/S32: your books under the cards; the header count jumps there', () => {
+  async function withBasket() {
+    const fixture = await render({ editions: false, shops: [{ store_id: 'libris' }] });
+    const app = fixture.componentInstance;
+    app.sampleMode = false;
+    const svc = TestBed.inject(BasketService);
+    svc.addFromLive({ books: [{ item_id: 'a', title: 'Harry Potter', isbn13: '9781526605412', shops: [] }], joined_item_id: 'a' }, '9781526605412', 'Harry Potter');
+    fixture.detectChanges();
+    return fixture;
+  }
+  afterEach(() => localStorage.clear());
+
+  it('S31: the section is in the left column, right after the order cards, once', async () => {
+    const el = (await withBasket()).nativeElement as HTMLElement;
+    const sections = el.querySelectorAll('[data-section="your-books"]');
+    expect(sections.length).toBe(1);
+    const books = sections[0];
+    expect(books.closest('.rmain')).not.toBeNull();
+    expect(books.closest('.rside')).toBeNull();
+    expect(books.parentElement!.previousElementSibling!.classList).toContain('rcards');
+  });
+
+  it('S32: on the result page the count chip jumps to Your books and does not navigate', async () => {
+    const fixture = await withBasket();
+    const app = fixture.componentInstance;
+    const go = spyOn(app, 'go');
+    const el = fixture.nativeElement as HTMLElement;
+    document.body.appendChild(el);
+    try {
+      const books = el.querySelector<HTMLElement>('[data-section="your-books"]')!;
+      const scroll = spyOn(books, 'scrollIntoView');
+      el.querySelector<HTMLAnchorElement>('[data-header-count]')!.click();
+      expect(go).not.toHaveBeenCalled();
+      expect(scroll).toHaveBeenCalled();
+      expect(document.activeElement!.id).toBe('yb-h');
+    } finally {
+      el.remove();
+    }
+  });
+
+  it('S32: off the result page the count chip still opens the result', async () => {
+    const fixture = await withBasket();
+    const app = fixture.componentInstance;
+    const go = spyOn(app, 'go');
+    app.route = { name: 'add', arg: '' };
+    app.onCountClick(new MouseEvent('click', { cancelable: true }));
+    expect(go).toHaveBeenCalledWith('result');
   });
 });

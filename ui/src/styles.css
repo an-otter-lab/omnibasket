@@ -284,7 +284,7 @@ a.row:hover{color:var(--ink);background:var(--surface-2)}
    the total beside the tabs at 834 and in a sticky right card at 1440. */
 .resultwrap{max-width:720px;padding-bottom:76px}
 .resultgrid{display:grid;grid-template-columns:minmax(0,1fr);gap:14px;
-  grid-template-areas:"tabs" "total" "why" "cards" "opt" "ask" "cta"}
+  grid-template-areas:"tabs" "total" "why" "cards" "opt" "ask" "cta" "books"}
 .rmain,.rside{display:contents}
 .rtabs{grid-area:tabs}
 .rtotal{grid-area:total}
@@ -292,6 +292,7 @@ a.row:hover{color:var(--ink);background:var(--surface-2)}
 .rcards{grid-area:cards;display:flex;flex-direction:column;gap:14px;min-width:0}
 .rask{grid-area:ask;min-width:0}
 .roptions{grid-area:opt}
+.rbooks{grid-area:books;min-width:0}
 .rcta{grid-area:cta;position:sticky;bottom:12px;z-index:5;box-shadow:0 8px 20px -10px var(--scrim)}
 .rcards .phead .pt,.rcards .phead .pamt{font-size:16px;line-height:1.2}
 .resultgrid .g2{grid-template-columns:minmax(0,1fr);gap:14px}
@@ -306,7 +307,7 @@ a.row:hover{color:var(--ink);background:var(--surface-2)}
 .rstamp{margin:0;justify-self:start}
 @media (min-width:768px){
   .resultgrid{grid-template-columns:minmax(0,1fr) minmax(220px,300px);gap:16px 24px;
-    grid-template-areas:"tabs total" "cards cards" "why why" "ask ask" "opt opt" "cta cta"}
+    grid-template-areas:"tabs total" "cards cards" "why why" "ask ask" "opt opt" "cta cta" "books books"}
   .resultgrid .rtabs{display:flex;width:max-content;max-width:100%;align-self:start}
   .resultgrid .rtabs>a,.resultgrid .rtabs>.off{flex:0 1 auto;padding:0 18px;white-space:nowrap}
   .rcta{position:static;box-shadow:none}
