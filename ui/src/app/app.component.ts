@@ -896,6 +896,31 @@ export class AppComponent implements OnDestroy {
     return !i.live_offers.some((o) => o.price_cents != null) && !i.offers.length;
   }
 
+  /** S33: basket books in none of the shown orders, each with why. */
+  get leftOutBooks(): { item: BasketItem; reason: string }[] {
+    const orders = this.orders;
+    if (!orders.length) return [];
+    const placed = new Set(orders.flatMap((o) => o.books.flatMap((b) => [b.item_id, b.isbn13])));
+    return this.basketItems
+      .filter((i) => !placed.has(i.id) && !placed.has(i.isbn))
+      .map((i) => ({ item: i, reason: this.isNoOffer(i) ? this.m.leftOutNoShop : this.unplacedItems.includes(i) ? this.m.leftOutNoRules : this.m.leftOutNotHere }));
+  }
+
+  get leftOutHead(): string {
+    const n = this.leftOutBooks.length;
+    return n === 1 ? this.m.leftOutBooksOne : this.t('leftOutBooksMany', { books: this.count(n, 'book') });
+  }
+
+  /** S33: the left-out line jumps to that book's row in Your books. */
+  toBookRow(event: Event, isbn: string): void {
+    event.preventDefault();
+    const row = document.querySelector<HTMLElement>('[data-section="your-books"] [data-isbn="' + isbn + '"]');
+    if (!row) return;
+    row.setAttribute('tabindex', '-1');
+    row.scrollIntoView({ block: 'start' });
+    row.focus({ preventScroll: true });
+  }
+
   removeBook(id: string): void {
     this.basketSvc.remove(id);
     this.resetPlan();

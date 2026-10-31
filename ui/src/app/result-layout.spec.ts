@@ -194,3 +194,70 @@ describe('S31/S32: your books under the cards; the header count jumps there', ()
     expect(go).toHaveBeenCalledWith('result');
   });
 });
+
+// S33: a basket book that is in none of the orders is named next to them, with why, and links to its row.
+describe('S33: a left-out book is named next to the orders', () => {
+  const SAPIENS = '9786063373671';
+  const OTHER = '9789734668465';
+  async function withBasket(extra: { isbn: string; title: string; priced: boolean }[], lang: 'en' | 'ro' = 'en') {
+    const fixture = await render({ editions: false, shops: [{ store_id: 'libris' }] });
+    const app = fixture.componentInstance;
+    app.sampleMode = false;
+    app.lang = lang;
+    const svc = TestBed.inject(BasketService);
+    svc.addFromLive({ books: [{ item_id: 'a', title: 'Harry Potter', isbn13: '9781526605412', shops: [] }], joined_item_id: 'a' }, '9781526605412', 'Harry Potter');
+    for (const b of extra) {
+      const shops = b.priced ? [{ store_id: 'emag', price_cents: 4000 }] : [];
+      svc.addFromLive({ books: [{ item_id: 'x' + b.isbn, title: b.title, isbn13: b.isbn, shops }], joined_item_id: 'x' + b.isbn }, b.isbn, b.title);
+    }
+    fixture.detectChanges();
+    return fixture;
+  }
+  afterEach(() => localStorage.clear());
+
+  it('names the one book that is out and says no shop we read has it', async () => {
+    const el = (await withBasket([{ isbn: SAPIENS, title: 'Sapiens', priced: false }])).nativeElement as HTMLElement;
+    const panel = el.querySelector('.rcards [data-left-out-books]')!;
+    expect(panel).not.toBeNull();
+    expect(panel.querySelector('.k')!.textContent!.trim()).toBe('1 book is not in these orders');
+    const rows = panel.querySelectorAll('[data-left-out]');
+    expect(rows.length).toBe(1);
+    expect(rows[0].getAttribute('data-left-out')).toBe(SAPIENS);
+    expect(rows[0].textContent).toContain('Sapiens');
+    expect(rows[0].textContent).toContain('no shop we read has it');
+    expect(rows[0].textContent).not.toContain('Harry Potter');
+  });
+
+  it('a priced book with no shop of known rules says so; two books use the plural (RO too)', async () => {
+    const books = [{ isbn: SAPIENS, title: 'Sapiens', priced: false }, { isbn: OTHER, title: 'Alt titlu', priced: true }];
+    const en = (await withBasket(books)).nativeElement as HTMLElement;
+    expect(en.querySelector('[data-left-out-books] .k')!.textContent!.trim()).toBe('2 books are not in these orders');
+    expect(en.querySelector('[data-left-out="' + OTHER + '"]')!.textContent).toContain('no shop with known delivery rules lists it');
+    localStorage.clear();
+    const ro = (await withBasket(books, 'ro')).nativeElement as HTMLElement;
+    expect(ro.querySelector('[data-left-out-books] .k')!.textContent!.trim()).toBe('2 cărți nu sunt în aceste comenzi');
+    expect(ro.querySelector('[data-left-out="' + SAPIENS + '"]')!.textContent).toContain('niciun magazin pe care l-am citit nu o are');
+  });
+
+  it('nothing is said when every basket book is in the orders', async () => {
+    const el = (await withBasket([])).nativeElement as HTMLElement;
+    expect(el.querySelector('[data-left-out-books]')).toBeNull();
+  });
+
+  it('the line jumps to the book row in Your books without navigating', async () => {
+    const fixture = await withBasket([{ isbn: SAPIENS, title: 'Sapiens', priced: false }]);
+    const go = spyOn(fixture.componentInstance, 'go');
+    const el = fixture.nativeElement as HTMLElement;
+    document.body.appendChild(el);
+    try {
+      const row = el.querySelector<HTMLElement>('[data-section="your-books"] [data-isbn="' + SAPIENS + '"]')!;
+      const scroll = spyOn(row, 'scrollIntoView');
+      el.querySelector<HTMLAnchorElement>('[data-left-out="' + SAPIENS + '"]')!.click();
+      expect(scroll).toHaveBeenCalled();
+      expect(document.activeElement).toBe(row);
+      expect(go).not.toHaveBeenCalled();
+    } finally {
+      el.remove();
+    }
+  });
+});
