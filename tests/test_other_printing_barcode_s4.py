@@ -43,9 +43,9 @@ def test_barcode_page_is_not_attached(cache, ids):
     with patch("api.offers.fetch", return_value=page(**ids)) as f:
         first = run(cache)[0]
         second = run(cache)[0]
-    # S4b: a barcode is never an ISBN-13, so a page whose "isbn" is a barcode is a page with no isbn,
-    # and like the gtin13-only page it is read again rather than remembered (as before S4).
-    assert f.call_count == 2
+    # S4b: a barcode is never an ISBN-13, so a page whose "isbn" is a barcode is a page with no isbn.
+    # S4c: a page with no usable ISBN is remembered as "no match", so the second pick fetches nothing.
+    assert f.call_count == 1
     for got in (first, second):
         assert got.status != "ok"
         assert got.price_cents is None
@@ -74,3 +74,13 @@ def test_book_isbn():
     assert _book_isbn(BARCODE) is None
     assert _book_isbn("9786063353735") is None
     assert _book_isbn(None) is None
+
+
+def test_s4c_page_with_no_isbn_is_read_once(cache):
+    """S4c: a strong title match with no ISBN on the page is cached as no match, not re-read."""
+    with patch("api.offers.fetch", return_value=page()) as f:
+        first = run(cache)[0]
+        second = run(cache)[0]
+    assert f.call_count == 1
+    for got in (first, second):
+        assert got.status == "skipped" and got.price_cents is None and not got.other_printing
