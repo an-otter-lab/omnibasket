@@ -96,7 +96,7 @@ def test_prompt_injection_with_a_number_fails(payload: dict) -> None:
     result = check_explanation(text, payload)
     assert not result.ok
     assert _spans(text, payload) == ["4242"]
-    assert result.fallback_en.startswith("The cheapest split is 515.16 lei")
+    assert result.fallback_en.startswith("The cheapest split is 515,16\u00a0lei")
     assert "515,16" in result.fallback_ro
 
 
@@ -113,12 +113,12 @@ def test_fallback_uses_the_real_totals_and_passes_the_checker(payload: dict) -> 
     assert result.ok
     assert result.failures == ()
     assert result.fallback_en == (
-        "The cheapest split is 515.16 lei in 2 orders, from Amazon.de and Libris. "
-        "One order at Libris is 558.73 lei, 43.57 lei more."
+        "The cheapest split is 515,16\u00a0lei in 2 orders, from Amazon.de and Libris. "
+        "One order at Libris is 558,73\u00a0lei, 43,57\u00a0lei more."
     )
     assert result.fallback_ro == (
-        "Cea mai ieftină împărțire este 515,16 lei în 2 comenzi, de la Amazon.de și Libris. "
-        "O comandă la Libris este 558,73 lei, cu 43,57 lei mai mult."
+        "Cea mai ieftină împărțire este 515,16\u00a0lei în 2 comenzi, de la Amazon.de și Libris. "
+        "O comandă la Libris este 558,73\u00a0lei, cu 43,57\u00a0lei mai mult."
     )
     assert "parcel" not in result.fallback_en.casefold()
     assert "parcel" not in result.fallback_ro.casefold()
@@ -196,7 +196,7 @@ def test_fallback_when_the_one_order_total_matches_or_is_missing() -> None:
     }
     result = check_explanation("x", same)
     assert result.fallback_en == (
-        "The cheapest split is 10.00 lei in 1 order, from Libris. "
+        "The cheapest split is 10,00\u00a0lei in 1 order, from Libris. "
         "One order at Libris is the same total."
     )
     assert result.fallback_ro.endswith("O comandă la Libris are același total.")
@@ -235,9 +235,9 @@ def test_fallback_when_the_one_order_total_matches_or_is_missing() -> None:
     }
     lower = check_explanation("x", cheaper)
     assert lower.fallback_en == (
-        "The cheapest split is 20.00 lei in 2 orders, from Libris and Bookzone. "
-        "One order at Libris is 15.00 lei, 5.00 lei less."
+        "The cheapest split is 20,00\u00a0lei in 2 orders, from Libris and Bookzone. "
+        "One order at Libris is 15,00\u00a0lei, 5,00\u00a0lei less."
     )
-    assert lower.fallback_ro.endswith("cu 5,00 lei mai puțin.")
+    assert lower.fallback_ro.endswith("cu 5,00\u00a0lei mai puțin.")
     assert check_explanation(lower.fallback_en, cheaper).ok
     assert check_explanation(lower.fallback_ro, cheaper).ok

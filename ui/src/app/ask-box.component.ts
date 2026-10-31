@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
 import { AskData, AskInputs, AskNext, AskTab, applyActions, askState, uiState } from './ask';
 import { Lang, MESSAGES, Messages, fill } from './messages';
 
@@ -21,10 +21,14 @@ interface AskResponse extends Reply { status: 'ok' | 'unsupported'; actions: unk
       <section class="ask" [attr.aria-busy]="working || busy" aria-labelledby="ask-title">
         <h2 class="ask-title" id="ask-title">{{ m.askTitle }}</h2>
         <form class="ask-form" (submit)="$event.preventDefault(); send(value)">
-          <input class="inp ask-inp" name="ask" type="text" maxlength="300" autocomplete="off" enterkeyhint="send"
-            [attr.placeholder]="m.askPlaceholder" [attr.aria-label]="m.askTitle"
-            [value]="value" [disabled]="working || busy" (input)="value = $any($event.target).value" />
-          <button class="btn ask-go" type="submit" [disabled]="working || busy || !value.trim()">{{ m.askSubmit }}</button>
+          <label class="ask-label" for="ask-inp">{{ m.askLabel }}</label>
+          <div class="ask-row">
+            <input class="inp ask-inp" id="ask-inp" name="ask" type="text" maxlength="300" autocomplete="off" enterkeyhint="send"
+              [attr.placeholder]="m.askPlaceholder" aria-describedby="ask-hint"
+              [value]="value" [disabled]="working || busy" (input)="value = $any($event.target).value" />
+            <button class="btn ask-go" type="submit" [disabled]="working || busy || !value.trim()">{{ m.askSubmit }}</button>
+          </div>
+          <p class="s ask-hint" id="ask-hint">{{ m.askHint }}</p>
         </form>
         <div class="chips ask-chips">
           @for (ex of examples; track ex) {
@@ -38,17 +42,22 @@ interface AskResponse extends Reply { status: 'ok' | 'unsupported'; actions: unk
   styles: [`
     .ask { display: flex; flex-direction: column; gap: 8px; margin: 12px 0; }
     .ask-title { font: 600 14px Inter, sans-serif; color: var(--ink-2); margin: 0; }
-    .ask-form { display: flex; gap: 8px; width: 100%; }
-    .ask-inp { flex: 1 1 auto; min-width: 0; }
+    .ask-form { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+    .ask-label { font: 500 13px/18px Inter, sans-serif; color: var(--ink); }
+    /* R14: at 390 the field takes the whole row so the placeholder is never clipped; the button sits under it. */
+    .ask-row { display: flex; flex-wrap: wrap; gap: 8px; width: 100%; min-width: 0; }
+    .ask-inp { flex: 1 1 100%; min-width: 0; }
     .ask-go { flex: 0 0 auto; }
     .ask-inp:disabled { background: var(--disabled-bg); color: var(--ink-soft); }
+    .ask-hint { margin: 0; color: var(--muted); font-size: 13px; line-height: 18px; }
     .ask-chips .chip:disabled { color: var(--ink-soft); cursor: not-allowed; }
     .ask-reply { margin: 0; display: flex; flex-direction: column; gap: 2px; color: var(--ink-2); }
     .ask-reply:empty { display: none; }
-    @media (min-width: 834px) { .ask-form { max-width: 640px; } }
+    @media (min-width: 480px) { .ask-inp { flex: 1 1 auto; } }
+    @media (min-width: 834px) { .ask-row { max-width: 640px; } }
   `],
 })
-export class AskBoxComponent {
+export class AskBoxComponent implements OnChanges {
   @Input() lang: Lang = 'en';
   /** The current /solve payload; null (no data, or fixture mode) hides the box. */
   @Input() data: AskData | null = null;
@@ -66,6 +75,11 @@ export class AskBoxComponent {
 
   get m(): Messages { return MESSAGES[this.lang]; }
   get examples(): string[] { return [this.m.askExample1, this.m.askExample2, this.m.askExample3]; }
+
+  // R14: an answer written in the old language is cleared on a switch; the field keeps its focus.
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['lang'] && !changes['lang'].firstChange) this.lines = [];
+  }
 
   private say(key: string, args: Record<string, unknown> = {}): string {
     const k = (REPLY_KEYS.includes(key) ? key : 'askUnsupported') as ReplyKey;

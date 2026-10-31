@@ -600,7 +600,16 @@
                     @for (o of data.cheapest.orders!; track o.store_id) { <ng-container *ngTemplateOutlet="obox; context: { o: o, link: true }"></ng-container> }
                   </div>
                   <ng-container *ngTemplateOutlet="notranked; context: { list: data.cheapest.not_ranked }"></ng-container>
-                  <section class="why" aria-live="polite"><p>{{ whyText }}</p>@if (whyMuse) { <span class="why-source">{{ museLabel }}</span> }</section>
+                  @if (whyLoading || whyText) {
+                    <section class="why" [attr.aria-busy]="whyLoading" aria-labelledby="why-label" data-why>
+                      <p class="why-label" id="why-label">{{ m.whyTitle }}</p>
+                      @if (whyLoading) {
+                        <div class="why-skel" aria-hidden="true"><span></span><span></span></div>
+                      } @else {
+                        <p class="why-text" data-why-text>{{ whyText }}</p>
+                      }
+                    </section>
+                  }
                   @if (leftOut.length) {
                     <div class="panel">
                       <p class="k">{{ m.shopsLeftOut }}</p>

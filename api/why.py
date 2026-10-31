@@ -11,6 +11,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import re
 import sys
 import threading
 from pathlib import Path
@@ -32,7 +33,8 @@ PROMPT = """You explain one shopping result to a shopper. Write ONE short paragr
 Rules:
 - Use only facts from the JSON below: shop names, amounts, counts, shipping and fees.
 - Write every amount exactly as the JSON states it (cents divided by 100, in lei), copied, never computed. Do not add, subtract or round anything yourself.
-- Write shop names as Libris, Amazon.de, eMAG, Bookzone, never as ids like amazon_de. Write amounts with a comma decimal in Romanian (515,16 lei) and a dot in English (515.16 lei).
+- Write amounts with a comma decimal and lei after the number, in both languages (515,16 lei). Never a dot decimal: 515.16 is wrong.
+- Write shop names as Libris, Amazon.de, eMAG, Bookzone, never as ids like amazon_de.
 - Name only shops that appear in the JSON. Say "order" (RO: "comandă"), never "parcel".
 - Say why the cheapest split is cheapest for this basket and how it compares with buying everything in one order, if the JSON has that comparison.
 - No headings, no lists, no markdown, no advice to buy.
@@ -41,6 +43,23 @@ Rules:
 JSON:
 {facts}
 """
+
+# Muse sometimes writes a RON amount with a dot decimal (126.13 lei); the box shows 126,13 lei.
+# Only a plain digits.dd token is rewritten, so a thousands separator (1.234) is left alone.
+_DOT_DECIMAL = re.compile(r"(?<![\d.,])(\d+)\.(\d{2})(?!\d)")
+_TRAILING = "\"'”’»)]}"
+
+
+def normalize_amounts(text: str) -> str:
+    """Rewrite a dot decimal as the comma decimal the box shows. 1.234,56 is untouched."""
+    return _DOT_DECIMAL.sub(lambda m: m.group(1) + "," + m.group(2), text)
+
+
+def sentence_ended(text: str) -> bool:
+    """A paragraph cut mid-answer ("also totals 182") does not end in . ! ? and is not shown."""
+    trimmed = (text or "").rstrip().rstrip(_TRAILING).rstrip()
+    return bool(trimmed) and trimmed[-1] in ".!?"
+
 
 _cache: dict[str, dict] = {}
 _lock = threading.Lock()
@@ -125,6 +144,10 @@ def _ask(payload: dict, lang: str) -> dict:
     text = _text_of(response).strip()
     if not text:
         return _template(payload, lang, "empty model output")
+    if not sentence_ended(text):
+        return _template(payload, lang, "truncated model output")
+    # A dot decimal is shown as a comma decimal, or the paragraph is dropped by the checker below.
+    text = normalize_amounts(text)
     try:
         check = check_explanation(text, payload)
     except Exception as exc:
