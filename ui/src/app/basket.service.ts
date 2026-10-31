@@ -57,6 +57,16 @@ export function itemId(isbn: string): string {
  * R12: a title or an author as one comparable string: no case, accents, punctuation or word order,
  * so "Dahl, Roald" and "ROALD DAHL" are the same author.
  */
+/**
+ * R12/S26: two entries are the same book under another ISBN when the title (without a trailing
+ * "(…)" such as "(Colour Edition)") and the author normalise the same.
+ */
+export function sameBook(a: { isbn: string; title: string | null; author: string | null }, b: { isbn: string; title: string | null; author: string | null }): boolean {
+  const core = (t: string | null) => normalisedKey((t || '').replace(/\s*\([^()]*\)\s*$/, ''));
+  const t = core(a.title);
+  return !!t && a.isbn !== b.isbn && t === core(b.title) && normalisedKey(a.author) === normalisedKey(b.author);
+}
+
 export function normalisedKey(text: string | null | undefined): string {
   return (text || '')
     .normalize('NFD')
@@ -133,10 +143,7 @@ export class BasketService {
    * Matildas, two editions). The same ISBN is a re-read, not a second copy, so it never matches.
    */
   duplicateOf(isbn: string, title: string, author: string | null): BasketItem | null {
-    const t = normalisedKey(title);
-    if (!t) return null;
-    const a = normalisedKey(author);
-    return this.items.find((i) => i.isbn !== isbn && normalisedKey(i.title) === t && normalisedKey(i.author) === a) || null;
+    return this.items.find((i) => sameBook(i, { isbn, title, author })) || null;
   }
 
   /** Add (or refresh) the book a live read was run for. Only that book joins; nothing else comes with it. */

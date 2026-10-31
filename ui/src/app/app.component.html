@@ -271,6 +271,16 @@
       (pick)="onPhotoPick($event)"
       (continue)="onPhotoContinue()"
     />
+    @if (photoDup; as d) {
+      <div class="dupask" role="alert" aria-labelledby="pdup-q" data-state="photo-duplicate">
+        <p class="pt">{{ d.line.candidate.title || d.line.read_title }}</p>
+        <p class="dupq" id="pdup-q">{{ m.addDuplicateAsk }}</p>
+        <div class="duprow">
+          <button class="btn" type="button" data-action="duplicate-add" (click)="photoDupAnswer(true)">{{ m.addDuplicateAdd }}</button>
+          <button #photoDupKeep class="btn2" type="button" data-action="duplicate-keep" (click)="photoDupAnswer(false)">{{ m.addDuplicateKeep }}</button>
+        </div>
+      </div>
+    }
   </main>
 } @else if (route.name === 'live') {
   <ng-container *ngTemplateOutlet="v2header; context: { see: true, back: m.pickTitle, backPath: 'find/' + encodeURIComponent(boxText) }"></ng-container>
