@@ -169,23 +169,25 @@ export function outcomeOf(o: LiveOffer): Outcome {
 }
 
 /**
- * The link a shopper can follow for a shop. The listing the read used first,
- * then the listing the index holds for the picked book, then (only for eMAG and
- * Amazon.de) a search for the ISBN. Null where none is known.
+ * R11: the only links a shopper follows go to a shop's listing page. A shop search page
+ * (`/search`, `/cautare?q=`) or any URL carrying a query is never a link.
  */
-export function shopLink(o: LiveOffer, pick: Candidate | null, isbn: string | null): string | null {
-  const ok = (u: string | null | undefined) => (u && /^https?:\/\//.test(u) ? u : null);
-  const own = ok(o.listing_url);
+export function listingUrl(u: string | null | undefined): string | null {
+  if (!u || !/^https?:\/\//i.test(u)) return null;
+  if (/\/(search|cautare)([/?]|$)/i.test(u) || /[?&]q=/i.test(u)) return null;
+  return u;
+}
+
+/**
+ * The link a shopper can follow for a shop: the listing the read used, then the listing the
+ * index holds for the picked book. Null where no listing page is known (R11: no search links).
+ */
+export function shopLink(o: LiveOffer, pick: Candidate | null): string | null {
+  const own = listingUrl(o.listing_url);
   if (own) return own;
   const key = o.store_id.replace(/_/g, '-');
   const indexed = pick?.shops.find((s) => s.shop.replace(/_/g, '-') === key);
-  const fromIndex = ok(indexed?.url);
-  if (fromIndex) return fromIndex;
-  const code = isbn || o.isbn13 || pick?.isbn || null;
-  if (!code) return null;
-  if (o.store_id === 'amazon_de') return 'https://www.amazon.de/s?k=' + code;
-  if (o.store_id === 'emag') return 'https://www.emag.ro/search/' + code;
-  return null;
+  return listingUrl(indexed?.url);
 }
 
 /** Priced shops first, cheapest first; the rest keep the order the backend gave. */

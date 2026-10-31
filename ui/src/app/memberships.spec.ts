@@ -167,7 +167,10 @@ describe('memberships in the result controls', () => {
       cached: true,
       read_at_range: { oldest: '2026-10-28', newest: '2026-10-28' },
       degraded: null,
-      shops: [],
+      shops: [
+        { store_id: 'emag', priced: true, excluded: false, selectable: true, not_selectable_code: null, not_selectable_reason: null, read_at: null, books_listed: 1, failed_reads: [], free_delivery_threshold_cents: null, delivery_cents: null, delivery_known: false, order_fee_cents: null },
+        { store_id: 'amazon_de', priced: true, excluded: false, selectable: true, not_selectable_code: null, not_selectable_reason: null, read_at: null, books_listed: 1, failed_reads: [], free_delivery_threshold_cents: null, delivery_cents: null, delivery_known: false, order_fee_cents: null },
+      ],
       books: [],
       failed_reads: [],
       memberships: ROWS,

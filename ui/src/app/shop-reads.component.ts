@@ -1,5 +1,5 @@
 import { Component, Input } from '@angular/core';
-import { Candidate, LiveOffer, Outcome, outcomeOf, shopLabel, shopLink, sortOffers } from './live';
+import { Candidate, LiveOffer, Outcome, outcomeOf, listingUrl, shopLabel, shopLink, sortOffers } from './live';
 import { Lang, MESSAGES, Messages, fill } from './messages';
 
 /** One row per shop the live read tried: its outcome, its price if one was read, its link. */
@@ -14,9 +14,6 @@ import { Lang, MESSAGES, Messages, fill } from './messages';
           <p class="pt">{{ m.entryNoOffer }}</p>
           <div class="no-offer-actions">
             <a class="lnk" href="#/editions">{{ m.entryTryAnother }}</a>
-            @if (firstShopWithSearch(); as search) {
-              <a class="lnk" [href]="search" target="_blank" rel="noopener">{{ m.entrySearchShop }}</a>
-            }
           </div>
         </div>
       }
@@ -44,8 +41,8 @@ import { Lang, MESSAGES, Messages, fill } from './messages';
               <span class="s">{{ m.readsNotChecked }}</span>
             </span>
             <span class="rowr">
-              @if (x.url) {
-                <a class="store" [href]="x.url" target="_blank" rel="noopener" [attr.aria-label]="openText(x.shop)">{{ openText(x.shop) }}</a>
+              @if (listing(x.url); as href) {
+                <a class="store" [href]="href" target="_blank" rel="noopener" [attr.aria-label]="openText(x.shop)">{{ openText(x.shop) }}</a>
               }
             </span>
           </li>
@@ -122,7 +119,12 @@ export class ShopReadsComponent {
   }
 
   link(o: LiveOffer): string | null {
-    return shopLink(o, this.pick, this.isbn);
+    return shopLink(o, this.pick);
+  }
+
+  /** R11: a shop is linked only when we hold its listing page, never a search page. */
+  listing(url: string | null | undefined): string | null {
+    return listingUrl(url);
   }
 
   lei(cents: number): string {
@@ -158,26 +160,10 @@ export class ShopReadsComponent {
   }
 
   linkText(o: LiveOffer): string {
-    const m = this.m;
-    const shop = shopLabel(o.store_id);
-    if (outcomeOf(o) === 'not_live' && o.store_id === 'amazon_de') return m.readsCheckAmazon + ' ↗';
-    // A link that is a search, not the book's own page, says so.
-    const own = o.listing_url || this.pick?.shops.some((s) => s.shop.replace(/_/g, '-') === o.store_id.replace(/_/g, '-'));
-    return own ? fill(m.readsOpen, { shop }) : fill(m.readsSearch, { shop });
+    return fill(this.m.readsOpen, { shop: shopLabel(o.store_id) });
   }
 
   t(key: keyof Messages, values: Record<string, string> = {}): string {
     return fill(this.m[key], values);
-  }
-
-  firstShopWithSearch(): string | null {
-    if (!this.isbn) return null;
-    // Try to find a shop from offers or other_shops and generate a search URL
-    const allShops = [...this.offers, ...(this.pick?.other_shops || []).map(x => ({ store_id: x.shop, listing_url: x.url || '' }))];
-    for (const shop of allShops) {
-      const link = shopLink({ store_id: shop.store_id, listing_url: shop.listing_url } as LiveOffer, this.pick, this.isbn);
-      if (link && link.includes('search')) return link;
-    }
-    return null;
   }
 }

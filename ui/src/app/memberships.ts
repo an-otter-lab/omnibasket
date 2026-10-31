@@ -25,6 +25,20 @@ export interface MembershipRow {
 
 export const MEMBERSHIPS_KEY = 'omnibasket.memberships.v1';
 
+export interface ShopCandidate {
+  store_id: string;
+  selectable?: boolean;
+  books_listed?: number;
+}
+
+/** R10: the shops that can take a book in this basket. Options rows and Ask chips share this. */
+export function shopsThatTakeBooks(shops: ShopCandidate[], orders: { store_id?: string }[]): Set<string> {
+  const can = new Set<string>();
+  for (const s of shops) if (s.selectable || (s.books_listed ?? 0) > 0) can.add(s.store_id);
+  for (const o of orders) if (o.store_id) can.add(o.store_id);
+  return can;
+}
+
 export function loadDeclared(storage: Storage | null = safeStorage()): string[] {
   try {
     const raw = storage?.getItem(MEMBERSHIPS_KEY);

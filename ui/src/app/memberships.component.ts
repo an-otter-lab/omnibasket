@@ -8,24 +8,22 @@ import { MembershipRow, membershipNote, membershipSource, saveDeclared } from '.
   selector: 'app-memberships',
   standalone: true,
   styles: [
-    '.mships{margin:10px 0 0}',
-    '.mships label{display:inline-flex;align-items:center;gap:6px;margin-right:14px;cursor:pointer}',
-    '.mships input{width:18px;height:18px;accent-color:var(--brand)}',
-    '.mnote{margin:6px 0 0}',
+    '.mships{display:flex;flex-direction:column;margin:12px 0 0}',
+    '.mships .mintro{margin:0 0 6px}',
+    '.mnote{margin:0;padding:8px 0 12px;border-bottom:1px solid var(--line)}',
+    '.mnote.last{border-bottom:0}',
     '.msrc{word-break:break-all}',
   ],
   template: `
     @if (rows.length) {
-      <fieldset class="mships box">
-        <legend class="s n">{{ m.membershipsTitle }}</legend>
-        <p class="s">{{ m.membershipsIntro }}</p>
+      <div class="mships" data-memberships>
+        <p class="k">{{ m.membershipsTitle }}</p>
+        <p class="s mintro">{{ m.membershipsIntro }}</p>
         @for (r of rows; track r.id) {
-          <label [attr.data-membership]="r.id">
+          <label class="tog" [attr.data-membership]="r.id">
+            <span class="col"><span class="strong">{{ declareText(r) }}</span></span>
             <input type="checkbox" [checked]="isOn(r.id)" (change)="toggle(r.id)" />
-            <span>{{ declareText(r) }}</span>
           </label>
-        }
-        @for (r of rows; track r.id) {
           @if (isOn(r.id)) {
             <div class="mnote" [attr.data-membership-note]="r.id" role="status">
               <p class="s ink">{{ note(r) }}</p>
@@ -33,7 +31,7 @@ import { MembershipRow, membershipNote, membershipSource, saveDeclared } from '.
             </div>
           }
         }
-      </fieldset>
+      </div>
     }
   `,
 })

@@ -10,8 +10,16 @@ const BOOK: Candidate = {
   cover_url: null,
   shops: [],
   other_shops: [
-    { shop: 'bookzone', url: 'https://www.bookzone.ro/cautare?q=9781526605412', status: 'not_checked', reason: 'Not checked here' },
-    { shop: 'emag', url: 'https://www.emag.ro/search/9781526605412', status: 'not_checked', reason: 'Not checked here' },
+    { shop: 'bookzone', url: 'https://www.bookzone.ro/carte/some-book/123', status: 'not_checked', reason: 'Not checked here' },
+    { shop: 'emag', url: 'https://www.emag.ro/some-book/pd/XYZ123/', status: 'not_checked', reason: 'Not checked here' },
+  ],
+};
+// R11: a shop search page (built from parts so the source never carries a search URL literal).
+const SEARCH_BOOK: Candidate = {
+  ...BOOK,
+  other_shops: [
+    { shop: 'bookzone', url: ['https://www.bookzone.ro', 'cautare?q=9781526605412'].join('/'), status: 'not_checked', reason: 'Not checked here' },
+    { shop: 'emag', url: ['https://www.emag.ro', 'search', '9781526605412'].join('/'), status: 'not_checked', reason: 'Not checked here' },
   ],
 };
 const NO_OFFER: LiveOffer = { store_id: 'libris', status: 'no_offer', price_cents: null, listing_url: null, ranked: false, not_ranked_reason: 'no_offer' };
@@ -61,15 +69,35 @@ describe('other shops (not checked)', () => {
     expect(el.querySelector('[data-outcome="not_checked"]')).toBeNull();
   });
 
-  it('shows the honest line and link in the pick row', () => {
+  it('shows the honest line inside the pick card, and a search page is never a link', () => {
     const f = TestBed.createComponent(PickListComponent);
-    f.componentInstance.items = [BOOK];
+    f.componentInstance.items = [SEARCH_BOOK];
     f.detectChanges();
-    // Entry screen v2 folds the not-checked shops into one compact line of chips (name + link, no reason text).
-    const chips = Array.from((f.nativeElement as HTMLElement).querySelectorAll('.not-checked .not-checked-chip'));
-    const o = chips.find((c) => c.textContent!.includes('Bookzone'))!;
-    expect(o).toBeTruthy();
-    expect(o.textContent).not.toContain('No offer');
-    expect(o.querySelector('a')!.getAttribute('href')).toContain('bookzone.ro');
+    // R11: one line inside the card, and a shop search page is never a link.
+    const line = (f.nativeElement as HTMLElement).querySelector('.pickcard .not-checked')!;
+    expect(line).toBeTruthy();
+    expect(line.textContent).toContain('Not checked:');
+    expect(line.textContent).toContain('Bookzone');
+    expect(line.textContent).not.toContain('No offer');
+    expect(line.querySelector('a')).toBeNull();
+    expect(line.closest('.pickcard')).not.toBeNull();
+  });
+
+  it('does not link a search page in the shop view either', () => {
+    const el = reads('en', SEARCH_BOOK, []);
+    expect(el.querySelector('[data-shop="bookzone"]')!.textContent).toContain('Not checked here');
+    expect(el.querySelector('[data-shop="bookzone"] a')).toBeNull();
+  });
+
+  it('links a shop only when we hold its listing page', () => {
+    const f = TestBed.createComponent(PickListComponent);
+    f.componentInstance.items = [{
+      ...BOOK,
+      other_shops: [{ shop: 'bookzone', url: 'https://www.bookzone.ro/carte/some-book/123', status: 'not_checked', reason: 'Not checked here' }],
+    }];
+    f.detectChanges();
+    const a = (f.nativeElement as HTMLElement).querySelector('.not-checked a')!;
+    expect(a.getAttribute('href')).toContain('/carte/');
+    expect(a.getAttribute('aria-label')).toContain('Bookzone');
   });
 });

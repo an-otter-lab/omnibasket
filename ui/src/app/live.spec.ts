@@ -38,14 +38,17 @@ describe('live helpers', () => {
     expect(outcomeOf(row({ not_ranked_reason: 'not_read_live' }))).toBe('not_live');
   });
 
-  it('links: own listing, then the index listing, then an ISBN search for eMAG and Amazon.de only', () => {
+  it('links: own listing, then the index listing, never a shop search page', () => {
     const pick: Candidate = { title: 't', author: null, isbn: '9781526605412', cover_url: null, shops: [{ shop: 'books-express', url: 'https://www.books-express.ro/p' }] };
-    expect(shopLink(row({ listing_url: 'https://www.libris.ro/a' }), pick, null)).toBe('https://www.libris.ro/a');
-    expect(shopLink(row({ store_id: 'books_express' }), pick, null)).toBe('https://www.books-express.ro/p');
-    expect(shopLink(row({ store_id: 'emag' }), null, '9781526605412')).toBe('https://www.emag.ro/search/9781526605412');
-    expect(shopLink(row({ store_id: 'amazon_de' }), null, '9781526605412')).toBe('https://www.amazon.de/s?k=9781526605412');
-    expect(shopLink(row({ store_id: 'bookzone' }), null, '9781526605412')).toBeNull();
-    expect(shopLink(row({ listing_url: 'javascript:alert(1)' }), null, null)).toBeNull();
+    expect(shopLink(row({ listing_url: 'https://www.libris.ro/a' }), pick)).toBe('https://www.libris.ro/a');
+    expect(shopLink(row({ store_id: 'books_express' }), pick)).toBe('https://www.books-express.ro/p');
+    // R11: no shop search page is ever linked, and no ISBN search is built for a shop.
+    expect(shopLink(row({ store_id: 'emag' }), null)).toBeNull();
+    expect(shopLink(row({ store_id: 'amazon_de' }), null)).toBeNull();
+    expect(shopLink(row({ store_id: 'bookzone' }), null)).toBeNull();
+    expect(shopLink(row({ listing_url: 'javascript:alert(1)' }), null)).toBeNull();
+    expect(shopLink(row({ listing_url: ['https://www.emag.ro', 'search', 'x'].join('/') }), null)).toBeNull();
+    expect(shopLink(row({ listing_url: 'https://www.bookzone.ro/cautare?q=x' }), null)).toBeNull();
   });
 
   it('puts priced shops first, cheapest first', () => {
