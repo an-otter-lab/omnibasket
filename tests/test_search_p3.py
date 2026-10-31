@@ -52,3 +52,11 @@ def test_an_isbn_search_is_never_filtered(db_path):
 @pytest.mark.parametrize("title", ["Shiitake Mushrooms", "Scunthorpe United", "Shitsuke and the Japanese Garden", "Matilda"])
 def test_ordinary_words_are_not_caught(title):
     assert not search_module._profane(title)
+
+
+def test_starred_spellings_are_hidden_too():
+    from index.search import _profane
+    assert _profane("The Subtle Art of Not Giving a F*ck")
+    assert _profane("Everything Is F*cked")
+    assert _profane("Sh*t My Dad Says")
+    assert not _profane("Sapiens") and not _profane("Shitake Mushrooms")

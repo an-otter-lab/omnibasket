@@ -357,7 +357,8 @@ def _other_shops(isbn: str | None, title: str) -> list[dict]:
 
 # P3: a children's-books demo does not list titles with strong profanity ("the Subtle Art of Not
 # Giving a F*ck" for "sapiens") unless the shopper typed such a word. An ISBN search is never filtered.
-_PROFANE = re.compile(r"\b(?:\w*fuck\w*|shit|shits|shitty|bullshit|cunt\w*)\b", re.IGNORECASE)
+# Also the starred spellings on real covers ("F*ck", "Sh*t"). Hidden, not ranked lower (Adrian, 1 Nov).
+_PROFANE = re.compile(r"\b(?:\w*f(?:u|\*)ck\w*|(?:bull)?sh(?:i|\*)t(?:s|ty)?|cunt\w*)\b", re.IGNORECASE)
 
 
 def _profane(text: object) -> bool:
