@@ -10,6 +10,13 @@
 //    attributes, and the AppComponent constructor's fetch('/config') went to the real karma server and
 //    resolved at an arbitrary time, so a finished spec's continuation (config, hashchange) hit the next spec.
 //
+//  - T1 (31 Oct 2026): skipping clean resets was not enough. Nearly every spec boots the app, which routes
+//    through location.hash (1-4 navigations per spec), so one run of the whole suite still makes 200+
+//    navigations inside one 10 s window. With random order, the specs past the limit kept the previous
+//    spec's hash and their own route changes were dropped (add-book "#/find/Sapiens" -> '#/add', the buy
+//    list entry link, "with 0 books"). ui/karma.conf.js now starts Chrome with the throttle off, and
+//    resetUrl() below throws a named error if a reset is ever ignored again.
+//
 // What this file does, for every spec: a default offline fetch (no real network), a clean page before it, and
 // a drain of pending continuations plus a clean page after it. The URL is touched ONLY when it is dirty,
 // so the History API budget is never approached. Specs still install their own fetch stub with spyOn
@@ -21,7 +28,16 @@ const realFetch = window.fetch.bind(window);
 
 function resetUrl(): void {
   // replaceState clears search and hash without queueing a hashchange event; skip it when already clean.
-  if (window.location.search || window.location.hash) history.replaceState(null, '', window.location.pathname);
+  if (!(window.location.search || window.location.hash)) return;
+  history.replaceState(null, '', window.location.pathname);
+  // Chrome drops navigations silently once it throttles them (see ui/karma.conf.js). Fail here, by name,
+  // instead of letting the next spec start on the previous spec's URL.
+  if (window.location.search || window.location.hash) {
+    throw new Error(
+      `URL reset ignored (still ${window.location.search}${window.location.hash}): Chrome is throttling ` +
+        'navigations. Run ng test with ui/karma.conf.js (--disable-ipc-flooding-protection).',
+    );
+  }
 }
 
 function resetBrowserState(): void {
