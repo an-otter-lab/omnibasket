@@ -105,7 +105,8 @@ describe('live flow: progress then per-shop reads', () => {
     expect(lines(el)).toEqual(['Reading Libris…', 'Reading eMAG…']);
     say('emag', 'failed');
     say('libris', 'ok');
-    expect(lines(el)).toEqual(['Reading Libris…', 'Reading eMAG…', 'eMAG: couldn’t be read', 'Libris: read']);
+    // S9b: each shop's result replaces its Reading row in place (one row per shop, in first-arrival order).
+    expect(lines(el)).toEqual(['Libris: read', 'eMAG: couldn’t be read']);
     expect(el.querySelector('h1')!.textContent).toContain('Harry Potter Hogwarts');
   });
 
