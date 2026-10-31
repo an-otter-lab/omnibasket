@@ -173,12 +173,38 @@ def query_line(words: list[str], db_path) -> list[sqlite3.Row]:
             return []
 
 
+def _is_real_title(title: str | None) -> bool:
+    """A title a person cased. Both shops' index rows are slugs: every word lowercase."""
+    return any(ch.isupper() for ch in title or "")
+
+
+def _index_picks(items: list[dict]) -> list[dict]:
+    """Index candidates the shopper may see: real book records, never a shop slug."""
+    return [it for it in items if _is_real_title(it.get("title"))][:MAX_CANDIDATES]
+
+
+def _matched_index(item: dict, base: dict, line: dict, db_path, opener) -> dict:
+    """A unique index hit, shown as the real work or not matched as that ISBN.
+
+    A shop row is only evidence that a shop has a printing: its own title is a slug. The
+    catalogue's record for the ISBN names the work; when it names a different one (the
+    "the very hungry caterpillar s" row is the 123 board book, clipped in the slug), the
+    ISBN is rejected and the read line is resolved from its own title instead.
+    """
+    shown = _show(item, line, db_path, opener)
+    if shown is not None:
+        return {**base, "status": "matched", "candidate": shown}
+    return resolve_online(line, base, db_path, opener)
+
+
 def match_line(line: dict, db_path, opener=None) -> dict:
-    """Match one read line. The author is ignored; an ISBN comes only from the index.
+    """Match one read line. An ISBN comes only from the index; the author only labels it.
 
     One exact ISBN is matched. More than one exact ISBN is ambiguous. No exact title
     but one format edition is matched and labelled with that edition. More than one
     edition is ambiguous. Anything else, including a spin-off, is not a candidate.
+    A shop slug is never shown as a title: an index row without a cased title is
+    labelled from the catalogue's record for its ISBN, or the line is not matched.
     """
     want = title_words(line.get("title"))
     base = {"read_title": line["title"], "read_author": line.get("author")}
@@ -220,20 +246,18 @@ def match_line(line: dict, db_path, opener=None) -> dict:
                 qualifiers[isbn] = (fallback[0], item)
 
     if len(exact) == 1:
-        item = next(iter(exact.values()))
-        return {**base, "status": "matched", "candidate": _canonical(item, line, db_path, opener)}
-    if len(exact) > 1:
-        picks = [exact[k] for k in sorted(exact)][:MAX_CANDIDATES]
-        return {**base, "status": "ambiguous", "candidates": picks}
+        return _matched_index(next(iter(exact.values())), base, line, db_path, opener)
     if len(editions) == 1:
-        item = next(iter(editions.values()))
-        return {**base, "status": "matched", "candidate": _canonical(item, line, db_path, opener)}
-    if len(editions) > 1:
-        picks = [editions[k] for k in sorted(editions)][:MAX_CANDIDATES]
-        return {**base, "status": "ambiguous", "candidates": picks}
-    if qualifiers:
-        picks = [qualifiers[k][1] for k in sorted(qualifiers, key=lambda k: (qualifiers[k][0], k))][:MAX_CANDIDATES]
-        return {**base, "status": "ambiguous", "candidates": picks}
+        return _matched_index(next(iter(editions.values())), base, line, db_path, opener)
+    exact_picks = _index_picks([exact[k] for k in sorted(exact)])
+    if exact_picks:
+        return {**base, "status": "ambiguous", "candidates": exact_picks}
+    edition_picks = _index_picks([editions[k] for k in sorted(editions)])
+    if edition_picks:
+        return {**base, "status": "ambiguous", "candidates": edition_picks}
+    qualifier_picks = _index_picks([qualifiers[k][1] for k in sorted(qualifiers, key=lambda k: (qualifiers[k][0], k))])
+    if qualifier_picks:
+        return {**base, "status": "ambiguous", "candidates": qualifier_picks}
     return resolve_online(line, base, db_path, opener)
 
 
@@ -274,13 +298,15 @@ def online_lookup(line: dict, db_path, opener=None, fetcher=None, isbn: str | No
             have = core_title(res.get("title"))
             if not have or SequenceMatcher(None, want, have).ratio() < ONLINE_SIMILARITY:
                 continue
+            if not _same_work(title, res.get("title")):
+                continue  # a spin-off, not this printed book
             if sorted(re.findall(r"\d+", want)) != sorted(re.findall(r"\d+", have)):
                 continue
             if last and res.get("author") and last not in fold(res["author"]).split():
                 continue
             found[isbn] = {
                 "title": res["title"],
-                "author": res.get("author"),
+                "author": res.get("author") or (line.get("author") or None),
                 "isbn": isbn,
                 "cover_url": res.get("cover_url") or _cover(isbn),
                 "_exact": want == have,
@@ -288,30 +314,58 @@ def online_lookup(line: dict, db_path, opener=None, fetcher=None, isbn: str | No
             }
         if found:
             break
+    if any(c["_exact"] for c in found.values()):
+        # The work whose title is the printed one: a spin-off beside it is a different book
+        # ("the very hungry caterpillar's abc" is not "the very hungry caterpillar").
+        found = {k: v for k, v in found.items() if v["_exact"]}
     ranked = sorted(found.values(), key=lambda c: (not c["_exact"], -c["_shops"]))
     for c in ranked:
         c.pop("_exact"), c.pop("_shops")
     return ranked
 
 
-def _canonical(item: dict, line: dict, db_path, opener) -> dict:
-    """A matched candidate shown with the catalogue's proper-case title and author (R13).
+def _same_work(read_title: str | None, record_title: str | None) -> bool:
+    """The catalogue's record is this line's book: the same title words, or a format variant.
+
+    "The very hungry caterpillar's abc" adds a word that names another book, so it is not
+    "The Very Hungry Caterpillar" even though the catalogue returns it for a near title.
+    """
+    from api.title_match import core_title
+
+    return _edition_label(title_words(core_title(read_title)),
+                          title_words(core_title(record_title))) is not None
+
+
+def _canonical(item: dict, line: dict, db_path, opener) -> dict | None:
+    """The catalogue's record for this ISBN when it is the printed work, else None (R13).
 
     The local index holds shop slugs ("the very hungry caterpillar s", no author); what
-    the shopper is buying has a real title and an author. The edition label stays, so a
-    special edition is still shown as one.
+    the shopper is buying has a real title and an author. An ISBN the catalogue does not
+    confirm as this work is a different book and must not be shown under this title. The
+    edition label stays, so a special edition is still shown as one.
     """
     isbn = item.get("isbn")
     if not isbn:
-        return item
+        return None
     for cand in online_lookup(line, db_path, opener, isbn=isbn):
-        if cand.get("isbn") == isbn:
-            return {
-                **item,
-                "title": cand.get("title") or item["title"],
-                "author": cand.get("author") or item.get("author"),
-            }
-    return item
+        if cand.get("isbn") != isbn or not cand.get("title"):
+            continue
+        if not _same_work(line.get("title"), cand["title"]):
+            continue  # the same words, but a record of another book
+        return {
+            **item,
+            "title": cand["title"],
+            "author": cand.get("author") or item.get("author") or (line.get("author") or None),
+        }
+    return None
+
+
+def _show(item: dict, line: dict, db_path, opener) -> dict | None:
+    """An index row as it may be shown: its own record when that is a real book record,
+    else the catalogue's record for its ISBN. None when neither exists."""
+    if _is_real_title(item.get("title")):
+        return {**item, "author": item.get("author") or (line.get("author") or None)}
+    return _canonical(item, line, db_path, opener)
 
 
 def resolve_online(line: dict, base: dict, db_path, opener=None) -> dict:
