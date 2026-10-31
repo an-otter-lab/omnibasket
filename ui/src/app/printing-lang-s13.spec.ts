@@ -12,15 +12,15 @@ function offer(store_id: string, isbn13: string, other_printing: boolean): LiveO
   return { store_id, status: 'ok', price_cents: 4500, listing_url: null, isbn13, other_printing, ranked: true };
 }
 
-async function render(liveOffers: LiveOffer[]): Promise<HTMLElement> {
-  const item: BasketItem = { id: 'book-' + PUFFIN, isbn: PUFFIN, title: 'Matilda', author: null, live_offers: liveOffers,
+async function render(liveOffers: LiveOffer[], picked = PUFFIN): Promise<HTMLElement> {
+  const item: BasketItem = { id: 'book-' + picked, isbn: picked, title: 'Matilda', author: null, live_offers: liveOffers,
     offers: liveOffers.map((o) => ({ store_id: o.store_id, price_cents: 4500, seller_certainty: 'direct', edition: null, listing_url: null, read_at: null, in_stock: true })) };
   const basket = TestBed.inject(BasketService);
   basket.items = [item];
   basket.shops = ['libris', 'books_express'].map((id) => ({ id, currency: 'RON', free_shipping_threshold_cents: 15000, shipping_fee_cents: 1290, per_order_fee_cents: 0, read_at: null }));
   const line = (store_id: string) => ({
     store_id,
-    books: [{ item_id: item.id, title: 'Matilda', isbn13: PUFFIN, edition: null, price_cents: 4500, seller_certainty: 'direct', listing_url: null, read_at: null }],
+    books: [{ item_id: item.id, title: 'Matilda', isbn13: picked, edition: null, price_cents: 4500, seller_certainty: 'direct', listing_url: null, read_at: null }],
     books_subtotal_cents: 4500, qualifying_cents: 4500, free_delivery_threshold_cents: null, threshold_crossed: false,
     over_under_threshold_cents: null, short_of_threshold_cents: null, delivery_known: true, delivery_cents: 1290, order_fee_cents: 0, order_total_cents: 5790, read_at: null,
   });
@@ -31,7 +31,7 @@ async function render(liveOffers: LiveOffer[]): Promise<HTMLElement> {
   const payload = {
     currency: 'RON', cached: false, read_at_range: { oldest: null, newest: null }, degraded: null,
     shops: [shop('libris'), shop('books_express')],
-    books: [{ item_id: item.id, title: 'Matilda', isbn13: PUFFIN, edition_pin: null, editions: [], assigned_store_id: 'libris', shops: [] }],
+    books: [{ item_id: item.id, title: 'Matilda', isbn13: picked, edition_pin: null, editions: [], assigned_store_id: 'libris', shops: [] }],
     failed_reads: [], memberships: [],
     cheapest: { status: 'ranked', reason: null, total_cents: 11580, books_subtotal_cents: 9000, order_count: 2, orders: [line('libris'), line('books_express')], delta_vs_cheapest_cents: 0, not_ranked: [] },
     ['one_' + 'par' + 'cel']: { status: 'not_possible', reason: null, best_store_id: null, answer: null, per_book_delta: [], shops: [] },
@@ -77,5 +77,24 @@ describe('S13: another-language printing on the order chip', () => {
 
   it('the same language, or a printing whose language is unknown, adds nothing', async () => {
     expect(chips(await render([offer('libris', '9780000000002', true), offer('books_express', '9791090636071', true)]))).toEqual(['Matilda', 'Matilda']);
+  });
+
+  // S13b: 979-8 is EN, 978-2 is FR; any other group stays unknown, and an unknown picked book shows no chip.
+  it('maps 979-8 to EN and 978-2 to FR; other groups stay unknown', () => {
+    expect(isbnLang('9798886451740')).toBe('EN');
+    expect(isbnLang('9782070612758')).toBe('FR');
+    expect(isbnLang('9788804668237')).toBeNull(); // 978-88
+    expect(isbnLang('9791090636071')).toBeNull(); // 979-10
+  });
+
+  it('Matilda (Puffin) priced as a FR printing (978-2) at Libris: "Matilda · FR"', async () => {
+    const c = chips(await render([offer('libris', '9782070612758', true), offer('books_express', PUFFIN, false)]));
+    expect(c).toContain('Matilda · FR');
+    expect(c.filter((x) => x.includes('·')).length).toBe(1);
+  });
+
+  it('picked book in an unknown-language group: no language on any chip, even for a known RO printing', async () => {
+    const c = chips(await render([offer('libris', RO_PRINTING, true), offer('books_express', '9798886451740', true)], '9788804668237'));
+    expect(c).toEqual(['Matilda', 'Matilda']);
   });
 });

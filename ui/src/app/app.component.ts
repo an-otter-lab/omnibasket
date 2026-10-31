@@ -893,7 +893,8 @@ export class AppComponent implements OnDestroy {
     const item = this.basketItems.find((i) => i.id === itemId);
     const o = item?.live_offers?.find((x) => x.store_id === storeId);
     const got = o?.other_printing ? isbnLang(o.isbn13) : null;
-    return got && got !== isbnLang(item?.isbn) ? got : '';
+    const picked = isbnLang(item?.isbn);
+    return got && picked && got !== picked ? got : '';
   }
 
   get unplacedItems(): BasketItem[] {
