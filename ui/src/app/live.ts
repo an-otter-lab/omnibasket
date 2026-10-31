@@ -86,7 +86,8 @@ function isbn10to13(d: string): string | null {
 /** A valid ISBN-13 (ISBN-10 is converted), or null. */
 export function toIsbn13(text: string): string | null {
   const t = text.replace(/[\s-]/g, '');
-  if (/^\d{13}$/.test(t)) return checkDigit13(t) ? t : null;
+  // S4b: an ISBN-13 always starts 978 or 979; anything else is a product barcode.
+  if (/^\d{13}$/.test(t)) return /^97[89]/.test(t) && checkDigit13(t) ? t : null;
   if (/^\d{9}[\dXx]$/.test(t)) return isbn10to13(t);
   return null;
 }
