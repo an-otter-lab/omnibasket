@@ -1,7 +1,7 @@
 import { NgTemplateOutlet } from '@angular/common';
 import { Component, ElementRef, HostListener, OnDestroy, effect, inject, untracked, viewChild } from '@angular/core';
 import { Subscription, firstValueFrom } from 'rxjs';
-import { BasketItem, BasketService, itemId } from './basket.service';
+import { BasketItem, BasketService, sameBook, itemId } from './basket.service';
 import { BuyListComponent } from './buy-list.component';
 import { EventsService, liveUrl } from './events.service';
 
@@ -338,11 +338,14 @@ export class AppComponent implements OnDestroy {
   addError = '';
   /** R12: the pick that matches a book already in the basket, held until the shopper chooses. */
   dupPick: { c: Candidate; listing?: string | null } | null = null;
+  /** S26: R12 on the photo path. The line being asked about, the lines already taken, and those still to check. */
+  photoDup: { line: ResolvedLine; ok: ResolvedLine[]; rest: ResolvedLine[] } | null = null;
   /** S2: one price read per book being added, keyed by ISBN; a new add never cancels another book's read. */
   private addStreams = new Map<string, { sub: Subscription | null; had: boolean }>();
   private readonly fieldRef = viewChild<ElementRef<HTMLInputElement>>('entryInput');
   /** R12: "Keep one" takes the focus when the duplicate question opens. */
   private readonly dupKeepRef = viewChild<ElementRef<HTMLButtonElement>>('dupKeep');
+  private readonly photoDupKeepRef = viewChild<ElementRef<HTMLButtonElement>>('photoDupKeep');
   private documentClickListener: ((event: MouseEvent) => void) | null = null;
 
   constructor() {
@@ -1199,6 +1202,7 @@ export class AppComponent implements OnDestroy {
         notFound.push(line);
       }
     }
+    this.photoDup = null;
     this.photoState = { kind: 'result', matched, ambiguous, notFound };
     this.go('photo');
   }
@@ -1211,7 +1215,7 @@ export class AppComponent implements OnDestroy {
   }
 
   onPhotoContinue(): void {
-    if (this.photoState.kind !== 'result') return;
+    if (this.photoState.kind !== 'result' || this.photoDup) return;
     const resolved: ResolvedLine[] = [...this.photoState.matched];
     for (const a of this.photoState.ambiguous) {
       if (a.picked) {
@@ -1219,7 +1223,39 @@ export class AppComponent implements OnDestroy {
       }
     }
     if (resolved.length === 0) return;
-    
+    this.askPhotoDups([], resolved);
+  }
+
+  /** S26: each line that is a book already in the basket (or an earlier line) under another ISBN is asked, one at a time; nothing is read before. */
+  private askPhotoDups(ok: ResolvedLine[], rest: ResolvedLine[]): void {
+    for (let k = 0; k < rest.length; k++) {
+      const line = rest[k];
+      const me = { isbn: line.candidate.isbn, title: line.candidate.title || line.read_title, author: line.candidate.author || line.read_author || null };
+      const twin = this.basketSvc.duplicateOf(me.isbn, me.title, me.author) || ok.find((o) => sameBook({ isbn: o.candidate.isbn, title: o.candidate.title || o.read_title, author: o.candidate.author || o.read_author || null }, me));
+      if (twin) {
+        this.photoDup = { line, ok, rest: rest.slice(k + 1) };
+        setTimeout(() => this.photoDupKeepRef()?.nativeElement.focus(), 0);
+        return;
+      }
+      ok = [...ok, line];
+    }
+    this.photoDup = null;
+    if (ok.length) this.readPhotoLines(ok);
+    else {
+      this.photoState = { kind: 'idle' };
+      this.go(this.basketItems.length ? 'result/cheapest' : 'add');
+    }
+  }
+
+  /** S26: "Add anyway" keeps the photo line; "Keep one" drops it. Then the next line is checked. */
+  photoDupAnswer(add: boolean): void {
+    const d = this.photoDup;
+    if (!d) return;
+    this.photoDup = null;
+    this.askPhotoDups(add ? [...d.ok, d.line] : d.ok, d.rest);
+  }
+
+  private readPhotoLines(resolved: ResolvedLine[]): void {
     // Reset photo state and read every resolved book live, each by its own ISBN, title and author:
     // the same request a hand-picked book makes. 'live/photo' is only the progress screen, not an ISBN.
     this.photoState = { kind: 'idle' };
