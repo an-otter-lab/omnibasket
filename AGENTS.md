@@ -12,6 +12,7 @@ The plan being built is `docs/ops/omnibasket-hackathon-push-2026-10-29.md`. Wher
 - `main` is pushed to `origin` only after a merge whose checks are green (`pytest`, `ng test`, `ng build`).
 - A feature branch may be pushed to `origin` only to open a PR for review (Grok Bot works this way). Nobody merges a PR on GitHub: merges happen locally into `main` after review.
 - The public demo VM deploys `main` from git with `scripts/deploy-vm.sh`.
+- The VM gets the search index (`data/index/books.sqlite3`, gitignored) copied by `scripts/deploy-vm.sh`, and `META_API_KEY` from a root-only environment file the systemd unit reads; never from git (Adrian, 31 Oct).
 - Until go-live day the public URL shows only a static "Coming soon" page (Adrian, 30 Oct): `omnibasket-gate soon` on the VM. The app is never public before then. Testing uses the Mac's Tailscale URL and SSH tunnels. Only Adrian decides when to switch to `omnibasket-gate live`.
 - The repo stays private. Never change its visibility.
 
@@ -37,3 +38,5 @@ The plan being built is `docs/ops/omnibasket-hackathon-push-2026-10-29.md`. Wher
 ## Copy
 - Say "order" in EN and "comandă" in RO, never "parcel".
 - The entry screen keeps its headline, subtitle, field, Find book, Photo of a list and footnote in every state; with books in the basket only How it works gives way to the basket chips (Adrian, 31 Oct).
+- A button that starts a request (Find book, Photo of a list) shows its loading state and is disabled until the answer comes back (Adrian, 31 Oct).
+- A priced printing in another language than the book the shopper picked carries its language on the book's chip in the order card, e.g. "Matilda · RO" (Adrian, 31 Oct).
