@@ -216,7 +216,7 @@ def test_progress_labels_use_display_names(tmp_path):
     # second pass on the first book is served from the page cache
     with patch("api.offers.fetch") as fetch:
         asyncio.run(read_offers_parallel(["libris"], HARRY, "hp", cache, cb, index_lookup=_index))
-    assert "eMAG: ok" in messages
+    assert "eMAG: read" in messages  # S9: "ok" is said in words, not as the raw status
     assert "Libris: read failed" in messages
     assert "Amazon.de: not read live" in messages
     assert "Reading Amazon.de\u2026" not in messages

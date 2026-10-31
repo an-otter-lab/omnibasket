@@ -95,16 +95,17 @@ describe('live flow: progress then per-shop reads', () => {
   it('shows progress messages in the order they arrive', async () => {
     const fixture = await start();
     const el: HTMLElement = fixture.nativeElement;
-    const say = (message: string, status = 'reading') => {
-      source.emit('read_progress', { store_id: 'x', isbn13: ISBN, status, message });
+    // S9: the line is built from store_id + status in the shopper's language; the server's text is not shown.
+    const say = (store_id: string, status = 'reading') => {
+      source.emit('read_progress', { store_id, isbn13: ISBN, status, message: 'server text' });
       fixture.detectChanges();
     };
-    say('Reading Libris…');
-    say('Reading eMAG…');
+    say('libris');
+    say('emag');
     expect(lines(el)).toEqual(['Reading Libris…', 'Reading eMAG…']);
-    say("eMAG couldn't be read, skipped", 'failed');
-    say('Libris: ok', 'ok');
-    expect(lines(el)).toEqual(['Reading Libris…', 'Reading eMAG…', "eMAG couldn't be read, skipped", 'Libris: ok']);
+    say('emag', 'failed');
+    say('libris', 'ok');
+    expect(lines(el)).toEqual(['Reading Libris…', 'Reading eMAG…', 'eMAG: couldn’t be read', 'Libris: read']);
     expect(el.querySelector('h1')!.textContent).toContain('Harry Potter Hogwarts');
   });
 
