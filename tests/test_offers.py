@@ -430,7 +430,7 @@ def test_amazon_outside_the_captured_seven_is_a_link_not_a_fetch(cache):
         result = read_offers_sync(["amazon_de"], "9780747532699", "hp", cache)
     assert mock_fetch.call_count == 0
     assert result[0].reason == "amazon_de_never_read_live"
-    assert result[0].listing_url == "https://www.amazon.de/s?k=9780747532699"
+    assert result[0].listing_url is None  # S5: no captured product page, so no link (never /s?k=)
     assert amazon_check_link("9781529105100").startswith("https://www.amazon.de/dp/")
 
 

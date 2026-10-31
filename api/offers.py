@@ -284,13 +284,13 @@ def captured_amazon() -> dict[str, str]:
 
 
 def amazon_check_link(isbn13: str | None) -> str | None:
-    """Shopper link only. Never fetched. Captured ISBNs keep their product URL."""
+    """Shopper link only. Never fetched. Captured ISBNs keep their product URL.
+
+    S5 (R11): with no captured product page there is no link; never a search URL.
+    """
     if not isbn13:
         return None
-    captured = captured_amazon()
-    if isbn13 in captured:
-        return captured[isbn13]
-    return f"https://www.amazon.de/s?k={isbn13}"
+    return captured_amazon().get(isbn13)
 
 
 def _get_product_url(store_id: str, isbn13: str | None, index_lookup=None) -> str | None:
