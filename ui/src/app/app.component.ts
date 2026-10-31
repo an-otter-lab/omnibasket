@@ -390,8 +390,15 @@ export class AppComponent implements OnDestroy {
 
   @HostListener('window:hashchange')
   onHash(): void {
+    const before = this.screenKey();
     this.readRoute();
+    // S29: a new screen opens at its top; a result tab switch keeps the scroll position.
+    if (this.screenKey() !== before) window.scrollTo(0, 0);
     this.routeChanged();
+  }
+
+  private screenKey(): string {
+    return this.route.name === 'result' ? 'result' : this.route.name + '/' + this.route.arg;
   }
 
   // The first screen, the pick list and the live read need no basket data. Every
