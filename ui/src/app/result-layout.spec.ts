@@ -123,7 +123,7 @@ describe('result dead controls (R10)', () => {
     localStorage.removeItem(MEMBERSHIPS_KEY);
     const none = (await render({ editions: false, shops: [{ store_id: 'libris' }] })).nativeElement as HTMLElement;
     const noneChips = Array.from(none.querySelectorAll('app-ask-box .ask-chips .chip')).map((c) => c.textContent!.trim());
-    expect(noneChips.length).toBeGreaterThan(0);
+    expect(noneChips).toEqual([]); // S11: one shop, already one order and no Amazon: no example would change the answer
     expect(noneChips.some((t) => t.includes('Genius'))).toBeFalse();
 
     const solves: Record<string, unknown>[] = [];
