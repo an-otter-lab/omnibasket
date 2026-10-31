@@ -457,11 +457,13 @@ export class AppComponent implements OnDestroy {
   toggleLangMenu(): void {
     this.langMenuOpen = !this.langMenuOpen;
     this.themeMenuOpen = false;
+    if (this.langMenuOpen) this.focusMenuOption('lang', this.lang);
   }
 
   toggleThemeMenu(): void {
     this.themeMenuOpen = !this.themeMenuOpen;
     this.langMenuOpen = false;
+    if (this.themeMenuOpen) this.focusMenuOption('theme', this.theme);
   }
 
   setLang(lang: Lang): void {
@@ -479,14 +481,24 @@ export class AppComponent implements OnDestroy {
     this.themeMenuOpen = false;
   }
 
-  onMenuKey(event: Event, menuType: 'lang' | 'theme'): void {
-    const keyboardEvent = event as KeyboardEvent;
-    if (keyboardEvent.key === 'Escape') {
-      this.closeMenus();
-      const buttonId = menuType === 'lang' ? '#lang-btn' : '#theme-btn';
-      (document.querySelector(buttonId) as HTMLButtonElement)?.focus();
-    } else if (keyboardEvent.key === 'ArrowDown' || keyboardEvent.key === 'Enter' || keyboardEvent.key === ' ') {
-      keyboardEvent.preventDefault();
+  /** R5: the globe and the sun are listbox buttons: Enter/Space/ArrowDown open on the current
+   *  choice, Escape closes and puts focus back on the trigger (design note §1). */
+  onMenuButtonKey(event: KeyboardEvent, menuType: 'lang' | 'theme'): void {
+    if (event.key === 'Escape') {
+      if (menuType === 'lang' ? this.langMenuOpen : this.themeMenuOpen) {
+        event.preventDefault();
+        this.closeMenus();
+      }
+      this.focusMenuButton(menuType);
+      return;
+    }
+    if (event.key === 'Enter' || event.key === ' ' || event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      const open = menuType === 'lang' ? this.langMenuOpen : this.themeMenuOpen;
+      if (open) {
+        this.closeMenus();
+        return;
+      }
       if (menuType === 'lang') {
         this.langMenuOpen = true;
         this.themeMenuOpen = false;
@@ -494,7 +506,54 @@ export class AppComponent implements OnDestroy {
         this.themeMenuOpen = true;
         this.langMenuOpen = false;
       }
+      this.focusMenuOption(menuType, menuType === 'lang' ? this.lang : this.theme);
     }
+  }
+
+  /** Arrow keys move inside an open menu, Home/End jump, Escape closes it and returns focus. */
+  onMenuListKey(event: KeyboardEvent, menuType: 'lang' | 'theme'): void {
+    const menu = event.currentTarget as HTMLElement | null;
+    const options = [...(menu?.querySelectorAll<HTMLElement>('[role="option"]') || [])];
+    if (!options.length) return;
+    const at = options.indexOf(document.activeElement as HTMLElement);
+    let next = -1;
+    switch (event.key) {
+      case 'ArrowDown':
+        next = at < 0 ? 0 : (at + 1) % options.length;
+        break;
+      case 'ArrowUp':
+        next = at < 0 ? options.length - 1 : (at - 1 + options.length) % options.length;
+        break;
+      case 'Home':
+        next = 0;
+        break;
+      case 'End':
+        next = options.length - 1;
+        break;
+      case 'Escape':
+        event.preventDefault();
+        this.closeMenus();
+        this.focusMenuButton(menuType);
+        return;
+      case 'Tab':
+        this.closeMenus();
+        return;
+      default:
+        return;
+    }
+    event.preventDefault();
+    options[next].focus();
+  }
+
+  private focusMenuButton(menuType: 'lang' | 'theme'): void {
+    const id = menuType === 'lang' ? 'lang-btn' : 'theme-btn';
+    setTimeout(() => document.getElementById(id)?.focus());
+  }
+
+  /** After the menu renders, focus the option for the current choice. */
+  private focusMenuOption(menuType: 'lang' | 'theme', choice: string): void {
+    const id = menuType === 'lang' ? 'lang-opt-' + choice : 'theme-opt-' + choice;
+    setTimeout(() => document.getElementById(id)?.focus());
   }
 
   /** R0: the field asks for a search and is empty again at once; the query is only in #/find/<q>. */
@@ -851,6 +910,13 @@ export class AppComponent implements OnDestroy {
 
   go(path: string): void {
     window.location.hash = '#/' + path;
+  }
+
+  /** In-app links go through go(): a plain #fragment link resolves against <base href> and
+   *  drops the query, so a demo link (?sample=) would lose its basket on the first click. */
+  onLinkClick(event: Event, path: string): void {
+    event.preventDefault();
+    this.go(path);
   }
 
   back(): void {
@@ -1288,6 +1354,52 @@ export class AppComponent implements OnDestroy {
   /** R7: the cheapest split is a single order, so one tab stands for both "1 order" and "cheapest". */
   get cheapestIsOneOrder(): boolean {
     return this.data?.cheapest.order_count === 1;
+  }
+
+  /** R5: the header count — the shopper's books, or the demo sample's books in demo mode. */
+  get headerBookCount(): number {
+    return this.sampleMode ? this.sampleIds.size : this.basketSvc.items.length;
+  }
+
+  /** ARIA plumbing for the result panel (kept out of the template so copy-scan stays clean). */
+  readonly panelRole = 'tabpanel';
+  readonly panelId = 'result-panel';
+
+  /** The tab that is selected right now, so the result panel can name it (design note §5). */
+  get activeTabId(): string {
+    if (this.degraded === 'one_shop') return 'tab-one';
+    if (this.cheapestIsOneOrder) return this.tab === 'custom' ? 'tab-custom' : 'tab-cheapest';
+    return 'tab-' + this.tab;
+  }
+
+  /** R7: the tabs are role=tab; arrows move and activate, Home/End jump (design note §5). */
+  onTabsKey(event: KeyboardEvent): void {
+    const nav = event.currentTarget as HTMLElement | null;
+    if (!nav) return;
+    const tabs = [...nav.querySelectorAll<HTMLAnchorElement>('[role="tab"]:not([aria-disabled="true"])')];
+    if (!tabs.length) return;
+    const at = tabs.indexOf(document.activeElement as HTMLAnchorElement);
+    let next: number;
+    switch (event.key) {
+      case 'ArrowRight':
+        next = at < 0 ? 0 : (at + 1) % tabs.length;
+        break;
+      case 'ArrowLeft':
+        next = at < 0 ? tabs.length - 1 : (at - 1 + tabs.length) % tabs.length;
+        break;
+      case 'Home':
+        next = 0;
+        break;
+      case 'End':
+        next = tabs.length - 1;
+        break;
+      default:
+        return;
+    }
+    event.preventDefault();
+    const id = tabs[next].id;
+    tabs[next].click(); // activation is navigation: the tab is a link
+    setTimeout(() => document.getElementById(id)?.focus());
   }
 
   get leftOut(): Shop[] {

@@ -50,7 +50,7 @@ describe('language (feature 8)', () => {
     const el: HTMLElement = fixture.nativeElement;
     const box = () => el.querySelector('input[name="entry-inp"]')!.getAttribute('placeholder');
     // Entry screen v2: the language lives in a header menu; the current item carries aria-current.
-    const current = () => [...el.querySelectorAll<HTMLButtonElement>('#lang-menu [aria-current="true"]')].map((b) => b.textContent!.trim());
+    const current = () => [...el.querySelectorAll<HTMLButtonElement>('#lang-menu [aria-checked="true"]')].map((b) => b.textContent!.trim());
     expect(box()).toBe(MESSAGES.en.entryPlaceholder);
     expect(current()).toEqual([MESSAGES.en.langEnName]);
 
