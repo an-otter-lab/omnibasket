@@ -83,4 +83,16 @@ describe('S10: a basket where no book can be priced', () => {
     expect(el.querySelector('[data-screen="none-priced"] h1')!.textContent!.trim()).toBe(MESSAGES.ro.nonePricedTitle);
     expect(el.querySelector('[data-action="unpriced-add"]')!.textContent!.trim()).toBe(MESSAGES.ro.basketAddBook);
   });
+
+  // #29 follow-up: "book" or "books" by count, in both languages, comma-below ș/ț in RO.
+  it('RO one book: the singular heading (carte), and the plural says cărți', async () => {
+    const el = await open([[A, 'Matilda']], 'ro');
+    const h = el.querySelector('[data-screen="none-priced"] h1')!.textContent!.trim();
+    expect(h).toBe(MESSAGES.ro.nonePricedOne);
+    expect(h).toContain('această carte');
+    expect(MESSAGES.ro.nonePricedTitle).toContain('aceste cărți');
+    for (const t of [MESSAGES.ro.nonePricedOne, MESSAGES.ro.nonePricedTitle]) expect(t).not.toMatch(/[şţŞŢ]/);
+    expect(MESSAGES.en.nonePricedOne).toMatch(/\bbook\b/);
+    expect(MESSAGES.en.nonePricedTitle).toMatch(/\bbooks\b/);
+  });
 });

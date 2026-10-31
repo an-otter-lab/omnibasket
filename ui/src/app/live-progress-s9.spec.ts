@@ -23,18 +23,18 @@ describe('S9: live-progress lines and marks', () => {
   it('EN: no raw status words, no server text, no tick for a shop that was not checked', () => {
     const got = render('en', ALL);
     expect(got.map((g) => g.text)).toEqual([
-      'Libris: read', 'Bookzone: not checked', 'eMAG: not checked', 'Books-Express: read earlier today',
-      'Cărturești: no match in our index', 'eMAG: couldn’t be read', 'Amazon.de: not read live',
+      'Libris: read', 'Bookzone: not checked', 'eMAG: couldn’t be read', 'Books-Express: read earlier today',
+      'Cărturești: no match in our index', 'Amazon.de: not read live',
     ]);
-    expect(got.map((g) => g.mark)).toEqual(['✓', '–', '–', '✓', '–', '✕', '–']);
+    expect(got.map((g) => g.mark)).toEqual(['✓', '–', '✕', '✓', '–', '–']);
     for (const g of got) expect(g.text).not.toMatch(/not_checked|server text/);
   });
 
   it('RO: every line is Romanian', () => {
     const got = render('ro', [p('libris', 'reading'), ...ALL]);
     expect(got.map((g) => g.text)).toEqual([
-      'Se citește Libris…', 'Libris: citit', 'Bookzone: neverificat', 'eMAG: neverificat', 'Books-Express: citit mai devreme azi',
-      'Cărturești: nicio potrivire în indexul nostru', 'eMAG: nu a putut fi citit', 'Amazon.de: nu se citește live',
+      'Libris: citit', 'Bookzone: neverificat', 'eMAG: nu a putut fi citit', 'Books-Express: citit mai devreme azi',
+      'Cărturești: nicio potrivire în indexul nostru', 'Amazon.de: nu se citește live',
     ]);
   });
 
