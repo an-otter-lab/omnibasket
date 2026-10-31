@@ -176,12 +176,11 @@ def test_loopback_link_is_never_fetched(index_db):
     assert out["status"] == "not_found" and out["isbn13"] is None
 
 
-def test_foreign_link_with_indexed_isbn_resolves_without_a_read(index_db):
+def test_foreign_link_with_isbn_is_not_read_and_left_to_the_isbn_search(index_db):
+    # The UI searches the ISBN in the address, as for a typed ISBN.
     with patch(MUSE, _no_muse), patch.object(iu, "fetch", _no_fetch):
         out = iu.understand("https://other-shop.example/p/" + HUNGRY, index_db=index_db, rates_loader=lambda d: _rates(), today=TODAY)
-    assert out["status"] == "resolved" and out["isbn13"] == HUNGRY
-    assert out["structured_query"]["title"] == "The Very Hungry Caterpillar"
-    assert out["shop_context"] == {"shop_id": None, "product_url": None} and out["paste_offer"] is None
+    assert out["status"] == "not_found" and out["isbn13"] is None and out["paste_offer"] is None
 
 
 def test_page_without_isbn_is_not_read_and_makes_no_model_call(index_db):

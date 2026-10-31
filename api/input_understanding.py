@@ -500,16 +500,10 @@ def _understand_link(url, *, ip, limiter, db, opener, rates_loader, today) -> di
     shop = indexed_shop_for(url)
     if shop is not None:
         return _indexed_link(url, shop, db, ip=ip, limiter=limiter)
-    # S25c (Adrian, 1 Nov): a link to any other site, foreign shops included, is never fetched.
-    # Its ISBN names the book from our index; an ISBN we do not index is not_found, and the UI
-    # then searches that ISBN. A link with no ISBN in it names no book.
-    isbn = _isbn_in_url(url)
-    if isbn is None:
-        return _failure("link", "not_found", NO_BOOK_MESSAGE)
-    query = _query_for_isbn(isbn, db)
-    if not query.get("title"):
-        return _failure("link", "not_found", NO_BOOK_MESSAGE)
-    return _resolved("link", isbn, query)
+    # S25c (Adrian, 1 Nov): a link to any other site, foreign shops included, is never fetched and
+    # names no book here. The UI then searches the ISBN printed in the address, exactly as for a
+    # typed ISBN (Find's pick list, with its proper title); with no ISBN it says it found no book.
+    return _failure("link", "not_found", NO_BOOK_MESSAGE)
 
 
 def _isbn_in_url(url: str) -> str | None:

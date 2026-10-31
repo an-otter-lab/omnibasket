@@ -16,7 +16,6 @@ from api.rate_limit import DailyPasteLimiter
 
 MUSE = "api.muse_integration.meta_budget.guarded_post"
 ISBN = "9780142402535"  # Matilda (Puffin)
-UNKNOWN = "9780141365466"  # a valid ISBN-13 that is not in this index
 
 FOREIGN = [
     "https://www.amazon.co.uk/Matilda-Roald-Dahl/dp/0142402532",  # not amazon.de
@@ -58,18 +57,9 @@ def test_foreign_or_other_site_link_makes_zero_fetches(url, index_db):
     reads = Reads()
     with patch(MUSE, _no_muse), patch.object(iu, "fetch", reads):
         out = iu.understand(url, index_db=index_db)
+    # Not named here: the UI searches the ISBN in the address, exactly as for a typed ISBN.
     assert reads.urls == []
-    assert out["status"] == "resolved" and out["isbn13"] == ISBN
-    assert out["structured_query"]["title"] == "Matilda"
-    assert out["shop_context"] == {"shop_id": None, "product_url": None} and out["paste_offer"] is None
-
-
-def test_other_site_isbn_not_in_the_index_is_not_found_without_a_read(index_db):
-    # The UI then searches the ISBN from the address (the S25b fallback).
-    reads = Reads()
-    with patch(MUSE, _no_muse), patch.object(iu, "fetch", reads):
-        out = iu.understand("https://www.waterstones.com/book/x/" + UNKNOWN, index_db=index_db)
-    assert reads.urls == [] and out["status"] == "not_found" and out["isbn13"] is None
+    assert out["status"] == "not_found" and out["isbn13"] is None and out["paste_offer"] is None
 
 
 def test_other_site_link_without_isbn_is_not_read(index_db):
