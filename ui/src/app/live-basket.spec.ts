@@ -198,6 +198,30 @@ describe('the shopper\'s own basket', () => {
     expect(solveBodies.length).toBe(0);
   });
 
+  it('S1: empty basket, then a book is added, then the result screen shows the total without a reload', async () => {
+    window.location.hash = '#/result/cheapest';
+    const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.componentInstance;
+    fixture.detectChanges();
+    await settle(fixture);
+    const el: HTMLElement = fixture.nativeElement;
+    expect(el.querySelector('[data-screen="empty-basket"]')).not.toBeNull();
+    window.location.hash = '#/add';
+    app.onHash();
+    await settle(fixture);
+    app.pickBook({ title: 'Book A', author: 'Someone', isbn: A, cover_url: null, shops: [] });
+    source.emit('solution', livePayload(A, 'Book A', true));
+    await settle(fixture);
+    window.location.hash = '#/result/cheapest';
+    app.onHash();
+    await settle(fixture);
+    expect(solveBodies.length).toBeGreaterThan(0);
+    expect(app.data).not.toBeNull();
+    expect(el.querySelector('.rtabs')).not.toBeNull();
+    expect(el.querySelector('[data-screen="empty-basket"]')).toBeNull();
+    expect(el.textContent).toContain('65');
+  });
+
   it('removing a book re-prices without it', async () => {
     const svc = TestBed.inject(BasketService);
     svc.addFromLive(livePayload(A, 'Book A', true), A, 'Book A');

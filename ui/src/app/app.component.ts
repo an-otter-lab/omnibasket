@@ -1193,7 +1193,18 @@ export class AppComponent implements OnDestroy {
   }
 
   private afterRoute(): void {
-    if (!this.data) return;
+    if (!this.data) {
+      // S1: the visit started with an empty basket (loaded, no data); a book added since is priced
+      // when the result screen opens, instead of a blank screen until a reload.
+      if (this.route.name === 'result' && !this.sampleMode && !this.busy && this.basketSvc.givenBody()) {
+        void this.refresh().then(() => {
+          if (!this.data) return;
+          this.dirty = false;
+          this.afterRoute();
+        });
+      }
+      return;
+    }
     if (this.route.name === 'result') {
       if (this.data.degraded?.kind === 'one_shop') this.tab = 'one';
       this.lastOrderTab = this.tab;
