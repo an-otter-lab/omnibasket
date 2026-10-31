@@ -183,7 +183,7 @@ def _index_picks(items: list[dict]) -> list[dict]:
     return [it for it in items if _is_real_title(it.get("title"))][:MAX_CANDIDATES]
 
 
-def _matched_index(item: dict, base: dict, line: dict, db_path, opener) -> dict:
+def _matched_index(item: dict, base: dict, line: dict, db_path, opener, specials: list[dict] = ()) -> dict:
     """A unique index hit, shown as the real work or not matched as that ISBN.
 
     A shop row is only evidence that a shop has a printing: its own title is a slug. The
@@ -192,9 +192,11 @@ def _matched_index(item: dict, base: dict, line: dict, db_path, opener) -> dict:
     ISBN is rejected and the read line is resolved from its own title instead.
     """
     shown = _show(item, line, db_path, opener)
-    if shown is not None:
+    if shown is not None and not _special_label(line.get("title"), [shown.get("title")]):
         return {**base, "status": "matched", "candidate": shown}
-    return resolve_online(line, base, db_path, opener)
+    if shown is not None:
+        specials = [{**shown, "edition": _special_label(line.get("title"), [shown.get("title")])}, *specials]
+    return resolve_online(line, base, db_path, opener, specials)
 
 
 def match_line(line: dict, db_path, opener=None) -> dict:
@@ -245,20 +247,73 @@ def match_line(line: dict, db_path, opener=None) -> dict:
                 item["edition"] = fallback[1]
                 qualifiers[isbn] = (fallback[0], item)
 
+    # S18: a special format (big book, pop-up, deluxe, gift, colour, board book, box set) is
+    # only matched when the line asks for it; otherwise it is offered as a choice and the
+    # plain printing is ranked first.
+    shop = _shop_titles(db_path, list(exact) + list(editions) + list(qualifiers))
+    specials: dict[str, dict] = {}
+    for pool in (exact, editions):
+        for isbn in list(pool):
+            label = _special_label(line.get("title"), [pool[isbn]["title"]] + shop.get(isbn, []))
+            if label:
+                specials.setdefault(isbn, {**pool[isbn], "edition": pool[isbn].get("edition") or label})
+                del pool[isbn]
+    special_list = [specials[k] for k in sorted(specials)]
+
     if len(exact) == 1:
-        return _matched_index(next(iter(exact.values())), base, line, db_path, opener)
-    if len(editions) == 1:
-        return _matched_index(next(iter(editions.values())), base, line, db_path, opener)
+        return _matched_index(next(iter(exact.values())), base, line, db_path, opener, special_list)
+    if not exact and len(editions) == 1:
+        return _matched_index(next(iter(editions.values())), base, line, db_path, opener, special_list)
     exact_picks = _index_picks([exact[k] for k in sorted(exact)])
     if exact_picks:
         return {**base, "status": "ambiguous", "candidates": exact_picks}
     edition_picks = _index_picks([editions[k] for k in sorted(editions)])
     if edition_picks:
         return {**base, "status": "ambiguous", "candidates": edition_picks}
-    qualifier_picks = _index_picks([qualifiers[k][1] for k in sorted(qualifiers, key=lambda k: (qualifiers[k][0], k))])
+    if special_list:
+        return resolve_online(line, base, db_path, opener, special_list)
+    qualifier_rank = {
+        k: (bool(_special_label(line.get("title"), [qualifiers[k][1]["title"]] + shop.get(k, []))), qualifiers[k][0], k)
+        for k in qualifiers
+    }
+    qualifier_picks = _index_picks([qualifiers[k][1] for k in sorted(qualifiers, key=qualifier_rank.get)])
     if qualifier_picks:
         return {**base, "status": "ambiguous", "candidates": qualifier_picks}
     return resolve_online(line, base, db_path, opener)
+
+
+def _shop_titles(db_path, isbns: list[str]) -> dict[str, list[str]]:
+    """isbn -> every shop index title for it: evidence that a printing is a special format."""
+    found: dict[str, list[str]] = {}
+    isbns = [i for i in dict.fromkeys(isbns) if i]
+    if not isbns or not Path(db_path).is_file():
+        return found
+    try:
+        with sqlite3.connect(str(db_path)) as db:
+            marks = ",".join("?" * len(isbns))
+            for isbn, title in db.execute(
+                f"SELECT isbn, title FROM books WHERE isbn IN ({marks}) AND title IS NOT NULL AND title != ''",
+                isbns,
+            ):
+                found.setdefault(isbn, []).append(title)
+    except sqlite3.Error:
+        return {}
+    return found
+
+
+def _special_label(read_title: str | None, titles: list[str | None]) -> str:
+    """The special formats these titles name and the read line does not ask for ("" = plain)."""
+    from matching.ranking import EDITION_MARKERS, has_marker
+
+    hits: list[str] = []
+    for marker in EDITION_MARKERS:
+        if has_marker(read_title, (marker,)):
+            continue  # the line asks for this format
+        if any(has_marker(t, (marker,)) for t in titles if t):
+            hits.append(marker)
+    # "giant board book" already says "board book".
+    hits = [h for h in hits if not any(h != o and (" " + h + " ") in (" " + o + " ") for o in hits)]
+    return ", ".join(hits)
 
 
 ONLINE_LIMIT = 8
@@ -368,14 +423,36 @@ def _show(item: dict, line: dict, db_path, opener) -> dict | None:
     return _canonical(item, line, db_path, opener)
 
 
-def resolve_online(line: dict, base: dict, db_path, opener=None) -> dict:
-    """not_found fallback: one candidate is matched, several are for the shopper to pick."""
+def resolve_online(line: dict, base: dict, db_path, opener=None, specials: list[dict] = ()) -> dict:
+    """not_found fallback: one plain candidate is matched, several are for the shopper to pick.
+
+    S18: a special format (by its catalogue title or any shop title for its ISBN) is never
+    matched for a line that does not ask for it. It is offered as a choice after the plain
+    printings, with the index's special editions of the line (`specials`) beside it.
+    """
     cands = online_lookup(line, db_path, opener)
-    if not cands:
+    shop = _shop_titles(db_path, [c["isbn"] for c in cands])
+    plain: list[dict] = []
+    special: list[dict] = []
+    for c in cands:
+        label = _special_label(line.get("title"), [c.get("title")] + shop.get(c["isbn"], []))
+        if label:
+            special.append({**c, "edition": label})
+        else:
+            plain.append(c)
+    seen = {c["isbn"] for c in cands}
+    for item in specials:
+        if item.get("isbn") in seen:
+            continue
+        shown = _show(item, line, db_path, opener)
+        if shown is not None:
+            seen.add(item["isbn"])
+            special.append({**shown, "edition": item.get("edition") or "special format"})
+    if len(plain) == 1:
+        return {**base, "status": "matched", "candidate": plain[0]}
+    if not plain and not special:
         return {**base, "status": "not_found"}
-    if len(cands) == 1:
-        return {**base, "status": "matched", "candidate": cands[0]}
-    return {**base, "status": "ambiguous", "candidates": cands[:MAX_CANDIDATES]}
+    return {**base, "status": "ambiguous", "candidates": (plain + special)[:MAX_CANDIDATES]}
 
 
 def read_and_match(data: bytes, mime: str, db_path, opener=None) -> dict:

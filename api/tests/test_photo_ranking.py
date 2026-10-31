@@ -80,8 +80,9 @@ def db_path(tmp_path):
 def test_ranking_photo_matched_line_shows_proper_case_title_and_author(db_path):
     out = photo_read.match_line({"title": "Owl Babies", "author": "Martin Waddell"}, db_path,
                                 opener=Catalogue())
-    assert out["status"] == "matched"
-    cand = out["candidate"]
+    # S18: the big book is a special format, offered as a choice rather than matched.
+    assert out["status"] == "ambiguous"
+    [cand] = out["candidates"]
     assert cand["isbn"] == "9780763612832"
     assert cand["title"] == "Owl Babies"  # not the index slug "owl babies big book"
     assert cand["author"] == "Martin Waddell"
@@ -100,10 +101,12 @@ def test_ranking_photo_reported_lines_each_show_their_own_work(db_path):
     owl = {"title": "Owl Babies", "author": "Martin Waddell"}
     out = {l["title"]: photo_read.match_line(l, db_path, opener=Catalogue()) for l in (CATERPILLAR, owl)}
     cat, owls = out[CATERPILLAR["title"]], out[owl["title"]]
-    assert (cat["status"], owls["status"]) == ("matched", "matched")
+    # S18: the only Owl Babies printing here is the big book, so it is a choice, not a match.
+    assert (cat["status"], owls["status"]) == ("matched", "ambiguous")
+    [owl_pick] = owls["candidates"]
     assert (cat["candidate"]["title"], cat["candidate"]["author"]) == ("The Very Hungry Caterpillar", "Eric Carle")
-    assert (owls["candidate"]["title"], owls["candidate"]["author"]) == ("Owl Babies", "Martin Waddell")
-    assert CATERPILLAR_SLUG_ISBN not in (cat["candidate"]["isbn"], owls["candidate"]["isbn"])
+    assert (owl_pick["title"], owl_pick["author"]) == ("Owl Babies", "Martin Waddell")
+    assert CATERPILLAR_SLUG_ISBN not in (cat["candidate"]["isbn"], owl_pick["isbn"])
     assert CATERPILLAR_SLUG not in json.dumps(out).lower()
 
 
