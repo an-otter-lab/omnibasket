@@ -750,6 +750,11 @@ async def _read_other_printing(
     data = extract_schema_org(result.text)
     if not strong_match(title, author, data.name, data.authors or []):
         return skipped
+    if data.isbn13 and not _book_isbn(data.isbn13):
+        # S4: a shop barcode (e.g. a 642 GS1 code) is not an ISBN, so the item may not be the book.
+        if cache is not None:
+            cache.put_confirmation(key, {"matched": False})
+        return skipped
     if data.price_cents is None or not data.isbn13:
         return OfferRead(
             store_id=store_id, isbn13=isbn13, item_id=item_id, listing_url=url,
@@ -780,8 +785,14 @@ async def _read_other_printing(
     )
 
 
+def _book_isbn(value) -> str | None:
+    """A valid ISBN-13 that is a book number (978/979), else None. S4: 642... is a shop barcode."""
+    digits = normalize_isbn13(value)
+    return digits if digits and digits[:3] in ("978", "979") else None
+
+
 def _offer_from_confirmation(kept, store_id, isbn13, item_id, profile, day) -> OfferRead:
-    if not kept.get("matched"):
+    if not kept.get("matched") or not _book_isbn(kept.get("isbn13")):
         return OfferRead(store_id=store_id, isbn13=isbn13, item_id=item_id, status="skipped",
                          reason="no_match_in_index", cache="miss", day=day)
     avail = kept.get("availability")
