@@ -754,12 +754,14 @@ async def _read_other_printing(
     data = extract_schema_org(result.text)
     if not strong_match(title, author, data.name, data.authors or []):
         return skipped
-    if data.isbn13 and not _book_isbn(data.isbn13):
+    if not _book_isbn(data.isbn13):
         # S4: a shop barcode (e.g. a 642 GS1 code) is not an ISBN, so the item may not be the book.
+        # S4c: a page with no usable ISBN at all is the same "no match", and it is remembered so the
+        # page is not read again (AGENTS.md: one honest attempt per page).
         if cache is not None:
             cache.put_confirmation(key, {"matched": False})
         return skipped
-    if data.price_cents is None or not data.isbn13:
+    if data.price_cents is None:
         return OfferRead(
             store_id=store_id, isbn13=isbn13, item_id=item_id, listing_url=url,
             status="failed", reason="no_price_extracted", cache="miss", day=day,
