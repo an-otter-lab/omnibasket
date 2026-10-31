@@ -82,6 +82,14 @@ interface Saved {
                 </span>
               </div>
             }
+            @if (s.costs; as c) {
+              <!-- S28: the order's delivery (or free delivery) and total, as the result showed them. -->
+              <div class="costs" data-costs>
+                <div class="row"><span>{{ m.rowDelivery }}</span>@if (c.delivery_cents === 0) { <span class="v green">{{ m.buyListFree }}</span> } @else if (c.delivery_cents != null) { <span class="v n">{{ lei(c.delivery_cents) }}</span> } @else { <span class="unk">{{ m.notPrinted }}</span> }</div>
+                @if (c.fee_cents) { <div class="row"><span>{{ m.rowFee }}</span><span class="v n">{{ lei(c.fee_cents) }}</span></div> }
+                <div class="row tot"><span>{{ m.rowTotal }}</span>@if (c.total_cents != null) { <span class="v n green">{{ lei(c.total_cents) }}</span> } @else { <span class="s">{{ m.noTotal }}</span> }</div>
+              </div>
+            }
             @if (s.store_id === 'libris' && hasCart(s)) { <p class="s">{{ m.buyListLibrisCartNote }}</p> }
           </section>
         }

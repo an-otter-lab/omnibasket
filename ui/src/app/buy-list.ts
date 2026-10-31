@@ -8,15 +8,28 @@ export interface BuyBook {
   listing_url: string | null;
 }
 
+/** S28: the order's delivery, fee and total from the result. Null: not printed by the shop / no total. */
+export interface BuyCosts {
+  delivery_cents: number | null;
+  fee_cents: number | null;
+  total_cents: number | null;
+}
+
 export interface BuyShop {
   store_id: string;
   books: BuyBook[];
+  /** Absent in links written before S28: the list then shows book prices only. */
+  costs?: BuyCosts;
 }
 
 /** The fields of a /solve order the buy list reads. */
 export interface OrderLike {
   store_id: string;
   books: { title: string; price_cents: number; listing_url: string | null }[];
+  delivery_known?: boolean;
+  delivery_cents?: number | null;
+  order_fee_cents?: number | null;
+  order_total_cents?: number | null;
 }
 
 const VERSION = 1;
@@ -45,10 +58,21 @@ const SHOP_HOSTS: Record<string, string[]> = {
 };
 
 export function buyListFromOrders(orders: OrderLike[]): BuyShop[] {
-  return orders.map((o) => ({
-    store_id: o.store_id,
-    books: o.books.map((b) => ({ title: b.title, price_cents: b.price_cents, listing_url: b.listing_url ?? null })),
-  }));
+  return orders.map((o) => {
+    const shop: BuyShop = {
+      store_id: o.store_id,
+      books: o.books.map((b) => ({ title: b.title, price_cents: b.price_cents, listing_url: b.listing_url ?? null })),
+    };
+    // S28: a /solve order always says whether its delivery is known; carry delivery, fee and total.
+    if (o.delivery_known !== undefined) {
+      shop.costs = {
+        delivery_cents: o.delivery_known ? (o.delivery_cents ?? null) : null,
+        fee_cents: o.order_fee_cents ?? null,
+        total_cents: o.order_total_cents ?? null,
+      };
+    }
+    return shop;
+  });
 }
 
 function toBase64Url(text: string): string {
@@ -66,7 +90,15 @@ function fromBase64Url(code: string): string {
 }
 
 export function encodeBuyList(shops: BuyShop[]): string {
-  const compact = [VERSION, shops.map((s) => [s.store_id, s.books.map((b) => [b.title, b.price_cents, b.listing_url])])];
+  // S28: the costs ride after the books ([id, books, delivery, fee, total]); older readers ignore them.
+  const compact = [
+    VERSION,
+    shops.map((s) => {
+      const row: unknown[] = [s.store_id, s.books.map((b) => [b.title, b.price_cents, b.listing_url])];
+      if (s.costs) row.push(s.costs.delivery_cents, s.costs.fee_cents, s.costs.total_cents);
+      return row;
+    }),
+  ];
   return toBase64Url(JSON.stringify(compact));
 }
 
@@ -93,7 +125,13 @@ export function decodeBuyList(code: string): BuyShop[] | null {
       if (url !== null && (typeof url !== 'string' || url.length > 2000)) return null;
       books.push({ title: b[0], price_cents: price as number | null, listing_url: url as string | null });
     }
-    shops.push({ store_id: s[0], books });
+    const shop: BuyShop = { store_id: s[0], books };
+    if (s.length > 2) {
+      const [delivery, fee, total] = [s[2], s[3], s[4]].map((v) => (v === undefined ? null : v));
+      if (![delivery, fee, total].every((v) => v === null || (Number.isInteger(v) && (v as number) >= 0))) return null;
+      shop.costs = { delivery_cents: delivery as number | null, fee_cents: fee as number | null, total_cents: total as number | null };
+    }
+    shops.push(shop);
   }
   return shops;
 }

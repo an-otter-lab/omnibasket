@@ -188,6 +188,10 @@ describe('buy list entry link on the result', () => {
     expect(links.length).toBe(1);
     expect(links[0].textContent!.trim()).toBe('Buy list for these orders');
     const code = links[0].getAttribute('href')!.slice('#/buy/'.length);
-    expect(decodeBuyList(code)).toEqual(buyListFromOrders(ORDERS));
+    const decoded = decodeBuyList(code)!;
+    expect(decoded.map(({ costs, ...books }) => books)).toEqual(buyListFromOrders(ORDERS));
+    // S28: the link also carries each order's delivery, fee and total, as the result has them.
+    expect(decoded.map((s) => s.costs)).toEqual(buyListFromOrders(fixture.componentInstance.orders).map((s) => s.costs));
+    expect(decoded.every((s) => s.costs !== undefined)).toBeTrue();
   });
 });
