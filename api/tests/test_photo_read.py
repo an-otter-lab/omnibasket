@@ -115,9 +115,12 @@ def test_edition_variant_is_labelled(client, monkeypatch):
     with sqlite3.connect(client.app.state.index_db_path) as c:
         c.execute("DROP TABLE IF EXISTS books_search")
     out = post(client).json()["lines"][0]
-    assert out["status"] == "matched"
-    assert out["candidate"]["isbn"] == "9780763612832"
-    assert out["candidate"]["edition"] == "big book"
+    # S18: the big book is a special format the line did not ask for. It is offered as a
+    # labelled choice, never matched (this test was "matched" before S18).
+    assert out["status"] == "ambiguous"
+    assert "candidate" not in out
+    assert [c["isbn"] for c in out["candidates"]] == ["9780763612832"]
+    assert out["candidates"][0]["edition"] == "big book"
 
 
 def test_spinoff_is_not_a_candidate(client, monkeypatch):
@@ -174,9 +177,10 @@ def test_common_word_title_stays_fast(tmp_path):
     out = photo_read.match_line({"title": "Charlotte's Web", "author": "E. B. White"}, db)
     elapsed = time.perf_counter() - started
     assert elapsed < 1.0, elapsed
-    assert out["status"] == "matched"
-    assert out["candidate"]["isbn"] == "9780141368832"
-    assert out["candidate"]["edition"] == "deluxe edition"
+    # S18: the deluxe edition is offered as a labelled choice, not matched (was "matched").
+    assert out["status"] == "ambiguous"
+    assert [c["isbn"] for c in out["candidates"]] == ["9780141368832"]
+    assert out["candidates"][0]["edition"] == "deluxe edition"
     assert photo_read.fts_and_query(photo_read.title_words("Charlotte's Web")) == '"charlotte" "web"'
 
 

@@ -53,6 +53,11 @@ EDITION_MARKERS = (
     "special edition", "deluxe", "anniversary", "illustrated", "colour edition",
     "color edition", "film tie-in", "gift set", "big book", "padded",
     "board book", "mini edition", "slipcase", "signed",
+    # S18: special formats a plain reading-list line never asks for.
+    "pop up", "pull out", "gift edition", "gift book", "gift box", "box set",
+    "oversized", "giant board book", "finger puppet", "plush", "snuggle blanket",
+    "magnet book", "book cd", "book and cd", "sweetheart edition", "collector s edition",
+    "collectors edition", "limited edition", "full colour", "full color",
 )
 
 # A volume of a set: "Harry Potter and the Philosopher's Stone [1/2]".
@@ -195,7 +200,7 @@ def _isbn_preference(isbn: str, index_titles: dict[str, str] | None) -> int:
     if title:
         score += 1  # a shop carries it, so it is a real printing here
         if is_edition_variant(title):
-            score -= 2
+            score -= 10  # S18: a special format never outranks a plain printing
     return score
 
 
