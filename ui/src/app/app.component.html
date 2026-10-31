@@ -185,21 +185,17 @@
 } @else if (adding) {
   <ng-container *ngTemplateOutlet="v2header; context: { see: true }"></ng-container>
   <main class="wrap narrow entry" [attr.data-screen]="screenName">
-    @if (firstRun) {
-      <h1 class="h1">{{ m.entryHeadline }}</h1>
-      <p class="p soft">{{ m.entrySubtitle }}</p>
-    }
+    <h1 class="h1">{{ m.entryHeadline }}</h1>
+    <p class="p soft">{{ m.entrySubtitle }}</p>
 
     <form class="efield" (submit)="onFieldSubmit($event)">
-      <label class="lbl" for="entry-inp">{{ firstRun ? m.entryFieldLabel : m.addFindLabel }}</label>
+      <label class="lbl" for="entry-inp">{{ m.entryFieldLabel }}</label>
       <input class="inp" id="entry-inp" name="entry-inp" type="text" enterkeyhint="search" #entryInput
              autocomplete="off" autocapitalize="off" spellcheck="false"
              [attr.placeholder]="m.entryPlaceholder"
              [value]="fieldText"
              (input)="onFieldInput($event)" />
-      @if (firstRun) {
-        <button class="btn full" type="submit">{{ m.entrySubmit }}</button>
-      }
+      <button class="btn full" type="submit">{{ m.entrySubmit }}</button>
       <button class="btn2 full" type="button" id="photo-trigger" (click)="addPhotoInput.click()">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
           <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
@@ -230,12 +226,6 @@
         <div class="step"><span class="num">2</span><p class="p">{{ m.entryStep2 }}</p></div>
         <div class="step"><span class="num">3</span><p class="p">{{ m.entryStep3 }}</p></div>
       </div>
-
-      <p class="s footnote">{{ m.entryFootnote }}</p>
-
-      @if (isDemoMode) {
-        <p class="sample"><a class="lnk" href="?sample=ro-v1#/result/cheapest" data-sample>{{ m.boxSample }}</a></p>
-      }
     }
 
     <section class="basketbar addbar" [class.empty]="!basketItems.length && !addedNote">
@@ -261,6 +251,12 @@
         <a class="btn" href="#/result/cheapest" data-action="see-orders">{{ m.seeOrders }}</a>
       }
     </section>
+
+    <p class="s footnote">{{ m.entryFootnote }}</p>
+
+    @if (firstRun && isDemoMode) {
+      <p class="sample"><a class="lnk" href="?sample=ro-v1#/result/cheapest" data-sample>{{ m.boxSample }}</a></p>
+    }
   </main>
 } @else if (route.name === 'photo') {
   <ng-container *ngTemplateOutlet="v2header; context: { see: true }"></ng-container>

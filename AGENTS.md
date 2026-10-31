@@ -36,3 +36,4 @@ The plan being built is `docs/ops/omnibasket-hackathon-push-2026-10-29.md`. Wher
 
 ## Copy
 - Say "order" in EN and "comandă" in RO, never "parcel".
+- The entry screen keeps its headline, subtitle, field, Find book, Photo of a list and footnote in every state; with books in the basket only How it works gives way to the basket chips (Adrian, 31 Oct).
