@@ -73,10 +73,10 @@ def db_path(tmp_path):
              "matilda", None, "9780142410370", "2026-10-30"),
             ("books-express", "https://www.books-express.ro/the-very-hungry-caterpillar-s-123/p/yfb,9780141367941",
              CATERPILLAR_SLUG, None, CATERPILLAR_SLUG_ISBN, "2026-10-30"),
-            # S18 review: a shop lists the plain printing (the index often holds only a subject code as
-            # its title, like the real "ybcs," rows), so it can be matched.
+            # S18 review: a shop lists the plain printing (a slug title; a row whose title is only a
+            # subject code such as "yfb," would not count), so it can be matched.
             ("books-express", "https://www.books-express.ro/the-very-hungry-caterpillar/p/yfb,9780140569322",
-             "yfb,", None, "9780140569322", "2026-10-30"),
+             "the very hungry caterpillar", None, "9780140569322", "2026-10-30"),
         ])
     return path
 

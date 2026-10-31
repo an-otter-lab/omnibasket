@@ -66,9 +66,9 @@ def db(tmp_path, monkeypatch):
     with sqlite3.connect(path) as c:
         c.execute("CREATE TABLE books(shop TEXT NOT NULL,url TEXT NOT NULL,title TEXT,author_hint TEXT,isbn TEXT,last_seen TEXT NOT NULL,PRIMARY KEY(shop,url))")
         c.execute("INSERT INTO books VALUES('books-express','https://be/1','The clean coder','Robert C. Martin','9780137081073','2026-10-30')")
-        # S18 review: a line is matched only to a printing a shop lists (here by ISBN, title unparsed).
-        c.execute("INSERT INTO books VALUES('libris','https://lb/2','x,','','9789735832940','2026-10-30')")
-        c.execute("INSERT INTO books VALUES('libris','https://lb/3','x,','','9786060339229','2026-10-30')")
+        # S18 review: a line is matched only to a printing a shop lists (here by ISBN, a slug title).
+        c.execute("INSERT INTO books VALUES('libris','https://lb/2','harry potter si piatra filozofala','','9789735832940','2026-10-30')")
+        c.execute("INSERT INTO books VALUES('libris','https://lb/3','micul print','','9786060339229','2026-10-30')")
     return path
 
 

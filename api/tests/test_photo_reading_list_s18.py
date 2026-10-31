@@ -105,18 +105,22 @@ def test_reading_list_no_line_resolves_to_a_special_format(db_path):
             assert not _is_special(line, res["candidate"], db_path), (line["title"], res["candidate"])
             assert "edition" not in res["candidate"]
         else:
-            # A choice list ranks the plain printings first; a special one is labelled.
-            flags = [_is_special(line, c, db_path) for c in res.get("candidates", [])]
-            assert flags == sorted(flags), (line["title"], res)
+            # S18 answer 2: a choice lists the printings a shop lists first (plain, then special),
+            # unlisted ones last (plain, then special); a special one is labelled.
+            cands = res.get("candidates", [])
+            listed = photo_read._listed(db_path, [c["isbn"] for c in cands])
+            flags = [_is_special(line, c, db_path) for c in cands]
+            keys = [(c["isbn"] not in listed, special) for c, special in zip(cands, flags)]
+            assert keys == sorted(keys), (line["title"], res)
             for c, special in zip(res.get("candidates", []), flags):
                 assert bool(c.get("edition")) == special or not special
     matched = {r["read_title"]: r["candidate"]["isbn"] for r in out if r["status"] == "matched"}
     # S18 review: only a plain printing a shop lists is matched. The plain Very Hungry Caterpillar
-    # (9780140569322) and Guess How Much I Love You (9781406390742) are in no shop's index rows, so
-    # those lines are choices; The Boy, the Mole... is matched to the printing Books-Express lists.
+    # (9780140569322) and Guess How Much I Love You (9781406390742) are in no shop's index rows, and
+    # the plain Owl Babies (9780763679613, "ybcs,") and Charlotte's Web (9780141354828, "yfp,") only
+    # in rows whose title is a subject code (S18 answer 1), so those four lines are choices.
+    # The Boy, the Mole... is matched to the printing Books-Express lists.
     assert matched == {
-        "Owl Babies": "9780763679613",
-        "Charlotte's Web": "9780141354828",
         "The Boy, the Mole, the Fox and the Horse": "9781786144577",
         "Matilda": "9780142402535",
     }
@@ -176,13 +180,13 @@ def _listed(db_path, isbns):
 
 def test_review_unlisted_plain_printing_is_a_choice_with_the_listed_specials(db_path):
     """Guess How Much I Love You: the plain printing is in no shop's rows, so the line is a
-    choice: the plain printing first, then the special printings shops list, each labelled."""
+    choice: the special printings shops list first, each labelled, the unlisted plain one last."""
     out = photo_read.match_line(READING_LIST[2], db_path, opener=Recorded())
     assert out["status"] == "ambiguous"
     cands = out["candidates"]
-    assert cands[0]["isbn"] == "9781406390742" and "edition" not in cands[0]
-    assert cands[0]["isbn"] not in _listed(db_path, [cands[0]["isbn"]])
-    rest = cands[1:]
+    assert cands[-1]["isbn"] == "9781406390742" and "edition" not in cands[-1]
+    assert cands[-1]["isbn"] not in _listed(db_path, [cands[-1]["isbn"]])
+    rest = cands[:-1]
     assert rest and all(c.get("edition") for c in rest)
     assert {c["isbn"] for c in rest} <= _listed(db_path, [c["isbn"] for c in rest])
     assert all(c["title"] == "Guess How Much I Love You" for c in cands)  # never a shop slug
@@ -228,3 +232,60 @@ def test_review_reading_list_basket_can_rank(db_path):
             basket.append(listed[0])
     assert len(basket) == 6
     assert set(basket) == _listed(db_path, basket)
+
+
+# --- S18 answers (Claude): (1) a Books-Express row whose title is only a subject code does not
+# count as a shop listing; (2) inside a choice, listed printings first (plain, then special),
+# unlisted ones last (plain, then special).
+
+def test_answer1_a_subject_code_row_is_not_a_listing(db_path):
+    """The real index holds the plain Owl Babies only as a "ybcs," row: not a listing, so the
+    line is a choice with the listed big book first and the plain printing last."""
+    assert photo_read._subject_code_only("ybcs,") and photo_read._subject_code_only(" yfp, ")
+    assert not photo_read._subject_code_only("owl babies") and not photo_read._subject_code_only(None)
+    assert _listed(db_path, ["9780763679613", "9780141354828"]) == set()
+    out = photo_read.match_line(READING_LIST[0], db_path, opener=Recorded())
+    assert out["status"] == "ambiguous"
+    assert [(c["isbn"], c.get("edition")) for c in out["candidates"]] == [
+        ("9780763612832", "big book"), ("9780763679613", None)]
+
+
+def test_answer1_the_same_row_with_a_title_is_a_listing(db_path):
+    """The rule is about the title only: the same Books-Express page with a slug title counts, and
+    the plain printing is matched again."""
+    with sqlite3.connect(db_path) as db:
+        db.execute("UPDATE books SET title = 'owl babies' WHERE isbn = '9780763679613'")
+    assert _listed(db_path, ["9780763679613"]) == {"9780763679613"}
+    out = photo_read.match_line(READING_LIST[0], db_path, opener=Recorded())
+    assert out["status"] == "matched" and out["candidate"]["isbn"] == "9780763679613"
+
+
+def _row(db, isbn, title):
+    db.execute("INSERT INTO books VALUES(?,?,?,?,?,?)",
+               ("books-express", f"https://www.books-express.ro/x/p/{isbn}", title, None, isbn, "2026-10-30"))
+
+
+def test_answer2_choice_order_listed_plain_listed_special_unlisted_plain_unlisted_special(tmp_path, monkeypatch):
+    """All four groups at once: two listed plain printings (so no single match), a listed special,
+    an unlisted plain and an unlisted special. Catalogue order is deliberately the reverse."""
+    path = tmp_path / "books.sqlite3"
+    with sqlite3.connect(path) as db:
+        db.execute("CREATE TABLE books(shop TEXT NOT NULL,url TEXT NOT NULL,title TEXT,author_hint TEXT,"
+                   "isbn TEXT,last_seen TEXT NOT NULL,PRIMARY KEY(shop,url))")
+        _row(db, "9780000000011", "owl babies")             # listed plain
+        _row(db, "9780000000022", "owl babies")             # listed plain
+        _row(db, "9780000000033", "owl babies big book")    # listed special
+        _row(db, "9780000000044", "ybcs,")                  # code-only row: unlisted plain
+    cands = [
+        {"isbn": "9780000000055", "title": "Owl Babies Board Book", "author": "Martin Waddell"},  # unlisted special
+        {"isbn": "9780000000044", "title": "Owl Babies", "author": "Martin Waddell"},
+        {"isbn": "9780000000033", "title": "Owl Babies", "author": "Martin Waddell"},
+        {"isbn": "9780000000022", "title": "Owl Babies", "author": "Martin Waddell"},
+        {"isbn": "9780000000011", "title": "Owl Babies", "author": "Martin Waddell"},
+    ]
+    monkeypatch.setattr(photo_read, "online_lookup", lambda line, db_path, opener=None, **k: [dict(c) for c in cands])
+    out = photo_read.resolve_online(READING_LIST[0], {"read_title": "Owl Babies"}, path, opener=None)
+    assert out["status"] == "ambiguous"
+    got = [(c["isbn"], bool(c.get("edition"))) for c in out["candidates"]]
+    assert got == [("9780000000022", False), ("9780000000011", False), ("9780000000033", True),
+                   ("9780000000044", False), ("9780000000055", True)]

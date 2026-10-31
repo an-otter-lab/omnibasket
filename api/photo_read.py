@@ -312,9 +312,19 @@ def _shop_titles(db_path, isbns: list[str]) -> dict[str, list[str]]:
     return found
 
 
+_SUBJECT_CODE = re.compile(r"[a-z]{1,8},")
+
+
+def _subject_code_only(title: str | None) -> bool:
+    """A Books-Express row whose title is only its subject code ("ybcs,", "yfb,"): the shop
+    keeps the page, but the row says nothing about the book (S18 answer 1)."""
+    return bool(_SUBJECT_CODE.fullmatch((title or "").strip()))
+
+
 def _listed(db_path, isbns: list[str]) -> set[str]:
     """ISBNs a live-read shop lists: an index product row (never a search URL) at a shop the
-    live reads fetch. Amazon.de rows are captures, never read, so they are not a listing."""
+    live reads fetch. Amazon.de rows are captures, never read, so they are not a listing, and
+    neither is a row whose title is only a subject code."""
     from api.offers import _searchish
 
     isbns = [i for i in dict.fromkeys(isbns) if i]
@@ -324,11 +334,11 @@ def _listed(db_path, isbns: list[str]) -> set[str]:
         with sqlite3.connect(str(db_path)) as db:
             marks = ",".join("?" * len(isbns))
             rows = db.execute(
-                f"SELECT isbn, url FROM books WHERE isbn IN ({marks}) AND shop != 'amazon_de'", isbns
+                f"SELECT isbn, url, title FROM books WHERE isbn IN ({marks}) AND shop != 'amazon_de'", isbns
             ).fetchall()
     except sqlite3.Error:
         return set()
-    return {isbn for isbn, url in rows if url and not _searchish(url)}
+    return {isbn for isbn, url, title in rows if url and not _searchish(url) and not _subject_code_only(title)}
 
 
 def _title_listed(line: dict, db_path) -> bool:
@@ -501,21 +511,28 @@ def resolve_online(line: dict, base: dict, db_path, opener=None, specials: list[
         return {**base, "status": "matched", "candidate": plain_listed[0]}
     if not plain_listed and len(plain) == 1 and _title_listed(line, db_path):
         return {**base, "status": "matched", "candidate": plain[0]}
-    # A choice: the index's special printings beside the catalogue's, listed ones first. Each is
-    # shown under its catalogue record (never a shop slug), so only the few that can be offered
-    # are looked up.
+    # A choice (S18 answer 2): printings a shop lists first, plain then special; unlisted ones
+    # last, plain then special. The index's special printings join the catalogue's; each is shown
+    # under its catalogue record (never a shop slug), so only the few that can be offered are
+    # looked up.
     room = MAX_CANDIDATES - len(plain)
     for item in sorted(specials, key=lambda c: c.get("isbn") not in listed):
-        if room <= sum(1 for c in special if c.get("isbn") in listed) or item.get("isbn") in seen:
+        listed_item = item.get("isbn") in listed
+        if item.get("isbn") in seen:
+            continue
+        if not listed_item and room <= len(special):
+            continue  # an unlisted special only fills room the plain printings left
+        if listed_item and MAX_CANDIDATES - len(plain_listed) <= sum(1 for c in special if c.get("isbn") in listed):
             continue
         shown = _show(item, line, db_path, opener)
         if shown is not None:
             seen.add(item["isbn"])
             special.append({**shown, "edition": item.get("edition") or "special format"})
-    special.sort(key=lambda c: c.get("isbn") not in listed)
     if not plain and not special:
         return {**base, "status": "not_found"}
-    return {**base, "status": "ambiguous", "candidates": (plain + special)[:MAX_CANDIDATES]}
+    group = {id(c): 1 for c in special}  # 0 plain, 1 special
+    ordered = sorted(plain + special, key=lambda c: (c.get("isbn") not in listed, group.get(id(c), 0)))
+    return {**base, "status": "ambiguous", "candidates": ordered[:MAX_CANDIDATES]}
 
 
 def read_and_match(data: bytes, mime: str, db_path, opener=None) -> dict:
