@@ -330,8 +330,12 @@ export class AppComponent implements OnDestroy {
   addedNote = '';
   /** A pick whose prices could not be read. */
   addError = '';
+  /** R12: the pick that matches a book already in the basket, held until the shopper chooses. */
+  dupPick: { c: Candidate; listing?: string | null } | null = null;
   private addStream: Subscription | null = null;
   private readonly fieldRef = viewChild<ElementRef<HTMLInputElement>>('entryInput');
+  /** R12: "Keep one" takes the focus when the duplicate question opens. */
+  private readonly dupKeepRef = viewChild<ElementRef<HTMLButtonElement>>('dupKeep');
   private documentClickListener: ((event: MouseEvent) => void) | null = null;
 
   constructor() {
@@ -391,6 +395,7 @@ export class AppComponent implements OnDestroy {
       this.clearField();
       this.addedNote = '';
       this.addError = '';
+      this.dupPick = null;
       this.closeMenus();
       const q = name === 'find' ? this.route.arg.trim() : '';
       if (q) {
@@ -675,6 +680,38 @@ export class AppComponent implements OnDestroy {
 
   pickBook(c: Candidate, listing?: string | null): void {
     if (!c.isbn) return;
+    // R12: the same normalised title and author under another ISBN is a question, never a silent
+    // second copy. Nothing joins the basket until the shopper answers.
+    if (this.basketSvc.duplicateOf(c.isbn, c.title, c.author)) {
+      this.dupPick = { c, listing };
+      this.addedNote = '';
+      this.addError = '';
+      setTimeout(() => this.dupKeepRef()?.nativeElement.focus(), 0);
+      return;
+    }
+    this.takePick(c, listing);
+  }
+
+  /** R12: "Add anyway" keeps both copies and finishes the pick as usual. */
+  addAnyway(): void {
+    const pick = this.dupPick;
+    this.dupPick = null;
+    if (pick) this.takePick(pick.c, pick.listing);
+  }
+
+  /** R12: "Keep one" adds nothing; the book already in the basket stays, and the state resets. */
+  keepOne(): void {
+    this.dupPick = null;
+    this.clearField();
+    this.candidates = [];
+    this.pickState = 'idle';
+    this.boxText = '';
+    this.route = { name: 'add', arg: '' };
+    this.replaceRoute('add');
+    this.focusField();
+  }
+
+  private takePick(c: Candidate, listing?: string | null): void {
     // R0/R4: a pick adds the book here. The field and the rows go, the state stays.
     this.clearField();
     this.candidates = [];
@@ -831,6 +868,7 @@ export class AppComponent implements OnDestroy {
     this.basketSvc.remove(id);
     this.resetPlan();
     this.addedNote = '';
+    this.dupPick = null;
     this.markStale();
   }
 

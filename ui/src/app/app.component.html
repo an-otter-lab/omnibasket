@@ -240,6 +240,15 @@
 
     <section class="basketbar addbar" [class.empty]="!basketItems.length && !addedNote">
       <p class="s addlive" role="status" aria-live="polite" data-live="added">{{ addedNote }}</p>
+      @if (dupPick) {
+        <div class="dupask" role="alert" aria-labelledby="dup-q" data-state="add-duplicate">
+          <p class="dupq" id="dup-q">{{ m.addDuplicateAsk }}</p>
+          <div class="duprow">
+            <button class="btn" type="button" data-action="duplicate-add" (click)="addAnyway()">{{ m.addDuplicateAdd }}</button>
+            <button #dupKeep class="btn2" type="button" data-action="duplicate-keep" (click)="keepOne()">{{ m.addDuplicateKeep }}</button>
+          </div>
+        </div>
+      }
       @if (basketItems.length) {
         <div class="addchips">
           @for (i of basketItems; track i.id) {

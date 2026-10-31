@@ -35,7 +35,8 @@ export type PickState = 'idle' | 'searching' | 'results' | 'empty' | 'error' | '
         <ul class="picks">
           @for (c of items; track $index) {
             <li class="pickcard">
-              <button class="pick" type="button" [disabled]="!c.isbn" (click)="picked.emit(c)">
+              <!-- R15: the whole row is one native button: Enter and Space activate it, the keyboard reaches it. -->
+              <button class="pick" type="button" data-action="pick" [disabled]="!c.isbn" (click)="picked.emit(c)">
                 @if (cover(c); as src) {
                   <img class="pcover" [src]="src" [attr.data-initials]="initialsOf(c)" alt="" width="56" height="80" loading="lazy" referrerpolicy="no-referrer" (error)="broken($event)" />
                 } @else {
@@ -47,7 +48,7 @@ export type PickState = 'idle' | 'searching' | 'results' | 'empty' | 'error' | '
                   @if (!c.isbn) { <span class="s unk">{{ m.pickNoIsbn }}</span> }
                   @if (c.shops.length) { <span class="s">{{ listed(c) }}</span> }
                 </span>
-                @if (c.isbn) { <span class="pgo">{{ m.pickRead }} ›</span> }
+                @if (c.isbn) { <span class="pgo">{{ m.pickRead }}<span class="pchev" aria-hidden="true"> ›</span></span> }
               </button>
               @if (unchecked(c).length) {
                 <p class="not-checked" data-not-checked>

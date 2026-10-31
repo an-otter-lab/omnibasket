@@ -53,6 +53,23 @@ export function itemId(isbn: string): string {
   return 'book-' + isbn;
 }
 
+/**
+ * R12: a title or an author as one comparable string: no case, accents, punctuation or word order,
+ * so "Dahl, Roald" and "ROALD DAHL" are the same author.
+ */
+export function normalisedKey(text: string | null | undefined): string {
+  return (text || '')
+    .normalize('NFD')
+    .replace(/\p{M}+/gu, '')
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .trim()
+    .split(' ')
+    .filter(Boolean)
+    .sort()
+    .join(' ');
+}
+
 /** The items that can be priced: at least one offer in a shop whose delivery rules are known. */
 export function placeable(items: BasketItem[], shops: BasketShop[]): BasketItem[] {
   const ids = new Set(shops.map((s) => s.id));
@@ -109,6 +126,17 @@ export class BasketService {
 
   has(isbn: string): boolean {
     return this.items.some((i) => i.isbn === isbn);
+  }
+
+  /**
+   * R12: a book in the basket with the same normalised title and author but another ISBN (two
+   * Matildas, two editions). The same ISBN is a re-read, not a second copy, so it never matches.
+   */
+  duplicateOf(isbn: string, title: string, author: string | null): BasketItem | null {
+    const t = normalisedKey(title);
+    if (!t) return null;
+    const a = normalisedKey(author);
+    return this.items.find((i) => i.isbn !== isbn && normalisedKey(i.title) === t && normalisedKey(i.author) === a) || null;
   }
 
   /** Add (or refresh) the book a live read was run for. Only that book joins; nothing else comes with it. */
