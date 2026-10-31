@@ -92,4 +92,19 @@ describe('S15 photo picks land on their own line', () => {
     if (component.photoState.kind !== 'result') fail('photo result expected');
     else expect(component.photoState.ambiguous.map((a) => a.picked?.isbn)).toEqual([BOY, MATILDA_COLOUR]);
   }));
+  it('S20: a "to pick" row stacks its title above its picks at any width (here wider than 600 px)', fakeAsync(() => {
+    component.onPhotoEvent({ kind: 'read', response });
+    component.route = { name: 'photo', arg: '' };
+    tick();
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    host.style.display = 'block';
+    host.style.width = '1200px';
+    for (const row of lines()) {
+      expect(getComputedStyle(row).flexDirection).toBe('column');
+      const title = row.querySelector<HTMLElement>(':scope > p.pt')!.getBoundingClientRect();
+      const picks = row.querySelector<HTMLElement>('ul.picks')!.getBoundingClientRect();
+      expect(picks.top).toBeGreaterThanOrEqual(title.bottom);
+    }
+  }));
 });

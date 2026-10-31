@@ -142,19 +142,17 @@ import { PhotoCandidate, PhotoLineAmbiguous, PhotoLineNotFound, PhotoState, Reso
         min-width: 0;
         overflow-wrap: anywhere;
       }
-      /* S20: at phone width the read line sits above its picks, and the picks are full width. */
-      @media (max-width: 599.98px) {
-        .photo-ambiguous {
-          flex-direction: column;
-          gap: 0.25rem;
-        }
-        .photo-ambiguous > * {
-          min-width: 0;
-        }
-        .photo-ambiguous .picks,
-        .photo-ambiguous .pick {
-          width: 100%;
-        }
+      /* S20: the read line sits above its picks, and the picks are full width, at every width (Adrian, 31 Oct). */
+      .photo-ambiguous {
+        flex-direction: column;
+        gap: 0.25rem;
+      }
+      .photo-ambiguous > * {
+        min-width: 0;
+      }
+      .photo-ambiguous .picks,
+      .photo-ambiguous .pick {
+        width: 100%;
       }
       .pick .pgo {
         color: var(--brand-ink);
