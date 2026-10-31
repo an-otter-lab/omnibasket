@@ -462,6 +462,9 @@ export interface Messages {
   progShopNotIndexed: string;
   progShopNotLive: string;
   progShopNotChecked: string;
+  /** S10: the heading when no book in the basket could be priced. */
+  nonePricedTitle: string;
+  nonePricedOne: string;
 }
 
 export const MESSAGES: Record<Lang, Messages> = {
@@ -815,6 +818,8 @@ export const MESSAGES: Record<Lang, Messages> = {
     progShopNotIndexed: '{shop}: no match in our index',
     progShopNotLive: '{shop}: not read live',
     progShopNotChecked: '{shop}: not checked',
+    nonePricedTitle: 'None of these books could be priced yet',
+    nonePricedOne: 'This book couldn\u2019t be priced yet',
   },
   ro: {
     deliveryGapShort: 'Mai ai {amount} lei până la livrarea gratuită la {shop}',
@@ -1166,6 +1171,8 @@ export const MESSAGES: Record<Lang, Messages> = {
     progShopNotIndexed: '{shop}: nicio potrivire în indexul nostru',
     progShopNotLive: '{shop}: nu se citește live',
     progShopNotChecked: '{shop}: neverificat',
+    nonePricedTitle: 'Încă nu am găsit un preț pentru niciuna dintre aceste cărți',
+    nonePricedOne: 'Încă nu am găsit un preț pentru această carte',
   },
 };
 

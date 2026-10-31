@@ -290,8 +290,11 @@
 } @else if (!sampleMode && basketItems.length === 0) {
   <ng-container *ngTemplateOutlet="emptystate"></ng-container>
 } @else if (!data) {
+  <!-- S10: no book could be priced: say so and offer the way back to adding a book. -->
   <ng-container *ngTemplateOutlet="v2header; context: { see: false }"></ng-container>
-  <main class="wrap">
+  <main class="wrap" data-screen="none-priced">
+    <h1 class="h2">{{ basketItems.length === 1 ? m.nonePricedOne : m.nonePricedTitle }}</h1>
+    <a class="btn" href="#/add" data-action="unpriced-add">{{ m.basketAddBook }}</a>
     <ng-container *ngTemplateOutlet="yourbooks"></ng-container>
   </main>
 } @else {
