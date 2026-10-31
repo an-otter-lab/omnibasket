@@ -572,10 +572,15 @@ export class AppComponent implements OnDestroy {
     this.submitBox(text);
   }
 
+  /** S19: a photo is being read; Photo of a list shows it and takes no second photo meanwhile. */
+  get photoReading(): boolean {
+    return this.photoState.kind === 'reading';
+  }
+
   async onEntryPhoto(event: Event): Promise<void> {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
-    if (!file) return;
+    if (!file || this.photoReading) return;
     input.value = '';
 
     if (file.size > MAX_PHOTO_BYTES) {
@@ -583,6 +588,7 @@ export class AppComponent implements OnDestroy {
       return;
     }
 
+    this.photoState = { kind: 'reading' };
     try {
       const buffer = await file.arrayBuffer();
       const res = await fetch('/photo', {
