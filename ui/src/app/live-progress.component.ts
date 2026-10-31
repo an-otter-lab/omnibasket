@@ -11,9 +11,9 @@ import { Lang, MESSAGES, fill } from './messages';
     <ol class="plog" aria-live="polite" [attr.aria-label]="m.progLabel">
       @for (p of lines; track $index) {
         <li [attr.data-status]="p.status" [attr.data-shop]="p.store_id">
-          <span class="dot" [class.run]="p.status === 'reading'" aria-hidden="true">{{ mark(p.status) }}</span>
-          <span class="pmsg">{{ p.message }}</span>
-          <span class="s">{{ word(p.status) }}</span>
+          <span class="dot" [class.run]="p.status === 'reading'" aria-hidden="true">{{ mark(p) }}</span>
+          <span class="pmsg">{{ line(p) }}</span>
+          <span class="s">{{ word(p) }}</span>
         </li>
       }
     </ol>
@@ -40,11 +40,32 @@ export class LiveProgressComponent {
     return fill(this.m.progTitle, { title: this.title });
   }
 
-  mark(status: string): string {
-    return status === 'ok' || status === 'cache' ? '✓' : status === 'failed' ? '✕' : status === 'skipped' ? '–' : '';
+  /** S9: Amazon.de is never read live, whatever status the stream carries. */
+  notLive(p: Progress): boolean {
+    return p.store_id === 'amazon_de' && p.status !== 'reading';
   }
 
-  word(status: string): string {
+  /** S9: the line comes from the shop and its status in the shopper's language, never the server's text. */
+  line(p: Progress): string {
+    const m = this.m;
+    const key =
+      p.status === 'reading' ? m.progShopReading
+      : this.notLive(p) ? m.progShopNotLive
+      : p.status === 'ok' ? m.progShopRead
+      : p.status === 'cache' ? m.progShopCache
+      : p.status === 'failed' ? m.progShopFailed
+      : p.status === 'skipped' ? m.progShopNotIndexed
+      : m.progShopNotChecked;
+    return fill(key, { shop: shopLabel(p.store_id) });
+  }
+
+  mark(p: Progress): string {
+    const status = this.notLive(p) ? 'skipped' : p.status;
+    return status === 'ok' || status === 'cache' ? '✓' : status === 'failed' ? '✕' : status === 'skipped' || status === 'not_checked' ? '–' : '';
+  }
+
+  word(p: Progress): string {
+    const status = this.notLive(p) ? 'skipped' : p.status;
     const m = this.m;
     return status === 'reading' ? m.progLineReading : status === 'ok' || status === 'cache' ? m.progLineOk : status === 'failed' ? m.progLineFailed : m.progLineSkipped;
   }

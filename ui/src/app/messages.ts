@@ -454,6 +454,14 @@ export interface Messages {
   rsLockUnknownShop: string;
   /** S8: a 10- or 13-digit entry whose check digit fails. */
   isbnLooksWrong: string;
+  /** S9: progress lines, built from the shop and its status ({shop}). */
+  progShopReading: string;
+  progShopRead: string;
+  progShopCache: string;
+  progShopFailed: string;
+  progShopNotIndexed: string;
+  progShopNotLive: string;
+  progShopNotChecked: string;
 }
 
 export const MESSAGES: Record<Lang, Messages> = {
@@ -800,6 +808,13 @@ export const MESSAGES: Record<Lang, Messages> = {
     rsLockNotListed: 'it lists none of these books',
     rsLockUnknownShop: 'this shop is not part of the basket',
     isbnLooksWrong: 'This ISBN doesn\u2019t look right. Check the digits, or search by title.',
+    progShopReading: 'Reading {shop}\u2026',
+    progShopRead: '{shop}: read',
+    progShopCache: '{shop}: read earlier today',
+    progShopFailed: '{shop}: couldn\u2019t be read',
+    progShopNotIndexed: '{shop}: no match in our index',
+    progShopNotLive: '{shop}: not read live',
+    progShopNotChecked: '{shop}: not checked',
   },
   ro: {
     deliveryGapShort: 'Mai ai {amount} lei până la livrarea gratuită la {shop}',
@@ -1144,6 +1159,13 @@ export const MESSAGES: Record<Lang, Messages> = {
     rsLockNotListed: 'nu are niciuna dintre aceste cărți',
     rsLockUnknownShop: 'magazinul nu face parte din coș',
     isbnLooksWrong: 'ISBN-ul nu pare corect. Verifică cifrele sau caută după titlu.',
+    progShopReading: 'Se citește {shop}\u2026',
+    progShopRead: '{shop}: citit',
+    progShopCache: '{shop}: citit mai devreme azi',
+    progShopFailed: '{shop}: nu a putut fi citit',
+    progShopNotIndexed: '{shop}: nicio potrivire în indexul nostru',
+    progShopNotLive: '{shop}: nu se citește live',
+    progShopNotChecked: '{shop}: neverificat',
   },
 };
 

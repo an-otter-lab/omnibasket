@@ -36,7 +36,7 @@ class ReadProgress:
     
     store_id: str
     isbn13: str | None
-    status: str  # "reading", "ok", "failed", "skipped"
+    status: str  # "reading", "ok", "cache", "failed", "skipped", "not_checked"
     message: str
     timestamp: str | None = None
     
@@ -149,7 +149,10 @@ def progress_message(store_id: str, status: str) -> str:
         return f"Reading {name}…"
     if status == "skipped" and store_id != "amazon_de":
         return f"{name}: no match in our index"
-    return f"{name}: {status}"
+    if status == "ok":
+        return f"{name}: read"
+    # S9: not_checked (the shop is not indexed) and anything else: never "Bookzone: not_checked".
+    return f"{name}: not checked"
 
 
 def _searchish(url: str) -> bool:
@@ -502,12 +505,13 @@ async def _read_one_page(
                         message="eMAG couldn't be read, skipped",
                     ))
             else:
+                # S9: the real status (not_checked, skipped, cache, ok), never "ok" for any non-failure.
                 if progress_callback:
                     await _emit_progress(progress_callback, ReadProgress(
                         store_id=store_id,
                         isbn13=isbn13,
-                        status="ok",
-                        message=progress_message(store_id, "ok"),
+                        status=offer.status,
+                        message=progress_message(store_id, offer.status),
                     ))
             return offer
         except Exception as e:
