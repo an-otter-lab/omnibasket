@@ -1,6 +1,7 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { Lang, MESSAGES, editionName, fill } from './messages';
 import { PhotoCandidate, PhotoLineAmbiguous, PhotoLineNotFound, PhotoState, ResolvedLine, coverOf } from './photo';
+import { coverFallback, initials } from './live';
 
 /** The photo result screen: matched, ambiguous (with pick lists), not found. */
 @Component({
@@ -27,9 +28,9 @@ import { PhotoCandidate, PhotoLineAmbiguous, PhotoLineNotFound, PhotoState, Reso
             @for (line of state.matched; track line.candidate.isbn) {
               <div class="photo-card">
                 @if (coverOf(line.candidate); as src) {
-                  <img class="pcover" [src]="src" alt="" width="56" height="80" loading="lazy" referrerpolicy="no-referrer" />
+                  <img class="pcover" [src]="src" [attr.data-initials]="initialsOf(line.candidate)" alt="" width="56" height="80" loading="lazy" referrerpolicy="no-referrer" (error)="broken($event)" (load)="broken($event)" />
                 } @else {
-                  <span class="pcover ph" aria-hidden="true"></span>
+                  <span class="pcover ph" aria-hidden="true">{{ initialsOf(line.candidate) }}</span>
                 }
                 <div class="pmeta">
                   <p class="pt">{{ line.candidate.title }}</p>
@@ -54,9 +55,9 @@ import { PhotoCandidate, PhotoLineAmbiguous, PhotoLineNotFound, PhotoState, Reso
                     <li>
                       <button class="pick" type="button" [class.sel]="item.picked?.isbn === c.isbn" (click)="pick.emit({ index: line, candidate: c })">
                         @if (coverOf(c); as src) {
-                          <img class="pcover" [src]="src" alt="" width="56" height="80" loading="lazy" referrerpolicy="no-referrer" />
+                          <img class="pcover" [src]="src" [attr.data-initials]="initialsOf(c)" alt="" width="56" height="80" loading="lazy" referrerpolicy="no-referrer" (error)="broken($event)" (load)="broken($event)" />
                         } @else {
-                          <span class="pcover ph" aria-hidden="true"></span>
+                          <span class="pcover ph" aria-hidden="true">{{ initialsOf(c) }}</span>
                         }
                         <span class="pmeta">
                           <span class="pt">{{ c.title }}</span>
@@ -214,6 +215,15 @@ export class PhotoResultComponent {
 
   coverOf(c: PhotoCandidate): string | null {
     return coverOf(c);
+  }
+
+  initialsOf(c: PhotoCandidate): string {
+    return initials(c.title);
+  }
+
+  /** S27: a cover Open Library does not have becomes the initials placeholder. */
+  broken(ev: Event): void {
+    coverFallback(ev);
   }
 
   get canContinue(): boolean {

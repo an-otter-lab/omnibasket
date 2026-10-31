@@ -1,5 +1,5 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
-import { Candidate, coverUrl, initials, listingUrl, shopLabel } from './live';
+import { Candidate, coverFallback, coverUrl, initials, listingUrl, shopLabel } from './live';
 import { Lang, MESSAGES, Messages, fill } from './messages';
 
 export type PickState = 'idle' | 'searching' | 'results' | 'empty' | 'error' | 'link_failed';
@@ -38,7 +38,7 @@ export type PickState = 'idle' | 'searching' | 'results' | 'empty' | 'error' | '
               <!-- R15: the whole row is one native button: Enter and Space activate it, the keyboard reaches it. -->
               <button class="pick" type="button" data-action="pick" [disabled]="!c.isbn" (click)="picked.emit(c)">
                 @if (cover(c); as src) {
-                  <img class="pcover" [src]="src" [attr.data-initials]="initialsOf(c)" alt="" width="56" height="80" loading="lazy" referrerpolicy="no-referrer" (error)="broken($event)" />
+                  <img class="pcover" [src]="src" [attr.data-initials]="initialsOf(c)" alt="" width="56" height="80" loading="lazy" referrerpolicy="no-referrer" (error)="broken($event)" (load)="broken($event)" />
                 } @else {
                   <span class="pcover ph" aria-hidden="true">{{ initialsOf(c) }}</span>
                 }
@@ -112,13 +112,8 @@ export class PickListComponent {
     return fill(this.m.pickListed, { shops: names.join(', ') });
   }
 
-  /** A cover Open Library does not have: swap in the plain placeholder, never another image. */
+  /** A cover Open Library does not have: swap in the plain placeholder, never another image (S27: shared). */
   broken(ev: Event): void {
-    const img = ev.target as HTMLImageElement;
-    const ph = document.createElement('span');
-    ph.className = 'pcover ph';
-    ph.setAttribute('aria-hidden', 'true');
-    ph.textContent = img.dataset['initials'] || '·';
-    img.replaceWith(ph);
+    coverFallback(ev);
   }
 }
