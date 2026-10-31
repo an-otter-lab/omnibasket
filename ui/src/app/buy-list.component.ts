@@ -31,6 +31,14 @@ interface Saved {
     '.tick{width:22px;height:22px;flex:none;accent-color:var(--brand);margin-right:10px}',
     '.rowlink{display:flex;align-items:center;gap:6px;flex-wrap:wrap;cursor:pointer}',
     '.rowr{display:flex;gap:6px;flex-wrap:wrap}',
+    // S21: at phone width one row per book: tick and title on the first line, price and buttons on the second.
+    '.bookrow{flex-direction:column;align-items:stretch;gap:6px}',
+    '.bookrow .rowlink{flex-direction:row;flex-wrap:nowrap;align-items:center;justify-content:flex-start}',
+    '.bookrow .bt{min-width:0}',
+    '.bookrow .rowr{align-items:center;justify-content:flex-end;flex-wrap:wrap}',
+    '.bookrow .store{padding:0 12px}',
+    '.bookrow .bprice{font:600 15px Inter,sans-serif;color:var(--ink);white-space:nowrap;font-variant-numeric:tabular-nums;margin-right:auto}',
+    '@media (min-width:768px){.bookrow{flex-direction:row;align-items:center;gap:12px}.bookrow .rowlink{flex:1 1 auto;min-width:0}.bookrow .rowr{flex:none}.bookrow .bprice{margin-right:6px}}',
     '.shareurl{width:100%;margin:8px 0}',
   ],
   template: `
@@ -56,13 +64,13 @@ interface Saved {
           <section class="obox on shoplist" [attr.data-shop]="s.store_id">
             <div class="phead"><h2 class="pt">{{ orderTitle(s.store_id) }}</h2></div>
             @for (b of s.books; track $index; let bi = $index) {
-              <div class="row">
+              <div class="row bookrow">
                 <label class="rowlink">
                   <input type="checkbox" class="tick" [checked]="isTicked(s.store_id, bi)" (change)="toggle(s.store_id, bi)" [attr.aria-label]="tickLabel(b)" />
                   <span class="bt">{{ b.title }}</span>
-                  @if (b.price_cents != null) { <span class="s n price">{{ lei(b.price_cents) }}</span> }
                 </label>
                 <span class="rowr">
+                  @if (b.price_cents != null) { <span class="n price bprice">{{ lei(b.price_cents) }}</span> }
                   @if (listing(s.store_id, b); as href) {
                     <a class="store listing" [href]="href" target="_blank" rel="noopener" [attr.aria-label]="openLabel(b, s.store_id)">{{ m.buyListOpen }}</a>
                   } @else {
