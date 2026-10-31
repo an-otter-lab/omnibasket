@@ -95,3 +95,8 @@
   .addchip { max-width: 330px; }
   .addbar .btn { width: auto; align-self: flex-start; }
 }
+
+/* S34: each book under "Your books, shop by shop" is its own block: a divider and a 24 px gap
+   between books, and the title row (title, ISBN) sits close on its own shop card. */
+.ybook + .ybook{margin-top:24px;padding-top:24px;border-top:1px solid var(--line-strong)}
+.ybook > app-shop-reads{display:block;margin-top:8px}
