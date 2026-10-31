@@ -92,6 +92,20 @@ export function toIsbn13(text: string): string | null {
   return null;
 }
 
+/**
+ * S13 (D1): the language of a printing, from its ISBN group (978 prefix only: 973/606/630 RO,
+ * 0/1 EN, 3 DE). Null for any other group; the app does not guess.
+ */
+export function isbnLang(isbn13: string | null | undefined): 'RO' | 'EN' | 'DE' | null {
+  const t = toIsbn13(isbn13 || '');
+  if (!t || !t.startsWith('978')) return null;
+  const g = t.slice(3);
+  if (/^(973|606|630)/.test(g)) return 'RO';
+  if (/^[01]/.test(g)) return 'EN';
+  if (g.startsWith('3')) return 'DE';
+  return null;
+}
+
 export type Parsed =
   | { kind: 'empty' }
   | { kind: 'isbn'; isbn: string }

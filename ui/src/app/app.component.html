@@ -120,7 +120,7 @@
     </div>
     <div class="chips">
       @for (b of o.books; track b.item_id) {
-        <a class="chip" [href]="'#/book/' + b.item_id">{{ b.title }}@if (moved && moved.has(b.item_id)) { · {{ m.moved }} }</a>
+        <a class="chip" [href]="'#/book/' + b.item_id">{{ b.title }}@if (printingLang(b.item_id, o.store_id); as lg) { · {{ lg }} }@if (moved && moved.has(b.item_id)) { · {{ m.moved }} }</a>
       }
     </div>
     @if (o.free_delivery_threshold_cents != null) {

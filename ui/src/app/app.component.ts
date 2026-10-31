@@ -8,7 +8,7 @@ import { EventsService, liveUrl } from './events.service';
 /** The route argument of the photo read's progress screen. It is not an ISBN and starts no read. */
 const PHOTO_ROUTE_ARG = 'photo';
 import { LiveProgressComponent } from './live-progress.component';
-import { Candidate, LiveOffer, Progress, badIsbn, parseInput, pastedBook } from './live';
+import { Candidate, LiveOffer, Progress, badIsbn, isbnLang, parseInput, pastedBook } from './live';
 import { PickListComponent, PickState } from './pick-list.component';
 import { ShopReadsComponent } from './shop-reads.component';
 import { buyListFromOrders, encodeBuyList } from './buy-list';
@@ -886,6 +886,14 @@ export class AppComponent implements OnDestroy {
 
   get basketItems(): BasketItem[] {
     return this.sampleMode ? [] : this.basketSvc.items;
+  }
+
+  /** S13 (D1): the order chip names the printing's language when the shop priced another-language printing. */
+  printingLang(itemId: string, storeId: string): string {
+    const item = this.basketItems.find((i) => i.id === itemId);
+    const o = item?.live_offers?.find((x) => x.store_id === storeId);
+    const got = o?.other_printing ? isbnLang(o.isbn13) : null;
+    return got && got !== isbnLang(item?.isbn) ? got : '';
   }
 
   get unplacedItems(): BasketItem[] {
