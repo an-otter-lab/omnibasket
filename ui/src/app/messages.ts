@@ -465,6 +465,12 @@ export interface Messages {
   /** S10: the heading when no book in the basket could be priced. */
   nonePricedTitle: string;
   nonePricedOne: string;
+  /** S33: a basket book that is in none of the orders is named next to them, with why. */
+  leftOutBooksOne: string;
+  leftOutBooksMany: string;
+  leftOutNoShop: string;
+  leftOutNoRules: string;
+  leftOutNotHere: string;
 }
 
 export const MESSAGES: Record<Lang, Messages> = {
@@ -820,6 +826,11 @@ export const MESSAGES: Record<Lang, Messages> = {
     progShopNotChecked: '{shop}: not checked',
     nonePricedTitle: 'None of these books could be priced yet',
     nonePricedOne: 'This book couldn\u2019t be priced yet',
+    leftOutBooksOne: '1 book is not in these orders',
+    leftOutBooksMany: '{books} are not in these orders',
+    leftOutNoShop: 'no shop we read has it',
+    leftOutNoRules: 'no shop with known delivery rules lists it',
+    leftOutNotHere: 'none of the shops in these orders has a price for it',
   },
   ro: {
     deliveryGapShort: 'Mai ai {amount} lei până la livrarea gratuită la {shop}',
@@ -1173,6 +1184,11 @@ export const MESSAGES: Record<Lang, Messages> = {
     progShopNotChecked: '{shop}: neverificat',
     nonePricedTitle: 'Încă nu am găsit un preț pentru niciuna dintre aceste cărți',
     nonePricedOne: 'Încă nu am găsit un preț pentru această carte',
+    leftOutBooksOne: '1 carte nu este în aceste comenzi',
+    leftOutBooksMany: '{books} nu sunt în aceste comenzi',
+    leftOutNoShop: 'niciun magazin pe care l-am citit nu o are',
+    leftOutNoRules: 'niciun magazin cu reguli de livrare cunoscute nu o are',
+    leftOutNotHere: 'niciunul dintre magazinele din aceste comenzi nu are un preț pentru ea',
   },
 };
 

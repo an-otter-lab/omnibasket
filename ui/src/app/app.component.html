@@ -576,6 +576,15 @@
                     <div class="box"><p class="pt">{{ m.noRanked }}</p><p class="s">{{ why(data.cheapest) }}</p></div>
                   }
                 }
+                <!-- S33: a basket book in none of these orders is named here, with why, and links to its row. -->
+                @if (leftOutBooks.length) {
+                  <div class="panel" data-left-out-books>
+                    <p class="k">{{ leftOutHead }}</p>
+                    @for (x of leftOutBooks; track x.item.id; let last = $last) {
+                      <a class="row" [class.last]="last" href="#/result" [attr.data-left-out]="x.item.isbn" (click)="toBookRow($event, x.item.isbn)"><span class="col"><span class="strong">{{ x.item.title }}</span><span class="s">{{ x.reason }}</span></span><span aria-hidden="true">›</span></a>
+                    }
+                  </div>
+                }
               </div>
               <!-- S31: at desktop "Your books, shop by shop" sits in the left column under the cards. -->
               @if (!sampleMode) { <div class="rbooks"><ng-container *ngTemplateOutlet="yourbooks"></ng-container></div> }
