@@ -34,7 +34,6 @@ interface Saved {
     '.shareurl{width:100%;margin:8px 0}',
   ],
   template: `
-    <header class="hdr"><a class="lnk" href="#/result">‹ {{ m.buyListBack }}</a></header>
     <main class="wrap narrow buylist">
       <h1 class="h2">{{ m.buyListTitle }}</h1>
       @if (shops) {

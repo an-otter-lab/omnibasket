@@ -222,6 +222,8 @@ export interface Messages {
   /** {n} */
   inBasket: string;
   seeOrders: string;
+  /** {n} — the header basket pill's accessible name */
+  headerOrdersLabel: string;
   back: string;
   /** {shop} */
   inCheapestPlan: string;
@@ -275,6 +277,8 @@ export interface Messages {
   shopMissing: string;
   tabsLabel: string;
   onlyWay: string;
+  /** {shop} */
+  onlyShop: string;
   notPossible: string;
   tabOrders: string;
   tabCustom: string;
@@ -578,6 +582,7 @@ export const MESSAGES: Record<Lang, Messages> = {
     addToBasket: 'Add to basket',
     inBasket: 'In your basket · {n}',
     seeOrders: 'See orders',
+    headerOrdersLabel: '{n} · see your orders',
     back: 'Back',
     inCheapestPlan: 'In your cheapest plan · {shop}',
     deliveryOnOrder: 'delivery counted on the order',
@@ -614,6 +619,7 @@ export const MESSAGES: Record<Lang, Messages> = {
     shopMissing: 'That shop is not in this answer.',
     tabsLabel: 'Ways to buy',
     onlyWay: 'only way',
+    onlyShop: '{shop} only',
     notPossible: 'not possible',
     tabOrders: 'orders',
     tabCustom: 'Custom',
@@ -715,7 +721,7 @@ export const MESSAGES: Record<Lang, Messages> = {
     entryStep3: 'Pick one order, the cheapest split, or your own shops.',
     entryFootnote: 'We read and index shop data from a few sources. Where a shop does not publish a fee, we leave it blank rather than guess.',
     menuLangLabel: 'Language',
-    menuThemeLabel: 'Appearance',
+    menuThemeLabel: 'Theme',
     menuSystem: 'System',
     menuLight: 'Light',
     menuDark: 'Dark',
@@ -889,6 +895,7 @@ export const MESSAGES: Record<Lang, Messages> = {
     addToBasket: 'Adaugă în coș',
     inBasket: 'În coșul tău · {n}',
     seeOrders: 'Vezi comenzile',
+    headerOrdersLabel: '{n} · vezi comenzile',
     back: 'Înapoi',
     inCheapestPlan: 'În planul cel mai ieftin · {shop}',
     deliveryOnOrder: 'livrarea se socotește pe comandă',
@@ -925,6 +932,7 @@ export const MESSAGES: Record<Lang, Messages> = {
     shopMissing: 'Magazinul acela nu e în acest răspuns.',
     tabsLabel: 'Moduri de cumpărare',
     onlyWay: 'singura variantă',
+    onlyShop: 'doar {shop}',
     notPossible: 'imposibil',
     tabOrders: 'comenzi',
     tabCustom: 'Personalizat',
@@ -1026,7 +1034,7 @@ export const MESSAGES: Record<Lang, Messages> = {
     entryStep3: 'Alege o singură comandă, cea mai ieftină împărțire, sau magazinele tale.',
     entryFootnote: 'Citim și indexăm datele magazinelor din câteva surse. Unde un magazin nu publică o taxă, o lăsăm liberă în loc să o ghicim.',
     menuLangLabel: 'Limbă',
-    menuThemeLabel: 'Aspect',
+    menuThemeLabel: 'Temă',
     menuSystem: 'Sistem',
     menuLight: 'Luminoasă',
     menuDark: 'Întunecată',

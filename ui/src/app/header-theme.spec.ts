@@ -30,7 +30,7 @@ describe('header theme menu persists through ThemeService', () => {
   for (const choice of ['light', 'dark'] as const) {
     it(`choosing ${choice} is stored, rendered, and survives a reload`, async () => {
       const first = await boot();
-      const menu = () => first.nativeElement.querySelectorAll('#theme-menu button[role="menuitem"]') as NodeListOf<HTMLButtonElement>;
+      const menu = () => first.nativeElement.querySelectorAll('#theme-menu button[role="option"]') as NodeListOf<HTMLButtonElement>;
       const idx = { system: 0, light: 1, dark: 2 }[choice];
       menu()[idx].click();
       first.detectChanges();
@@ -45,7 +45,7 @@ describe('header theme menu persists through ThemeService', () => {
       const second = await boot();
       expect(localStorage.getItem(THEME_KEY)).toBe(choice);
       expect(document.documentElement.dataset['theme']).toBe(choice);
-      const current = second.nativeElement.querySelectorAll('#theme-menu [aria-current="true"]');
+      const current = second.nativeElement.querySelectorAll('#theme-menu [aria-checked="true"]');
       expect(current.length).toBe(1);
       expect(current[0].parentElement?.querySelectorAll('button')[idx]).toBe(current[0] as Element);
     });
