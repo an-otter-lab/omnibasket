@@ -142,7 +142,7 @@ import { PhotoCandidate, PhotoLineAmbiguous, PhotoLineNotFound, PhotoState, Reso
         min-width: 0;
         overflow-wrap: anywhere;
       }
-      /* S20: the read line sits above its picks, and the picks are full width, at every width (Adrian, 31 Oct). */
+      /* S20: the read line sits above its picks, and the picks are full width, at every width (Claude Code for Adrian, 31 Oct). */
       .photo-ambiguous {
         flex-direction: column;
         gap: 0.25rem;
