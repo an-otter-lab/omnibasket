@@ -204,11 +204,22 @@ def check_explanation(paragraph: str, payload: dict) -> CheckResult:
     )
 
 
+def one_order_of(payload) -> dict | None:
+    """The one-order option. The UI posts it as `one_order` (live /why payloads); /solve's own
+    key is `one_parcel`, kept as a fallback."""
+    if not isinstance(payload, dict):
+        return None
+    for key in ("one_order", "one_parcel"):
+        if isinstance(payload.get(key), dict):
+            return payload[key]
+    return None
+
+
 def fallback_sentences(payload: dict) -> tuple[str, str]:
     """The plain sentence shown when the paragraph is dropped. No model."""
 
     cheapest = payload.get("cheapest") if isinstance(payload.get("cheapest"), dict) else {}
-    one = payload.get("one_parcel") if isinstance(payload.get("one_parcel"), dict) else {}
+    one = one_order_of(payload) or {}
     answer = one.get("answer") if isinstance(one.get("answer"), dict) else {}
     total = _int_or_none(cheapest.get("total_cents"))
     if total is None:
@@ -493,6 +504,11 @@ def _facts(payload: dict) -> _Facts:
                     walk(item)
 
     walk(payload)
+    # S17: "one order is not possible" / "nicio comandă unică" names the one-order option, whose
+    # count is 1 by definition, even when the payload has no one-order answer to carry that count.
+    one = one_order_of(payload)
+    if isinstance(one, dict) and one.get("status") == "not_possible":
+        orders.add(1)
     # A saving the payload does not store as its own field is still allowed
     # when it is the exact difference of two totals.
     total_list = [value for value in totals]
