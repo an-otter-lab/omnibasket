@@ -625,13 +625,15 @@
 
               <!-- R10: Options. Editions only when a book has a second edition; memberships only
                    for a shop that can take a book, one switch row each. -->
-              <details class="roptions" data-options>
-                <summary class="ropt-sum">{{ m.optionsTitle }}</summary>
-                @if (hasEditions) {
-                  <p class="roptrow" data-editions-row><a class="lnk" href="#/editions" (click)="onLinkClick($event, 'editions')">{{ editionsPill() }}</a></p>
-                }
-                <app-memberships [rows]="membershipRows" [declared]="declaredMemberships" [lang]="lang" (declaredChange)="setMemberships($event)" />
-              </details>
+              @if (hasEditions || membershipRows.length) {
+                <details class="roptions" data-options>
+                  <summary class="ropt-sum">{{ m.optionsTitle }}</summary>
+                  @if (hasEditions) {
+                    <p class="roptrow" data-editions-row><a class="lnk" href="#/editions" (click)="onLinkClick($event, 'editions')">{{ editionsPill() }}</a></p>
+                  }
+                  <app-memberships [rows]="membershipRows" [declared]="declaredMemberships" [lang]="lang" (declaredChange)="setMemberships($event)" />
+                </details>
+              }
 
               @if (stamp()) { <p class="rstamp"><span class="stamp">{{ stamp() }}</span></p> }
             </div>
