@@ -194,6 +194,7 @@
              autocomplete="off" autocapitalize="off" spellcheck="false"
              [attr.placeholder]="m.entryPlaceholder"
              [value]="fieldText"
+             [attr.aria-invalid]="isbnWrong ? true : null"
              (input)="onFieldInput($event)" />
       <button class="btn full" type="submit">{{ m.entrySubmit }}</button>
       <button class="btn2 full" type="button" id="photo-trigger" [disabled]="photoReading" [attr.aria-busy]="photoReading" (click)="addPhotoInput.click()">
@@ -206,6 +207,9 @@
       <input #addPhotoInput type="file" accept="image/*" capture="environment" style="display:none" [disabled]="photoReading" (change)="onEntryPhoto($event)" />
     </form>
 
+    @if (isbnWrong) {
+      <p class="s note" role="alert" data-state="isbn-wrong">{{ m.isbnLooksWrong }}</p>
+    }
     @if (addError) {
       <p class="s note" role="alert" data-state="add-read-failed">{{ addError }}</p>
     }

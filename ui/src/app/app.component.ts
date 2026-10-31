@@ -8,7 +8,7 @@ import { EventsService, liveUrl } from './events.service';
 /** The route argument of the photo read's progress screen. It is not an ISBN and starts no read. */
 const PHOTO_ROUTE_ARG = 'photo';
 import { LiveProgressComponent } from './live-progress.component';
-import { Candidate, LiveOffer, Progress, parseInput, pastedBook } from './live';
+import { Candidate, LiveOffer, Progress, badIsbn, parseInput, pastedBook } from './live';
 import { PickListComponent, PickState } from './pick-list.component';
 import { ShopReadsComponent } from './shop-reads.component';
 import { buyListFromOrders, encodeBuyList } from './buy-list';
@@ -405,7 +405,17 @@ export class AppComponent implements OnDestroy {
       this.dupPick = null;
       this.closeMenus();
       const q = name === 'find' ? this.route.arg.trim() : '';
-      if (q) {
+      this.isbnWrong = false;
+      if (q && badIsbn(q)) {
+        // S8: a #/find/ link with a mistyped ISBN puts the number back in the field to fix.
+        this.fieldText = q;
+        const el = this.fieldRef()?.nativeElement;
+        if (el) el.value = q;
+        this.isbnWrong = true;
+        this.boxText = '';
+        this.candidates = [];
+        this.pickState = 'idle';
+      } else if (q) {
         void this.runSearch(q);
       } else {
         this.boxText = '';
@@ -440,7 +450,11 @@ export class AppComponent implements OnDestroy {
 
   onFieldInput(event: Event): void {
     this.fieldText = (event.target as HTMLInputElement).value;
+    this.isbnWrong = false;
   }
+
+  /** S8: a mistyped ISBN was entered; the text stays in the field and the note says why. */
+  isbnWrong = false;
 
   /**
    * R0: empty the field in the model and in the input itself. A typed query cleared within the
@@ -574,6 +588,12 @@ export class AppComponent implements OnDestroy {
     event.preventDefault();
     const text = this.fieldText.trim();
     if (!text) return;
+    if (badIsbn(text)) {
+      // S8: no search for a number that cannot be an ISBN, and the shopper keeps what they typed.
+      this.isbnWrong = true;
+      return;
+    }
+    this.isbnWrong = false;
     this.clearField();
     this.submitBox(text);
   }

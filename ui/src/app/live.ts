@@ -196,3 +196,12 @@ export function sortOffers(rows: LiveOffer[]): LiveOffer[] {
   const priced = rows.filter((r) => r.price_cents != null).sort((a, b) => (a.price_cents as number) - (b.price_cents as number));
   return [...priced, ...rows.filter((r) => r.price_cents == null)];
 }
+
+/**
+ * S8: a 10- or 13-digit entry (hyphens and spaces allowed) that fails the check digit. It is a
+ * mistyped ISBN, not a title: the shopper is told so and the text stays in the field.
+ */
+export function badIsbn(raw: string): boolean {
+  const t = raw.trim().replace(/[\s-]/g, '');
+  return (/^\d{13}$/.test(t) || /^\d{9}[\dXx]$/.test(t)) && toIsbn13(t) === null;
+}

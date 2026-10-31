@@ -452,6 +452,8 @@ export interface Messages {
   rsLockCouldntRead: string;
   rsLockNotListed: string;
   rsLockUnknownShop: string;
+  /** S8: a 10- or 13-digit entry whose check digit fails. */
+  isbnLooksWrong: string;
 }
 
 export const MESSAGES: Record<Lang, Messages> = {
@@ -797,6 +799,7 @@ export const MESSAGES: Record<Lang, Messages> = {
     rsLockCouldntRead: 'its pages could not be read',
     rsLockNotListed: 'it lists none of these books',
     rsLockUnknownShop: 'this shop is not part of the basket',
+    isbnLooksWrong: 'This ISBN doesn\u2019t look right. Check the digits, or search by title.',
   },
   ro: {
     deliveryGapShort: 'Mai ai {amount} lei până la livrarea gratuită la {shop}',
@@ -1140,6 +1143,7 @@ export const MESSAGES: Record<Lang, Messages> = {
     rsLockCouldntRead: 'paginile nu au putut fi citite',
     rsLockNotListed: 'nu are niciuna dintre aceste cărți',
     rsLockUnknownShop: 'magazinul nu face parte din coș',
+    isbnLooksWrong: 'ISBN-ul nu pare corect. Verifică cifrele sau caută după titlu.',
   },
 };
 
