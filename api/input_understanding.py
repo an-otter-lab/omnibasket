@@ -537,6 +537,7 @@ def _understand_link(url, *, ip, limiter, db, opener, rates_loader, today) -> di
 def _indexed_link(url: str, shop, db: Path) -> dict:
     """A link to one of the five shops: ISBN from our index, the URL, or the page (never Amazon)."""
     isbn = None
+    named = (None, None)  # S25: the page's own schema.org name and author, when the page is read
     row = _index_row_by_url(url, db)
     if row and row.get("isbn"):
         isbn = to_isbn13(row["isbn"])
@@ -554,10 +555,15 @@ def _indexed_link(url: str, shop, db: Path) -> dict:
             page = fetch(url)
         except FetchRefused as exc:
             return _failure("link", "refused", "I couldn't open that link (" + exc.reason + ").")
-        isbn = extract_schema_org(page.text).isbn13
+        schema = extract_schema_org(page.text)
+        isbn = schema.isbn13
+        named = _schema_title_author(schema)
     if isbn is None:
         return _failure("link", "not_found", NO_BOOK_MESSAGE)
     query = _query_for_isbn(isbn, db)
     if row and not query.get("title"):
         query = {"title": row.get("title"), "author": row.get("author"), "language": None}
+    if named[0]:
+        # S25: the index title is a search key ("degetul magic roald dahl"); the page names the book.
+        query = {"title": named[0], "author": named[1] or query.get("author"), "language": None}
     return _resolved("link", isbn, query, shop_id=shop.id, product_url=url)
