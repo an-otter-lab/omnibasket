@@ -475,6 +475,8 @@ export interface Messages {
   buyListFree: string;
   /** H3: Find book when the search answers 503 (Open Library busy or down). */
   pickSearchBusy: string;
+  /** P3: the sub-label of the disabled "orders" tab when only one shop works (RO plural). */
+  tabOrdersNotPossible: string;
 }
 
 export const MESSAGES: Record<Lang, Messages> = {
@@ -837,6 +839,7 @@ export const MESSAGES: Record<Lang, Messages> = {
     leftOutNotHere: 'none of the shops in these orders has a price for it',
     buyListFree: 'Free',
     pickSearchBusy: 'Search is busy right now. Try again in a moment.',
+    tabOrdersNotPossible: 'not possible',
   },
   ro: {
     deliveryGapShort: 'Mai ai {amount} lei până la livrarea gratuită la {shop}',
@@ -1148,7 +1151,7 @@ export const MESSAGES: Record<Lang, Messages> = {
     entryNoOffer: 'Niciun magazin nu are acest ISBN.',
     entryTryAnother: 'Încearcă altă ediție',
     entrySearchShop: 'Caută în acest magazin',
-    entryPlaceholder: 'ex. Camera din Pădure',
+    entryPlaceholder: 'ex. Loc la voi pe măturoi',
     entryPhotoPlaceholder: 'Fotografie a unei liste',
     addedToBasket: 'Adăugat {title}. {books} în coș.',
     addReadFailed: 'Nu am putut citi prețurile pentru {title}. Încearcă din nou.',
@@ -1197,6 +1200,7 @@ export const MESSAGES: Record<Lang, Messages> = {
     leftOutNotHere: 'niciunul dintre magazinele din aceste comenzi nu are un preț pentru ea',
     buyListFree: 'Gratuită',
     pickSearchBusy: 'Căutarea este ocupată acum. Încearcă din nou peste câteva clipe.',
+    tabOrdersNotPossible: 'imposibile',
   },
 };
 
