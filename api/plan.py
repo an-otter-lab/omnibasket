@@ -21,6 +21,34 @@ REASON_TEXT = {
     "other_edition": "not in the pinned edition",
 }
 
+# S23: a plan-level "why not" is a code plus arguments; the UI renders it from messages.ts in the
+# shopper's language. ``reason`` keeps the English line for the Why payload, logs and old clients.
+PLAN_REASON = {
+    "no_shop_lists": "no shop lists {title}",
+    "no_chosen_shop_lists": "no shop chosen lists {title}",
+    "no_shop_prints_as": "no shop prints {title} as {edition}",
+    "no_chosen_shop_prints_as": "no shop chosen prints {title} as {edition}",
+    "fee_not_printed_split": "a delivery fee is not printed for this split",
+    "no_single_shop_fees": "no single shop has a known delivery fee for every book",
+    "no_single_shop_lists_all": "no single shop lists every book",
+    "choose_a_shop": "choose at least one shop",
+    "chosen_shop_unusable": "a chosen shop cannot be used: {shops}",
+    "no_split_for_chosen": "no split gives every chosen shop at least one book",
+    "chosen_fees_not_printed": "every split for these shops needs a delivery fee that is not printed",
+    "no_ranked_split": "no ranked split",
+    "one_book": "one book: shops are ranked by known total",
+    "one_shop": "only one shop can be priced for these books",
+}
+
+
+def _why(code: str, **args) -> dict:
+    """``reason`` (English), ``reason_code`` and ``reason_args`` for a not-possible or unranked answer."""
+    text_args = {k: ", ".join(v) if isinstance(v, list) else v for k, v in args.items()}
+    return {"reason": PLAN_REASON[code].format(**text_args), "reason_code": code, "reason_args": args}
+
+
+NO_WHY = {"reason": None, "reason_code": None, "reason_args": {}}
+
 # Reasons a shop cannot take a book.
 NOT_LISTED = "not_listed"
 OUT_OF_STOCK = "out_of_stock"
@@ -113,11 +141,12 @@ def _usable(
     return kept, missing
 
 
-def _missing_reason(missing: list[dict], scope: str) -> str:
+def _missing_reason(missing: list[dict], chosen: bool = False) -> dict:
     first = missing[0]
+    where = "chosen_shop" if chosen else "shop"
     if first["pin"]:
-        return f"no shop {scope}prints {first['title']} as {first['pin']}"
-    return f"no shop {scope}lists {first['title']}"
+        return _why(f"no_{where}_prints_as", title=first["title"], edition=first["pin"])
+    return _why(f"no_{where}_lists", title=first["title"])
 
 
 def delivery_gap(
@@ -226,13 +255,13 @@ def _rows_from_offers(items: list[Item], combo: tuple[Offer, ...]) -> list[dict]
     ]
 
 
-def _answer(ctx: PlanContext, rows: list[dict] | None, *, reason: str | None = None) -> dict:
+def _answer(ctx: PlanContext, rows: list[dict] | None, *, why: dict | None = None) -> dict:
     """A ranked answer, or not possible. A total only when every fee is known."""
 
     if rows is None:
         return {
             "status": "not_possible",
-            "reason": reason,
+            **(why or NO_WHY),
             "currency": ctx.currency,
             "total_cents": None,
             "books_subtotal_cents": None,
@@ -246,7 +275,7 @@ def _answer(ctx: PlanContext, rows: list[dict] | None, *, reason: str | None = N
     ranked = not missing
     return {
         "status": "ranked" if ranked else "not_ranked",
-        "reason": None if ranked else "a delivery fee is not printed for this split",
+        **(NO_WHY if ranked else _why("fee_not_printed_split")),
         "currency": ctx.currency,
         "total_cents": sum(o["order_total_cents"] for o in orders) if ranked else None,
         "books_subtotal_cents": sum(o["books_subtotal_cents"] for o in orders),
@@ -531,18 +560,14 @@ def _one_parcel(ctx: PlanContext, items: list[Item], missing_all: list[dict], pi
     best = next((e for e in shops if e["status"] == "ranked"), None)
     result = {
         "status": "ranked" if best else ("not_ranked" if any(e["status"] == "not_ranked" for e in shops) else "not_possible"),
-        "reason": None,
+        **NO_WHY,
         "best_store_id": best["store_id"] if best else None,
         "answer": best["answer"] if best else None,
         "per_book_delta": [],
         "shops": [{k: v for k, v in e.items() if k != "answer"} for e in shops],
     }
     if best is None:
-        result["reason"] = (
-            "no single shop has a known delivery fee for every book"
-            if result["status"] == "not_ranked"
-            else "no single shop lists every book"
-        )
+        result.update(_why("no_single_shop_fees" if result["status"] == "not_ranked" else "no_single_shop_lists_all"))
     elif cheapest["status"] == "ranked":
         here = _assigned(best["answer"])
         there = _assigned(cheapest)
@@ -586,18 +611,18 @@ def _custom(
         "moves": [],
     }
     if not chosen:
-        return {**base, **_answer(ctx, None, reason="choose at least one shop")}
+        return {**base, **_answer(ctx, None, why=_why("choose_a_shop"))}
     if unselectable:
-        return {**base, **_answer(ctx, None, reason="a chosen shop cannot be used: " + ", ".join(u["store_id"] for u in unselectable))}
+        return {**base, **_answer(ctx, None, why=_why("chosen_shop_unusable", shops=[u["store_id"] for u in unselectable]))}
     items, missing = _usable(ctx, pins, set(chosen))
     if missing:
-        return {**base, **_answer(ctx, None, reason=_missing_reason(missing, "chosen "))}
+        return {**base, **_answer(ctx, None, why=_missing_reason(missing, chosen=True))}
     kind, rows = _solve_rows(ctx, items, set(chosen))
     if rows is None:
-        return {**base, **_answer(ctx, None, reason="no split gives every chosen shop at least one book")}
+        return {**base, **_answer(ctx, None, why=_why("no_split_for_chosen"))}
     answer = _answer(ctx, rows)
     if kind == "not_ranked":
-        answer["reason"] = "every split for these shops needs a delivery fee that is not printed"
+        answer.update(_why("chosen_fees_not_printed"))
     _delta(answer, cheapest)
     moves = []
     if cheapest["status"] == "ranked":
@@ -623,12 +648,12 @@ def _degraded(ctx: PlanContext, items: list[Item]) -> dict | None:
     priced = {s.id for s in ctx.stores}
     shops_with_books = {o.store_id for item in items for o in item.offers if o.store_id in priced}
     if len(ctx.items) == 1:
-        return {"kind": "one_book", "reason": "one book: shops are ranked by known total"}
+        return {"kind": "one_book", **_why("one_book")}
     if len(shops_with_books) == 1:
         return {
             "kind": "one_shop",
             "store_id": next(iter(shops_with_books)),
-            "reason": "only one shop can be priced for these books",
+            **_why("one_shop"),
         }
     return None
 
@@ -656,29 +681,29 @@ def build_plan(
     free_kind, free_rows = (
         _solve_rows(ctx, free_items) if len(free_items) == len(ctx.items) else ("none", None)
     )
-    free_answer = _answer(ctx, free_rows if free_kind == "ranked" else None, reason="no ranked split")
+    free_answer = _answer(ctx, free_rows if free_kind == "ranked" else None, why=_why("no_ranked_split"))
 
     items, missing = _usable(ctx, pins)
     if missing:
-        cheapest = _answer(ctx, None, reason=_missing_reason(missing, ""))
+        cheapest = _answer(ctx, None, why=_missing_reason(missing))
     else:
         _kind, rows = _solve_rows(ctx, items)
-        cheapest = _answer(ctx, rows, reason="no ranked split")
+        cheapest = _answer(ctx, rows, why=_why("no_ranked_split"))
     degraded = _degraded(ctx, items) if not missing else None
     if cheapest["status"] == "ranked":
         cheapest["not_ranked"] = _cheaper_unranked(ctx, items, cheapest["total_cents"])
         cheapest["delta_vs_cheapest_cents"] = 0
     if degraded and degraded["kind"] == "one_shop":
         # One shop only: the one-parcel answer stands, the other tabs cannot differ.
-        cheapest = {**_answer(ctx, None, reason=degraded["reason"]), "degraded": True}
+        cheapest = {**_answer(ctx, None, why=_why(degraded["reason_code"], **degraded["reason_args"])), "degraded": True}
 
     states = _shop_states(ctx)
     one_parcel = _one_parcel(ctx, items, missing, pins, cheapest, states)
     if missing:
-        one_parcel.update({"status": "not_possible", "reason": _missing_reason(missing, ""), "answer": None, "best_store_id": None})
+        one_parcel.update({"status": "not_possible", **_missing_reason(missing), "answer": None, "best_store_id": None})
     custom = _custom(ctx, selected_store_ids, pins, states, cheapest)
     if custom is not None and degraded and degraded["kind"] == "one_shop":
-        custom = {**custom, **_answer(ctx, None, reason=degraded["reason"]), "moves": []}
+        custom = {**custom, **_answer(ctx, None, why=_why(degraded["reason_code"], **degraded["reason_args"])), "moves": []}
 
     edition_delta = None
     if cheapest["status"] == "ranked" and free_answer["status"] == "ranked":
@@ -688,6 +713,8 @@ def build_plan(
         "unknown_pins": unknown_pins,
         "status": cheapest["status"],
         "reason": cheapest["reason"],
+        "reason_code": cheapest["reason_code"],
+        "reason_args": cheapest["reason_args"],
         "unpinned_total_cents": free_answer["total_cents"],
         "total_cents": cheapest["total_cents"],
         "delta_cents": edition_delta,

@@ -412,7 +412,7 @@
           <ng-container *ngTemplateOutlet="v2header; context: { see: true, back: m.orders, stamp: s.read_at ? t('checkedStamp', { date: dateTime(s.read_at) }) : '' }"></ng-container>
           <main class="wrap narrow">
             <h1 class="h2">{{ t('checkedCantPrice', { shop: shopName(s.store_id) }) }}</h1>
-            <p class="p soft">{{ t('checkedCantPriceNote', { shop: shopName(s.store_id), reason: s.not_selectable_reason }) }}</p>
+            <p class="p soft">{{ t('checkedCantPriceNote', { shop: shopName(s.store_id), reason: shopWhy('lock', s.not_selectable_code, s.not_selectable_reason) }) }}</p>
             <div class="box">
               @for (r of shopBooks(s.store_id); track r.book.item_id) {
                 <div class="row">
@@ -484,8 +484,8 @@
                     @if (degraded === 'one_shop') {
                       <div class="box">
                         <p class="pt">{{ m.whyNotSplit }}</p>
-                        <p class="s">{{ data.cheapest.reason }}</p>
-                        @for (s of otherShops(); track s.store_id) { <p class="s"><strong>{{ shopName(s.store_id) }}</strong>: @for (r of s.reasons; track r.code; let last = $last) { {{ r.text }}{{ last ? '' : '; ' }} }</p> }
+                        <p class="s">{{ why(data.cheapest) }}</p>
+                        @for (s of otherShops(); track s.store_id) { <p class="s"><strong>{{ shopName(s.store_id) }}</strong>: @for (r of s.reasons; track r.code; let last = $last) { {{ shopWhy('shop', r.code, r.text) }}{{ last ? '' : '; ' }} }</p> }
                       </div>
                     } @else {
                       @if (data.one_order.per_book_delta.length) {
@@ -502,12 +502,12 @@
                         <div class="box">
                           <p class="pt">{{ shopName(s.store_id) }}</p>
                           @if (s.status === 'not_ranked') { <p class="s n">{{ t('booksAmount', { amount: lei(s.books_subtotal_cents) }) }} · <span class="unk">{{ m.deliveryNotPrinted }}</span></p> }
-                          @for (r of s.reasons; track r.code) { <p class="s">{{ r.text }}</p> }
+                          @for (r of s.reasons; track r.code) { <p class="s">{{ shopWhy('shop', r.code, r.text) }}</p> }
                         </div>
                       }
                     }
                   } @else {
-                    <div class="box"><p class="pt">{{ m.noSingleShop }}</p><p class="s">{{ data.one_order.reason }}</p></div>
+                    <div class="box"><p class="pt">{{ m.noSingleShop }}</p><p class="s">{{ why(data.one_order) }}</p></div>
                   }
                 } @else if (tab === 'custom') {
                   <!-- 05 custom: the shop list lives in the tab; one switch per shop -->
@@ -519,7 +519,7 @@
                       <label class="tog" [class.last]="last" [class.locked]="lock || !s.selectable" [attr.data-shop-switch]="s.store_id">
                         <span class="col"><span class="strong" [class.mute]="!s.selectable">{{ shopName(s.store_id) }}</span>
                           @if (lock) { <span class="s" [id]="lockId(s.store_id)">{{ lock }}</span> }
-                          @else if (!s.selectable) { <span class="s" [id]="lockId(s.store_id)">{{ s.not_selectable_reason }}</span> }
+                          @else if (!s.selectable) { <span class="s" [id]="lockId(s.store_id)">{{ shopWhy('lock', s.not_selectable_code, s.not_selectable_reason) }}</span> }
                           @else if (isChosen(s.store_id) && co) { <span class="s n">{{ count(co.books.length, 'book') }} · @if (co.order_total_cents != null) { {{ money(co.order_total_cents) }} } @else { <span class="unk">{{ m.noTotal }}</span> }</span> }
                           @else if (data.custom) { <span class="s">{{ m.off }}@if (movedFrom(s.store_id)) { · {{ count(movedFrom(s.store_id), 'moved') }} } </span> }
                         </span>
@@ -543,8 +543,8 @@
                     } @else {
                       <div class="box">
                         <p class="pt">{{ m.noTotalShops }}</p>
-                        <p class="s">{{ c.reason }}</p>
-                        @for (u of c.unselectable; track u.store_id) { <p class="s"><strong>{{ shopName(u.store_id) }}</strong>: {{ u.reason }}</p> }
+                        <p class="s">{{ why(c) }}</p>
+                        @for (u of c.unselectable; track u.store_id) { <p class="s"><strong>{{ shopName(u.store_id) }}</strong>: {{ shopWhy('lock', u.code, u.reason) }}</p> }
                       </div>
                     }
                   } @else {
@@ -561,12 +561,12 @@
                       <div class="panel">
                         <p class="k">{{ m.shopsLeftOut }}</p>
                         @for (s of leftOut; track s.store_id; let last = $last) {
-                          <a class="row" [class.last]="last" [href]="'#/shop/' + s.store_id"><span class="col"><span class="strong">{{ shopName(s.store_id) }}</span><span class="s">{{ s.not_selectable_code === 'couldnt_read' ? m.leftOutCouldntRead : t('leftOutCantPrice', { reason: s.not_selectable_reason }) }}</span></span><span aria-hidden="true">›</span></a>
+                          <a class="row" [class.last]="last" [href]="'#/shop/' + s.store_id"><span class="col"><span class="strong">{{ shopName(s.store_id) }}</span><span class="s">{{ s.not_selectable_code === 'couldnt_read' ? m.leftOutCouldntRead : t('leftOutCantPrice', { reason: shopWhy('lock', s.not_selectable_code, s.not_selectable_reason) }) }}</span></span><span aria-hidden="true">›</span></a>
                         }
                       </div>
                     }
                   } @else {
-                    <div class="box"><p class="pt">{{ m.noRanked }}</p><p class="s">{{ data.cheapest.reason }}</p></div>
+                    <div class="box"><p class="pt">{{ m.noRanked }}</p><p class="s">{{ why(data.cheapest) }}</p></div>
                   }
                 }
               </div>
@@ -664,7 +664,7 @@
                 } @else {
                   <div class="box">
                     <p class="pt mute">{{ shopName(s.store_id) }}</p>
-                    @for (r of s.reasons; track r.code) { <p class="s">{{ r.text }}</p> }
+                    @for (r of s.reasons; track r.code) { <p class="s">{{ shopWhy('shop', r.code, r.text) }}</p> }
                   </div>
                 }
               }
@@ -694,7 +694,7 @@
           <div class="foot">
           @if (preview; as p) {
             @if (p.edition.status === 'not_possible') {
-              <div class="box"><p class="k">{{ m.notPossibleTitle }}</p><p class="s">{{ p.edition.reason }}</p></div>
+              <div class="box"><p class="k">{{ m.notPossibleTitle }}</p><p class="s">{{ why(p.edition) }}</p></div>
             } @else if (p.edition.total_cents != null) {
               <div class="previewbox">
                 <p class="k green">{{ m.withEditions }}</p>
@@ -702,7 +702,7 @@
                 <p class="s ink">@if (p.edition.delta_cents) { {{ t(p.edition.delta_cents! > 0 ? 'editionsMore' : 'editionsLess', { amount: lei(p.edition.delta_cents), base: lei(p.edition.unpinned_total_cents) }) }} } @else { {{ m.editionsSame }} }</p>
               </div>
             } @else {
-              <div class="box"><p class="s">{{ p.edition.reason }}</p></div>
+              <div class="box"><p class="s">{{ why(p.edition) }}</p></div>
             }
             @for (n of p.edition.not_ranked; track $index) {
               <p class="s">{{ t('edNotRankedBefore', { names: names(n) }) }} <span class="unk">{{ m.cantBePriced }}</span>{{ t('edNotRankedAfter', { amount: lei(n.books_subtotal_cents), shops: missingNames(n.missing_fees) }) }}</p>
