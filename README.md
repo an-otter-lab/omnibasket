@@ -24,9 +24,10 @@ per-store thresholds.
 
 ## How it works
 
-1. **Read** — Muse Spark turns each saved product page into a structured offer: title, ISBN, price,
-   currency, edition, stock, and the delivery or fee lines the page prints. The demo replays the saved
-   reads; nothing is fetched live.
+1. **Read** — each shop's product page is read with plain code from its schema.org data: title, ISBN,
+   price, currency and stock. Muse Spark fills in only a price or ISBN the page leaves out; Libris and
+   Books-Express always print both, so live reads have not needed it since 30 Oct. The saved pages of the
+   locked `ro-v1` basket each carry a Muse Spark read from the capture job.
 2. **Match** — offers are matched by ISBN, with edition rules applied per book, and the app checks each
    Muse Spark read against the page it was read from. A read that disagrees is shown on the offer as a
    mismatch and never replaces the captured price. The edition pin lets you keep the same-story default
@@ -34,6 +35,17 @@ per-store thresholds.
 3. **Solve** — `POST /solve` computes assignments and delivery costs in integer cents. Unknown fees are not printed and are never treated as zero.
 4. **Compare** — the UI presents three result tabs: **1 parcel**, **cheapest**, and **custom stores**. Cheapest assigns each book for the lowest valid basket total. In custom stores, every switched-on shop must take at least one book; books move among enabled shops in the cheapest way. If an enabled shop cannot be served, no custom total is shown.
 5. **Inspect** — book details include links to the real shop offers, so you can open the underlying listing, and each offer says whether Muse Spark read it and whether the read matches the page.
+
+### Where Muse Spark is used today
+
+Every call goes through `tools/meta_budget.py`, which records it in the spend ledger and stops at the day cap.
+
+- **Why this split**: one short paragraph per result. Plain code checks every number and shop name in it, and the
+  plain template sentence is shown instead when the check fails or Muse is unavailable.
+- **Ask Omnibasket**: maps a typed sentence onto a few closed UI actions. It never writes text the shopper sees.
+- **Photo of a reading list**: reads the titles in the photo.
+- A pasted link is not read by Muse: one shop page is read with plain code, and links to other sites use the ISBN
+  in the address.
 
 ## Front end
 
@@ -44,7 +56,7 @@ The responsive Angular UI shows the three solve results as tabs: **1 parcel** (o
 | Layer | What is built |
 |---|---|
 | Backend | Python, FastAPI. `POST /solve` and `GET /events` (server-sent events). The built UI is served from the same app. |
-| Page reading | Cache-first. Saved pages live in a SQLite page cache, each with its Muse Spark read. The capture spike (Playwright) and the reader (`tools/muse_reads.py`) are separate from the demo path. |
+| Page reading | Cache-first. Saved pages live in a SQLite page cache. Live pages are read from schema.org; Muse Spark only fills a missing price or ISBN. The capture spike (Playwright) and the reader (`tools/muse_reads.py`) are separate from the demo path. |
 | Read layer | `matching/` normalises ISBNs, keeps seller certainty tri-state, and matches editions instead of averaging them. |
 | Solver | `solver/`: exhaustive assignment in integer cents. Tests in `solver/tests/`, including the Romanian basket. |
 | Storage | SQLite page cache, seeded from the locked Romanian basket. |

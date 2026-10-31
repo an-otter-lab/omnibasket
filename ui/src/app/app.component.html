@@ -204,7 +204,7 @@
         </svg>
         <span>{{ photoReading ? m.photoReadingList : m.entryPhoto }}</span>
       </button>
-      <input #addPhotoInput type="file" accept="image/*" capture="environment" style="display:none" [disabled]="photoReading" (change)="onEntryPhoto($event)" />
+      <input #addPhotoInput type="file" accept="image/*" capture="environment" style="display:none" [attr.aria-label]="m.photoAriaLabel" [disabled]="photoReading" (change)="onEntryPhoto($event)" />
     </form>
 
     @if (isbnWrong) {
