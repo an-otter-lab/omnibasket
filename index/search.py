@@ -85,7 +85,8 @@ def validate_isbn(isbn: str) -> bool:
             return False
         return total % 11 == 0
     if len(s) == 13:
-        if not s.isdigit():
+        # S4b: an ISBN-13 always starts 978 or 979; anything else is a product barcode.
+        if not s.isdigit() or s[:3] not in ("978", "979"):
             return False
         return sum(int(ch) * (1 if i % 2 == 0 else 3) for i, ch in enumerate(s)) % 10 == 0
     return False

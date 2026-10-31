@@ -43,8 +43,9 @@ def test_barcode_page_is_not_attached(cache, ids):
     with patch("api.offers.fetch", return_value=page(**ids)) as f:
         first = run(cache)[0]
         second = run(cache)[0]
-    # A barcode under "isbn" is remembered as no match; a page with no isbn at all is read again (as before).
-    assert f.call_count == (1 if "isbn" in ids else 2)
+    # S4b: a barcode is never an ISBN-13, so a page whose "isbn" is a barcode is a page with no isbn,
+    # and like the gtin13-only page it is read again rather than remembered (as before S4).
+    assert f.call_count == 2
     for got in (first, second):
         assert got.status != "ok"
         assert got.price_cents is None
