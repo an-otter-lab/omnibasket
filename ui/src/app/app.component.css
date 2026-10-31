@@ -1,6 +1,11 @@
-.why { margin-top: 1rem; padding: .85rem 1rem; border-left: 2px solid var(--line); background: var(--why-bg); color: var(--ink); }
+.why { margin-top: 1rem; padding: 1rem; border-radius: 12px; background: var(--why-bg); color: var(--ink); }
 .why p { margin: 0; line-height: 1.55; }
-.why-source { display: inline-block; margin-top: .4rem; color: var(--muted); font-size: .75rem; }
+.why-label { font: 600 13px/16px Inter, sans-serif; color: var(--ink-soft); margin-bottom: 8px; }
+.why-text { font-size: 15px; line-height: 22px; }
+/* Loading is a two-line skeleton, never a placeholder sentence. */
+.why-skel { display: flex; flex-direction: column; gap: 8px; }
+.why-skel span { display: block; height: 12px; border-radius: 6px; background: var(--surface-2); }
+.why-skel span:last-child { width: 60%; }
 
 /* Entry screen layout: input box and photo button side by side */
 .entry-row {

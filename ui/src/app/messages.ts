@@ -11,8 +11,8 @@ export interface Messages {
   /** {amount} is already formatted as the app formats lei (e.g. 153,50). */
   deliveryGapShort: string;
   deliveryGapReached: string;
-  whySplitTemplate: string;
-  writtenByMuse: string;
+  /** R8/R8b: the label above the /why paragraph; the paragraph itself comes from the API. */
+  whyTitle: string;
 
   // Feature 6: buy list per shop.
   buyListEntry: string;
@@ -362,7 +362,11 @@ export interface Messages {
   progLabel: string;
   // Feature 7: Ask Omnibasket
   askTitle: string;
+  /** R14: the visible label of the field; the placeholder is never the only label. */
+  askLabel: string;
   askPlaceholder: string;
+  /** R14: the longer hint under the field, wraps at 390. */
+  askHint: string;
   askSubmit: string;
   askExample1: string;
   askExample2: string;
@@ -417,8 +421,7 @@ export const MESSAGES: Record<Lang, Messages> = {
   en: {
     deliveryGapShort: '{amount} lei short of free delivery at {shop}',
     deliveryGapReached: 'Free delivery reached',
-    whySplitTemplate: 'The cheapest split explains this basket’s lowest priced total.',
-    writtenByMuse: 'Written by Muse',
+    whyTitle: 'Why this split',
     buyListEntry: 'Buy list for these orders',
     buyListTitle: 'Buy list',
     buyListIntro: 'One order per shop. Tick each book once it is in that shop’s cart.',
@@ -680,7 +683,9 @@ export const MESSAGES: Record<Lang, Messages> = {
     progLabel: 'Read progress',
     // Feature 7: Ask Omnibasket
     askTitle: 'Ask Omnibasket',
-    askPlaceholder: 'Try: no Amazon, and keep it to one order',
+    askLabel: 'Ask',
+    askPlaceholder: 'Ask, e.g. "no Amazon"',
+    askHint: 'Try: no Amazon · keep it to one order',
     askSubmit: 'Ask',
     askExample1: 'Keep it to one order',
     askExample2: 'No Amazon',
@@ -727,8 +732,7 @@ export const MESSAGES: Record<Lang, Messages> = {
   ro: {
     deliveryGapShort: 'Mai ai {amount} lei până la livrarea gratuită la {shop}',
     deliveryGapReached: 'Comanda are livrare gratuită',
-    whySplitTemplate: 'Cea mai ieftină împărțire explică cel mai mic total cu preț pentru acest coș.',
-    writtenByMuse: 'Scris de Muse',
+    whyTitle: 'De ce această împărțire',
     buyListEntry: 'Lista de cumpărături pentru aceste comenzi',
     buyListTitle: 'Lista de cumpărături',
     buyListIntro: 'O comandă pentru fiecare magazin. Bifează fiecare carte după ce e în coșul magazinului.',
@@ -990,7 +994,9 @@ export const MESSAGES: Record<Lang, Messages> = {
     progLabel: 'Progresul citirii',
     // Feature 7: Ask Omnibasket
     askTitle: 'Întreabă Omnibasket',
-    askPlaceholder: 'Încearcă: fără Amazon, într-o singură comandă',
+    askLabel: 'Întreabă',
+    askPlaceholder: 'Întreabă, ex. „fără Amazon”',
+    askHint: 'Încearcă: fără Amazon · o singură comandă',
     askSubmit: 'Întreabă',
     askExample1: 'O singură comandă',
     askExample2: 'Fără Amazon',

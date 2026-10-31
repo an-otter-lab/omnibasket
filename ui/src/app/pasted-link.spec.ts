@@ -48,6 +48,9 @@ describe('a pasted shop link with no ISBN in it', () => {
   }
 
   beforeEach(() => {
+    // Isolation: `source` is the last EventSource this suite opened. Without the reset the
+    // not-found test passes only when it happens to run before a test that reads live.
+    source = undefined;
     TestBed.configureTestingModule({ providers: [{ provide: EVENT_SOURCE, useValue: (url: string) => (source = new FakeSource(url)) }] });
     localStorage.clear();
     window.location.hash = '';

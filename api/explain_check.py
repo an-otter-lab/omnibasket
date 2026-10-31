@@ -232,11 +232,11 @@ def fallback_sentences(payload: dict) -> tuple[str, str]:
     ro_from = f", de la {ro_shops}" if ro_shops else ""
     en_from = f", from {en_shops}" if en_shops else ""
     ro = (
-        f"Cea mai ieftină împărțire este {_money(total, 'ro')} {unit} "
+        f"Cea mai ieftină împărțire este {_money(total)}\u00a0{unit} "
         f"în {count} {_orders_ro(count)}{ro_from}."
     )
     en = (
-        f"The cheapest split is {_money(total, 'en')} {unit} "
+        f"The cheapest split is {_money(total)}\u00a0{unit} "
         f"in {count} {_orders_en(count)}{en_from}."
     )
     one_store = one.get("best_store_id")
@@ -249,22 +249,22 @@ def fallback_sentences(payload: dict) -> tuple[str, str]:
         en += f" One order at {shop} is the same total."
     elif delta > 0:
         ro += (
-            f" O comandă la {shop} este {_money(one_total, 'ro')} {unit}, "
-            f"cu {_money(delta, 'ro')} {unit} mai mult."
+            f" O comandă la {shop} este {_money(one_total)}\u00a0{unit}, "
+            f"cu {_money(delta)}\u00a0{unit} mai mult."
         )
         en += (
-            f" One order at {shop} is {_money(one_total, 'en')} {unit}, "
-            f"{_money(delta, 'en')} {unit} more."
+            f" One order at {shop} is {_money(one_total)}\u00a0{unit}, "
+            f"{_money(delta)}\u00a0{unit} more."
         )
     else:
         less = -delta
         ro += (
-            f" O comandă la {shop} este {_money(one_total, 'ro')} {unit}, "
-            f"cu {_money(less, 'ro')} {unit} mai puțin."
+            f" O comandă la {shop} este {_money(one_total)}\u00a0{unit}, "
+            f"cu {_money(less)}\u00a0{unit} mai puțin."
         )
         en += (
-            f" One order at {shop} is {_money(one_total, 'en')} {unit}, "
-            f"{_money(less, 'en')} {unit} less."
+            f" One order at {shop} is {_money(one_total)}\u00a0{unit}, "
+            f"{_money(less)}\u00a0{unit} less."
         )
     return ro, en
 
@@ -584,14 +584,13 @@ def _shown_lei(cents: int | None) -> str:
     return f"{cents // 100}.{cents % 100:02d} lei"
 
 
-def _money(cents: int, lang: str) -> str:
+def _money(cents: int) -> str:
+    """The box shows comma decimals and a dot for thousands in both languages (462,58 lei)."""
     sign = "-" if cents < 0 else ""
     cents = abs(cents)
     lei, ban = divmod(cents, 100)
-    if lang == "ro":
-        grouped = f"{lei:,}".replace(",", ".")
-        return f"{sign}{grouped},{ban:02d}"
-    return f"{sign}{lei:,}.{ban:02d}"
+    grouped = f"{lei:,}".replace(",", ".")
+    return f"{sign}{grouped},{ban:02d}"
 
 
 def _unit(currency: str) -> str:

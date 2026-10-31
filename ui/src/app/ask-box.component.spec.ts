@@ -250,6 +250,34 @@ describe('Ask box', () => {
     f.app.lang = 'en';
   });
 
+  it('has a visible label, a hint and a placeholder that fits 390', async () => {
+    const f = await setup();
+    const label = f.el.querySelector<HTMLLabelElement>('app-ask-box label.ask-label')!;
+    const input = f.el.querySelector<HTMLInputElement>('app-ask-box input')!;
+    expect(label.textContent!.trim()).toBe('Ask');
+    expect(label.htmlFor).toBe(input.id);
+    expect(input.placeholder).toBe('Ask, e.g. "no Amazon"');
+    expect(input.getAttribute('aria-describedby')).toBe('ask-hint');
+    expect(f.el.querySelector('#ask-hint')!.textContent!.trim()).toBe('Try: no Amazon · keep it to one order');
+    f.app.lang = 'ro';
+    f.fixture.detectChanges();
+    expect(f.el.querySelector('app-ask-box label.ask-label')!.textContent!.trim()).toBe('Întreabă');
+    expect(f.el.querySelector<HTMLInputElement>('app-ask-box input')!.placeholder).toBe('Întreabă, ex. „fără Amazon”');
+    expect(f.el.querySelector('#ask-hint')!.textContent!.trim()).toBe('Încearcă: fără Amazon · o singură comandă');
+    f.app.lang = 'en';
+  });
+
+  it('clears the old answer when the language switches', async () => {
+    const f = await setup();
+    await ask(f, 'one order');
+    expect(reply(f)).toBe('Showing 1 order.');
+    f.app.lang = 'ro';
+    f.fixture.detectChanges();
+    expect(reply(f)).toBe('');
+    expect(f.el.querySelector('app-ask-box .ask-reply span')).toBeNull();
+    f.app.lang = 'en';
+  });
+
   it('is hidden in fixture mode', async () => {
     const f = await setup();
     f.app.fixture = 'failed-read';

@@ -311,10 +311,11 @@ export class AppComponent implements OnDestroy {
     this.i18n.set(lang);
   }
   private whyPayload: unknown = null;
+  /** R8/R8b: the /why paragraph for template or muse; empty while loading and after a failure (the box is hidden). */
   whyText = '';
+  whyLoading = false;
   whyMuse = false;
   private whyRequest = 0;
-  get museLabel(): string { return MESSAGES[this.lang].writtenByMuse; }
   // Feature 5: memberships the shopper declared, kept in localStorage.
   declaredMemberships: string[] = [];
   // Feature 2: photo reading state.
@@ -919,16 +920,25 @@ export class AppComponent implements OnDestroy {
     const request = ++this.whyRequest;
     this.whyPayload = payload;
     this.whyMuse = false;
-    this.whyText = MESSAGES[this.lang].whySplitTemplate;
-    if (!this.hasDescribableResult(payload)) return;
+    this.whyText = '';
+    this.whyLoading = this.hasDescribableResult(payload);
+    if (!this.whyLoading) return;
     try {
       const res = await fetch('/why', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ payload, lang: this.lang }) });
-      if (!res.ok) return;
+      if (request !== this.whyRequest) return;
+      if (!res.ok) { this.whyLoading = false; return; }
       const result = await res.json() as { text?: string; source?: string };
-      if (request !== this.whyRequest || !result.text || result.source !== 'muse') return;
-      this.whyText = result.text;
-      this.whyMuse = true;
-    } catch { /* Safe template remains visible. */ }
+      if (request !== this.whyRequest) return;
+      const text = (result.text || '').trim();
+      if (!text || (result.source !== 'muse' && result.source !== 'template')) { this.whyLoading = false; return; }
+      // R8b: the server's own template sentence is shown too, not only the Muse paragraph.
+      this.whyText = text;
+      this.whyMuse = result.source === 'muse';
+      this.whyLoading = false;
+    } catch {
+      if (request === this.whyRequest) this.whyLoading = false;
+      // R8b: a failed /why hides the box; no filler sentence.
+    }
   }
 
   private async post(pins: Record<string, string>, selected: string[] | null): Promise<Payload | null> {
