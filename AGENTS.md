@@ -39,4 +39,5 @@ The plan being built is `docs/ops/omnibasket-hackathon-push-2026-10-29.md`. Wher
 - Say "order" in EN and "comandă" in RO, never "parcel".
 - The entry screen keeps its headline, subtitle, field, Find book, Photo of a list and footnote in every state; with books in the basket only How it works gives way to the basket chips (Adrian, 31 Oct).
 - A button that starts a request (Find book, Photo of a list) shows its loading state and is disabled until the answer comes back (Adrian, 31 Oct).
+- A book in the basket that is in none of the orders is named next to the orders, with why ("no shop we read has it"), and links to its row; the counts never leave it unexplained (Adrian, 31 Oct).
 - A priced printing in another language than the book the shopper picked carries its language on the book's chip in the order card, e.g. "Matilda · RO" (Adrian, 31 Oct).
