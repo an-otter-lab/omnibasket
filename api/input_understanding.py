@@ -535,7 +535,8 @@ def _understand_link(url, *, ip, limiter, db, opener, rates_loader, today) -> di
 
 
 def _indexed_link(url: str, shop, db: Path) -> dict:
-    """A link to one of the five shops: ISBN from our index, the URL, or the page (never Amazon)."""
+    """A link to one of the five shops: ISBN from our index, the URL, or the page; name and author from
+    the page when it has them (S25b). Exactly one page read, never Amazon."""
     isbn = None
     named = (None, None)  # S25: the page's own schema.org name and author, when the page is read
     row = _index_row_by_url(url, db)
@@ -549,15 +550,22 @@ def _indexed_link(url: str, shop, db: Path) -> dict:
     if isbn is None and shop.id == "amazon_de":
         m = _ASIN_RE.search(urllib.parse.urlsplit(url).path)
         isbn = isbn10_to_13(m.group(1)) if m else None
-    if isbn is None and shop.id != "amazon_de":
-        # One guarded read of the shop's own product page.
+    if shop.id != "amazon_de":
+        # One guarded read of the shop's own product page (never Amazon): the ISBN when the index
+        # and the URL lack it, and (S25b) the book's name and author for every pasted shop link.
         try:
             page = fetch(url)
         except FetchRefused as exc:
-            return _failure("link", "refused", "I couldn't open that link (" + exc.reason + ").")
-        schema = extract_schema_org(page.text)
-        isbn = schema.isbn13
-        named = _schema_title_author(schema)
+            if isbn is None:
+                return _failure("link", "refused", "I couldn't open that link (" + exc.reason + ").")
+            page = None  # the ISBN is known: name it from the index, as before
+        if page is not None:
+            schema = extract_schema_org(page.text)
+            page_isbn = to_isbn13(schema.isbn13) if schema.isbn13 else None
+            if isbn is None:
+                isbn = schema.isbn13
+            if page_isbn is None or page_isbn == isbn:
+                named = _schema_title_author(schema)  # never a name from a page about another ISBN
     if isbn is None:
         return _failure("link", "not_found", NO_BOOK_MESSAGE)
     query = _query_for_isbn(isbn, db)

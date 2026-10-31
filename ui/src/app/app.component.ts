@@ -664,10 +664,9 @@ export class AppComponent implements OnDestroy {
       return;
     }
     this.pickState = 'searching';
-    if (parsed.kind === 'link' && !parsed.isbn) {
-      // The address carries no ISBN, so let /input read the page it points at.
-      await this.resolvePastedLink(text, parsed.url);
-      return;
+    if (parsed.kind === 'link') {
+      // S25b: /input reads the page once and names the book from it; an ISBN in the address is only the fallback.
+      if ((await this.resolvePastedLink(text, parsed.url, !!parsed.isbn)) || !parsed.isbn) return;
     }
     const isbn = parsed.kind === 'isbn' || parsed.kind === 'link' ? parsed.isbn : null;
     try {
@@ -688,10 +687,11 @@ export class AppComponent implements OnDestroy {
   }
 
   /**
-   * A pasted shop link without an ISBN: /input reads the page and names the book.
+   * A pasted link: /input reads the page and names the book.
    * A resolved link goes straight to its live prices; only nothing-found says so.
+   * With `fallback` (an ISBN in the address) a failed read returns false and the ISBN is searched instead.
    */
-  private async resolvePastedLink(text: string, url: string): Promise<void> {
+  private async resolvePastedLink(text: string, url: string, fallback = false): Promise<boolean> {
     let body: unknown = null;
     let answered = false;
     try {
@@ -705,19 +705,21 @@ export class AppComponent implements OnDestroy {
     } catch {
       answered = false;
     }
-    if (this.route.name !== 'find' || this.route.arg !== text) return;
+    if (this.route.name !== 'find' || this.route.arg !== text) return true;
+    const book = answered ? pastedBook(body) : null;
+    if (!book && fallback) return false;
     if (!answered) {
       this.pickState = 'error';
-      return;
+      return true;
     }
-    const book = pastedBook(body);
     if (!book) {
       this.pickState = 'link_failed';
-      return;
+      return true;
     }
     // The resolved book joins the basket the same way a picked row does, and the
     // page that was pasted is read as that shop's listing for its price.
     this.pickBook({ title: book.title || '', author: book.author, isbn: book.isbn, cover_url: null, shops: [] }, book.listing);
+    return true;
   }
 
   pickBook(c: Candidate, listing?: string | null): void {
