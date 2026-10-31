@@ -5,7 +5,7 @@
 <ng-template #hright let-see="see">
   <div class="hright">
     @if (headerBookCount) {
-      <a class="pill basketpill" href="#/result" data-header-count (click)="onLinkClick($event, 'result')"
+      <a class="pill basketpill" href="#/result" data-header-count (click)="onCountClick($event)"
          [attr.aria-label]="see ? t('headerOrdersLabel', { n: count(headerBookCount, 'book') }) : null">{{ count(headerBookCount, 'book') }}@if (see) {<span class="seewide"> · {{ m.seeOrders }}</span><span class="seenarrow" aria-hidden="true"> ›</span>}</a>
     }
     <div class="hcontrols">
@@ -154,7 +154,7 @@
 
 <ng-template #yourbooks>
   <section class="yourbooks" data-section="your-books" aria-labelledby="yb-h">
-    <h2 class="k" id="yb-h">{{ m.basketBooksTitle }}</h2>
+    <h2 class="k" id="yb-h" tabindex="-1">{{ m.basketBooksTitle }}</h2>
     @for (i of basketItems; track i.id) {
       <article class="ybook" [attr.data-isbn]="i.isbn" [attr.data-no-offer]="isNoOffer(i) || null">
         <div class="between">
@@ -577,6 +577,8 @@
                   }
                 }
               </div>
+              <!-- S31: at desktop "Your books, shop by shop" sits in the left column under the cards. -->
+              @if (!sampleMode) { <div class="rbooks"><ng-container *ngTemplateOutlet="yourbooks"></ng-container></div> }
             </div>
 
             <div class="rside">
@@ -681,7 +683,7 @@
           </div>
         }
         @if (note) { <p class="s note" role="status">{{ note }}</p> }
-        @if (!sampleMode) { <ng-container *ngTemplateOutlet="yourbooks"></ng-container> }
+        @if (!sampleMode && degraded === 'one_book') { <ng-container *ngTemplateOutlet="yourbooks"></ng-container> }
       </main>
 
       @if (route.name === 'editions' && hasEditions) {

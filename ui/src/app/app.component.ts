@@ -992,6 +992,15 @@ export class AppComponent implements OnDestroy {
 
   /** In-app links go through go(): a plain #fragment link resolves against <base href> and
    *  drops the query, so a demo link (?sample=) would lose its basket on the first click. */
+  /** S32: on the result page the header book count jumps to "Your books"; elsewhere it opens the result. */
+  onCountClick(event: Event): void {
+    const books = this.route.name === 'result' ? document.querySelector<HTMLElement>('[data-section="your-books"]') : null;
+    if (!books) return this.onLinkClick(event, 'result');
+    event.preventDefault();
+    books.scrollIntoView({ block: 'start' });
+    books.querySelector<HTMLElement>('#yb-h')?.focus({ preventScroll: true });
+  }
+
   onLinkClick(event: Event, path: string): void {
     event.preventDefault();
     this.go(path);
