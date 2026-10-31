@@ -8,13 +8,19 @@ User=omnibasket
 Group=omnibasket
 WorkingDirectory=/opt/omnibasket
 Environment=PYTHONPATH=/opt/omnibasket
+# META_API_KEY lives only here: root-only, mode 600, never in git (D3, Adrian 31 Oct). The unit fails without it.
+EnvironmentFile=/etc/omnibasket/env
+# meta_budget.py defaults to the Mac's paths; a missing windows file would mean no cap at all.
+Environment=META_SPEND_WINDOWS=/opt/omnibasket/config/spend-windows.json
+Environment=META_SPEND_PATH=/var/lib/omnibasket/meta-spend.jsonl
+StateDirectory=omnibasket
 ExecStart=/opt/omnibasket/.venv/bin/python -m uvicorn api.app:app --app-dir /opt/omnibasket --host 127.0.0.1 --port 8000
 Restart=on-failure
 RestartSec=5
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
-ReadWritePaths=/opt/omnibasket/data/cache
+ReadWritePaths=/opt/omnibasket/data/cache /opt/omnibasket/data/index
 
 [Install]
 WantedBy=multi-user.target
