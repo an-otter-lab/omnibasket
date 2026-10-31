@@ -332,7 +332,8 @@ export class AppComponent implements OnDestroy {
   addError = '';
   /** R12: the pick that matches a book already in the basket, held until the shopper chooses. */
   dupPick: { c: Candidate; listing?: string | null } | null = null;
-  private addStream: Subscription | null = null;
+  /** S2: one price read per book being added, keyed by ISBN; a new add never cancels another book's read. */
+  private addStreams = new Map<string, { sub: Subscription | null; had: boolean }>();
   private readonly fieldRef = viewChild<ElementRef<HTMLInputElement>>('entryInput');
   /** R12: "Keep one" takes the focus when the duplicate question opens. */
   private readonly dupKeepRef = viewChild<ElementRef<HTMLButtonElement>>('dupKeep');
@@ -370,8 +371,8 @@ export class AppComponent implements OnDestroy {
 
   ngOnDestroy(): void {
     this.stream?.unsubscribe();
-    this.addStream?.unsubscribe();
-    this.addStream = null;
+    for (const r of this.addStreams.values()) r.sub?.unsubscribe();
+    this.addStreams.clear();
     if (this.documentClickListener) {
       document.removeEventListener('click', this.documentClickListener);
       this.documentClickListener = null;
@@ -737,16 +738,20 @@ export class AppComponent implements OnDestroy {
     const isbn = c.isbn as string;
     const title = (c.title || '').trim() || 'ISBN ' + isbn;
     const author = c.author ?? null;
-    const had = this.basketSvc.has(isbn);
+    // S2: only a read for this same ISBN is replaced; it keeps whether the book was there before it.
+    const pending = this.addStreams.get(isbn);
+    pending?.sub?.unsubscribe();
+    const had = pending ? pending.had : this.basketSvc.has(isbn);
     this.basketSvc.addUnpriced(isbn, title, author);
     this.noteAdded(title);
     this.markStale();
-    this.addStream?.unsubscribe();
+    const entry: { sub: Subscription | null; had: boolean } = { sub: null, had };
+    this.addStreams.set(isbn, entry);
     let done = false;
     const settle = (payload: Payload | null): void => {
       if (done) return;
       done = true;
-      this.addStream = null;
+      if (this.addStreams.get(isbn) === entry) this.addStreams.delete(isbn);
       if (payload) {
         this.basketSvc.addFromLive(adapt(payload), isbn, title, author);
         this.noteAdded(title);
@@ -756,7 +761,7 @@ export class AppComponent implements OnDestroy {
       }
       this.markStale();
     };
-    this.addStream = this.events.open(liveUrl(isbn, itemId(isbn), title, author, listing)).subscribe({
+    const sub = this.events.open(liveUrl(isbn, itemId(isbn), title, author, listing)).subscribe({
       next: (ev) => {
         if (ev.type === 'solution') settle(ev.payload as Payload);
         else if (ev.type === 'error') settle(null);
@@ -764,6 +769,8 @@ export class AppComponent implements OnDestroy {
       error: () => settle(null),
       complete: () => settle(null),
     });
+    if (done) sub.unsubscribe();
+    else entry.sub = sub;
   }
 
   private noteAdded(title: string): void {
