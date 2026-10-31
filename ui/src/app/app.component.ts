@@ -15,7 +15,6 @@ import { buyListFromOrders, encodeBuyList } from './buy-list';
 import { Lang, MESSAGES, Messages, count, editionName, fieldName, fill } from './messages';
 import { I18nService } from './i18n';
 import { ThemePref, ThemeService } from './theme';
-import { SettingsComponent } from './settings.component';
 import { MembershipsComponent } from './memberships.component';
 import { MembershipRow, loadDeclared, saveDeclared } from './memberships';
 import { AskApplied, AskBoxComponent } from './ask-box.component';
@@ -260,7 +259,7 @@ const STATUS_KEY: Record<string, keyof Messages> = {
 
 @Component({
   selector: 'app-root',
-  imports: [NgTemplateOutlet, SettingsComponent, BuyListComponent, PickListComponent, LiveProgressComponent, ShopReadsComponent, MembershipsComponent, PhotoResultComponent, AskBoxComponent],
+  imports: [NgTemplateOutlet, BuyListComponent, PickListComponent, LiveProgressComponent, ShopReadsComponent, MembershipsComponent, PhotoResultComponent, AskBoxComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.css',
 })
@@ -1284,6 +1283,11 @@ export class AppComponent implements OnDestroy {
 
   get oneDelta(): number | null {
     return this.data?.one_order.answer?.delta_vs_cheapest_cents ?? null;
+  }
+
+  /** R7: the cheapest split is a single order, so one tab stands for both "1 order" and "cheapest". */
+  get cheapestIsOneOrder(): boolean {
+    return this.data?.cheapest.order_count === 1;
   }
 
   get leftOut(): Shop[] {

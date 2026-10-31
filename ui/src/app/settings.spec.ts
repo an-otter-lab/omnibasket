@@ -2,7 +2,6 @@ import { TestBed } from '@angular/core/testing';
 import { AppComponent } from './app.component';
 import { I18nService, LANG_KEY, browserLang } from './i18n';
 import { MESSAGES } from './messages';
-import { SettingsComponent } from './settings.component';
 import { DARK_QUERY, THEME_KEY, ThemeService } from './theme';
 
 // Feature 8: the RO/EN toggle and the system / light / dark theme.
@@ -14,10 +13,6 @@ function clean(): void {
   root.lang = 'en';
   delete root.dataset['theme'];
   delete root.dataset['themePref'];
-}
-
-function pressed(el: HTMLElement): string[] {
-  return [...el.querySelectorAll<HTMLButtonElement>('button[aria-pressed="true"]')].map((b) => b.textContent!.trim());
 }
 
 describe('language (feature 8)', () => {
@@ -159,16 +154,4 @@ describe('theme (feature 8)', () => {
     expect(document.documentElement.dataset['theme']).toBe('dark');
   });
 
-  it('the settings buttons set the theme and show which one is on', () => {
-    fakeMatchMedia(false);
-    const fixture = TestBed.createComponent(SettingsComponent);
-    fixture.detectChanges();
-    const el: HTMLElement = fixture.nativeElement;
-    expect(pressed(el)).toContain(MESSAGES.en.themeSystem);
-    el.querySelector<HTMLButtonElement>('button[data-theme-option="dark"]')!.click();
-    fixture.detectChanges();
-    expect(pressed(el)).toContain(MESSAGES.en.themeDark);
-    expect(document.documentElement.dataset['theme']).toBe('dark');
-    expect(localStorage.getItem(THEME_KEY)).toBe('dark');
-  });
 });

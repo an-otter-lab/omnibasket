@@ -275,6 +275,8 @@ export interface Messages {
   shopMissing: string;
   tabsLabel: string;
   onlyWay: string;
+  /** {shop} */
+  onlyShop: string;
   notPossible: string;
   tabOrders: string;
   tabCustom: string;
@@ -614,6 +616,7 @@ export const MESSAGES: Record<Lang, Messages> = {
     shopMissing: 'That shop is not in this answer.',
     tabsLabel: 'Ways to buy',
     onlyWay: 'only way',
+    onlyShop: '{shop} only',
     notPossible: 'not possible',
     tabOrders: 'orders',
     tabCustom: 'Custom',
@@ -925,6 +928,7 @@ export const MESSAGES: Record<Lang, Messages> = {
     shopMissing: 'Magazinul acela nu e în acest răspuns.',
     tabsLabel: 'Moduri de cumpărare',
     onlyWay: 'singura variantă',
+    onlyShop: 'doar {shop}',
     notPossible: 'imposibil',
     tabOrders: 'comenzi',
     tabCustom: 'Personalizat',
