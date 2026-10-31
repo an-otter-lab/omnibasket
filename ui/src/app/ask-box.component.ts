@@ -76,8 +76,12 @@ export class AskBoxComponent implements OnChanges {
 
   get m(): Messages { return MESSAGES[this.lang]; }
   /** R10: only what this basket can actually do — a membership chip needs a shop that can take a book. */
+  /** S11: an example is offered only when it would change the answer on this tab. */
   get examples(): string[] {
-    const out = [this.m.askExample1, this.m.askExample2];
+    const orders = this.tabOrders;
+    const out: string[] = [];
+    if (orders.length > 1 && this.data?.one_order.answer) out.push(this.m.askExample1);
+    if (orders.some((o) => o.store_id === 'amazon_de')) out.push(this.m.askExample2);
     for (const r of this.membershipExamples) out.push(fill(this.m.membershipDeclare, { name: r.name }));
     return out;
   }
