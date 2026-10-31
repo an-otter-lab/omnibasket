@@ -17,6 +17,21 @@ export function initials(title: string): string {
   return words.slice(0, 2).map((w) => w[0].toUpperCase()).join('') || '·';
 }
 
+/**
+ * S27: a cover Open Library cannot give (a 404 with ?default=false, or an empty 1-px image) becomes the
+ * initials placeholder, never the browser's broken-image icon or a blank box. For (error) and (load).
+ */
+export function coverFallback(ev: Event): void {
+  const img = ev.target as HTMLImageElement | null;
+  if (!img || !img.parentNode) return;
+  if (ev.type === 'load' && img.naturalWidth > 1) return;
+  const ph = document.createElement('span');
+  ph.className = 'pcover ph';
+  ph.setAttribute('aria-hidden', 'true');
+  ph.textContent = img.dataset['initials'] || '·';
+  img.replaceWith(ph);
+}
+
 export interface Progress {
   store_id: string;
   isbn13: string | null;
