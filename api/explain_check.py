@@ -85,7 +85,8 @@ _WORD_COUNTS = {
     "zece": 10,
 }
 
-# "o" and "un" are also articles. They count only in front of a count noun.
+# "o" and "un" are also articles. They count only in front of a count noun, and never in
+# front of a shop noun: RO "un magazin" is "a shop", not a shop count (P3).
 _ARTICLE_COUNTS = {"o": 1, "un": 1}
 
 _COUNT_NOUNS = {
@@ -242,20 +243,29 @@ def fallback_sentences(payload: dict) -> tuple[str, str]:
     en_shops = _join(names, "and")
     ro_from = f", de la {ro_shops}" if ro_shops else ""
     en_from = f", from {en_shops}" if en_shops else ""
-    ro = (
-        f"Cea mai ieftină împărțire este {_money(total)}\u00a0{unit} "
-        f"în {count} {_orders_ro(count)}{ro_from}."
-    )
-    en = (
-        f"The cheapest split is {_money(total)}\u00a0{unit} "
-        f"in {count} {_orders_en(count)}{en_from}."
-    )
+    if count == 1:
+        # P3: one order is not a split, so say so instead of "în 1 comandă".
+        ro_at = f" la {ro_shops}" if ro_shops else ""
+        en_at = f" at {en_shops}" if en_shops else ""
+        ro = f"Cea mai ieftină variantă este o singură comandă{ro_at}: {_money(total)}\u00a0{unit}."
+        en = f"The cheapest option is one order{en_at}: {_money(total)}\u00a0{unit}."
+    else:
+        ro = (
+            f"Cea mai ieftină împărțire este {_money(total)}\u00a0{unit} "
+            f"în {count} {_orders_ro(count)}{ro_from}."
+        )
+        en = (
+            f"The cheapest split is {_money(total)}\u00a0{unit} "
+            f"in {count} {_orders_en(count)}{en_from}."
+        )
     one_store = one.get("best_store_id")
     if one_total is None or not isinstance(one_store, str) or not one_store:
         return ro, en
     shop = display_name(one_store)
     delta = one_total - total
-    if delta == 0:
+    if delta == 0 and count == 1:
+        pass  # the first sentence already is that one order
+    elif delta == 0:
         ro += f" O comandă la {shop} are același total."
         en += f" One order at {shop} is the same total."
     elif delta > 0:
@@ -402,7 +412,7 @@ def _word_hits(paragraph: str, folded: str, index: list[int], occupied: list[tup
             continue
         value = Decimal(_ARTICLE_COUNTS[word] if word in _ARTICLE_COUNTS else _WORD_COUNTS[word])
         kind, end, count_kind = _classify(folded, match.start(), match.end(), value)
-        if word in _ARTICLE_COUNTS and kind != "count":
+        if word in _ARTICLE_COUNTS and (kind != "count" or count_kind == "shops"):
             continue
         start, stop = _original(index, match.start(), end)
         hits.append(_hit_from_value(kind, start, stop, paragraph[start:stop], value, count_kind))
