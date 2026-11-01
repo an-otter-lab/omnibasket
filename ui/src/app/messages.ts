@@ -477,6 +477,8 @@ export interface Messages {
   pickSearchBusy: string;
   /** P3: the sub-label of the disabled "orders" tab when only one shop works (RO plural). */
   tabOrdersNotPossible: string;
+  /** P3: the sub-label of the "1 order" tab when one order is not possible (RO agrees with "comandă"). */
+  tabOneNotPossible: string;
 }
 
 export const MESSAGES: Record<Lang, Messages> = {
@@ -840,6 +842,7 @@ export const MESSAGES: Record<Lang, Messages> = {
     buyListFree: 'Free',
     pickSearchBusy: 'Search is busy right now. Try again in a moment.',
     tabOrdersNotPossible: 'not possible',
+    tabOneNotPossible: 'not possible',
   },
   ro: {
     deliveryGapShort: 'Mai ai {amount} lei până la livrarea gratuită la {shop}',
@@ -1201,6 +1204,7 @@ export const MESSAGES: Record<Lang, Messages> = {
     buyListFree: 'Gratuită',
     pickSearchBusy: 'Căutarea este ocupată acum. Încearcă din nou peste câteva clipe.',
     tabOrdersNotPossible: 'imposibile',
+    tabOneNotPossible: 'imposibilă',
   },
 };
 
