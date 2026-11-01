@@ -470,7 +470,7 @@
                 @if (degraded === 'one_shop') {
                   <a id="tab-one" role="tab" (click)="onLinkClick($event, 'result/one')" [attr.aria-selected]="tab === 'one'" [attr.tabindex]="tab === 'one' ? 0 : -1"
                      [class.on]="tab === 'one'" href="#/result/one">{{ t('onlyShop', { shop: shopName(data.degraded?.store_id) }) }}<span>{{ m.onlyWay }}</span></a>
-                  <span id="tab-orders" class="off" role="tab" aria-selected="false" aria-disabled="true" tabindex="-1">{{ m.tabOrders }}<span>{{ m.notPossible }}</span></span>
+                  <span id="tab-orders" class="off" role="tab" aria-selected="false" aria-disabled="true" tabindex="-1">{{ m.tabOrders }}<span>{{ m.tabOrdersNotPossible }}</span></span>
                   <span id="tab-custom" class="off" role="tab" aria-selected="false" aria-disabled="true" tabindex="-1">{{ m.tabCustom }}<span>{{ m.noOtherShop }}</span></span>
                 } @else if (cheapestIsOneOrder) {
                   <a id="tab-cheapest" role="tab" (click)="onLinkClick($event, 'result/cheapest')" [attr.aria-selected]="tab !== 'custom'" [attr.tabindex]="tab !== 'custom' ? 0 : -1"
