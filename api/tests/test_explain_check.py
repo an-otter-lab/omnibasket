@@ -195,11 +195,9 @@ def test_fallback_when_the_one_order_total_matches_or_is_missing() -> None:
         "shops": [{"store_id": "libris"}],
     }
     result = check_explanation("x", same)
-    assert result.fallback_en == (
-        "The cheapest split is 10,00\u00a0lei in 1 order, from Libris. "
-        "One order at Libris is the same total."
-    )
-    assert result.fallback_ro.endswith("O comandă la Libris are același total.")
+    # P3: one order is not a split, and the same-total sentence would repeat it.
+    assert result.fallback_en == "The cheapest option is one order at Libris: 10,00\u00a0lei."
+    assert result.fallback_ro == "Cea mai ieftină variantă este o singură comandă la Libris: 10,00\u00a0lei."
     assert check_explanation(result.fallback_en, same).ok
     assert check_explanation(result.fallback_ro, same).ok
 
