@@ -100,3 +100,7 @@
    between books, and the title row (title, ISBN) sits close on its own shop card. */
 .ybook + .ybook{margin-top:24px;padding-top:24px;border-top:1px solid var(--line-strong)}
 .ybook > app-shop-reads{display:block;margin-top:8px}
+/* P3: Remove stays at the right of the title row; a long title wraps beside it instead of pushing it below. */
+.ybook > .between{flex-wrap:nowrap;align-items:flex-start}
+.ybook > .between .pt{min-width:0;overflow-wrap:anywhere}
+.ybook > .between .lnk{flex:none}
