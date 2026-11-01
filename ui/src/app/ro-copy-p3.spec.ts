@@ -4,7 +4,7 @@ import { BasketService } from './basket.service';
 import { MESSAGES } from './messages';
 
 // P3: RO copy. The disabled "orders" tab says "imposibile" (plural, like "comenzi"); the
-// "1 comandă" tab keeps "imposibil". The entry placeholder is a real Romanian edition title.
+// "1 comandă" tab says "imposibilă" (its own key since the follow-up). The entry placeholder is a real Romanian edition title.
 
 type App = AppComponent;
 
@@ -80,15 +80,15 @@ describe('P3: RO copy', () => {
     expect(el.querySelector<HTMLElement>('#tab-orders span')!.textContent!.trim()).toBe('not possible');
   });
 
-  it('leaves the "1 comandă" tab\'s "imposibil" as it was', () => {
-    expect(MESSAGES.ro.notPossible).toBe('imposibil');
+  it('the "1 comandă" tab says "imposibilă" (follow-up)', () => {
+    expect(MESSAGES.ro.tabOneNotPossible).toBe('imposibilă');
     oneBook();
     const { app, el, fixture } = boot();
     app.lang = 'ro';
     app.route = { name: 'result', arg: '' };
     app.data = payload(2, null) as unknown as App['data'];
     fixture.detectChanges();
-    expect(el.querySelector<HTMLElement>('#tab-one span')!.textContent!.trim()).toBe('imposibil');
+    expect(el.querySelector<HTMLElement>('#tab-one span')!.textContent!.trim()).toBe('imposibilă');
   });
 
   it('the RO entry placeholder is the Romanian edition of Room on the Broom', () => {
