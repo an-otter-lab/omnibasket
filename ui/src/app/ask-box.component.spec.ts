@@ -250,7 +250,7 @@ describe('Ask box', () => {
     f.app.lang = 'en';
   });
 
-  it('has a visible label, a hint and a placeholder that fits 390', async () => {
+  it('has a label (visually hidden since P3), a hint and a placeholder that fits 390', async () => {
     const f = await setup();
     const label = f.el.querySelector<HTMLLabelElement>('app-ask-box label.ask-label')!;
     const input = f.el.querySelector<HTMLInputElement>('app-ask-box input')!;

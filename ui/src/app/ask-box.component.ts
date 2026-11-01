@@ -44,7 +44,8 @@ interface AskResponse extends Reply { status: 'ok' | 'unsupported'; actions: unk
     .ask { display: flex; flex-direction: column; gap: 8px; margin: 12px 0; }
     .ask-title { font: 600 14px Inter, sans-serif; color: var(--ink-2); margin: 0; }
     .ask-form { display: flex; flex-direction: column; gap: 6px; width: 100%; }
-    .ask-label { font: 500 13px/18px Inter, sans-serif; color: var(--ink); }
+    /* P3: the heading and the button already say "Ask"; the field keeps its label for screen readers only. */
+    .ask-label { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0; }
     /* R14: at 390 the field takes the whole row so the placeholder is never clipped; the button sits under it. */
     .ask-row { display: flex; flex-wrap: wrap; gap: 8px; width: 100%; min-width: 0; }
     .ask-inp { flex: 1 1 100%; min-width: 0; }
