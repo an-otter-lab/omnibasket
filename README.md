@@ -33,7 +33,7 @@ per-store thresholds.
    mismatch and never replaces the captured price. The edition pin lets you keep the same-story default
    or require the exact edition.
 3. **Solve** — `POST /solve` computes assignments and delivery costs in integer cents. Unknown fees are not printed and are never treated as zero.
-4. **Compare** — the UI presents three result tabs: **1 parcel**, **cheapest**, and **custom stores**. Cheapest assigns each book for the lowest valid basket total. In custom stores, every switched-on shop must take at least one book; books move among enabled shops in the cheapest way. If an enabled shop cannot be served, no custom total is shown.
+4. **Compare** — the UI presents the result as tabs: **1 order**, **Cheapest**, and **Custom**. When the cheapest split is itself one order, the first two are one tab ("1 order · cheapest"), so there are two tabs; when only one shop can price the basket, that shop is the only result. Cheapest assigns each book for the lowest valid basket total. In custom stores, every switched-on shop must take at least one book; books move among enabled shops in the cheapest way. If an enabled shop cannot be served, no custom total is shown.
 5. **Inspect** — book details include links to the real shop offers, so you can open the underlying listing, and each offer says whether Muse Spark read it and whether the read matches the page.
 
 ### Where Muse Spark is used today
@@ -49,7 +49,7 @@ Every call goes through `tools/meta_budget.py`, which records it in the spend le
 
 ## Front end
 
-The responsive Angular UI shows the three solve results as tabs: **1 parcel** (one shop for the whole basket), **cheapest** (lowest basket total), and **custom stores** (choose the shops allowed to participate). Custom-store assignments ensure each selected shop receives at least one book, then place books as cheaply as possible; if any selected shop has no usable offer, the UI withholds a total rather than implying it can fulfill the selection. Each book detail exposes real shop links. The edition pin controls whether matching accepts the same story or requires the exact ISBN; changing it reruns `/solve`. Search-by-title is not available in the app.
+The responsive Angular UI shows the solve results as tabs: **1 order** (one shop for the whole basket), **Cheapest** (lowest basket total), and **Custom** (choose the shops allowed to participate). When the cheapest split is one order, those two share one tab, so there are two tabs. Custom-store assignments ensure each selected shop receives at least one book, then place books as cheaply as possible; if any selected shop has no usable offer, the UI withholds a total rather than implying it can fulfill the selection. Each book detail exposes real shop links. The edition pin controls whether matching accepts the same story or requires the exact ISBN; changing it reruns `/solve`. Books are added by title, author or ISBN search (our shop index plus Open Library), by a pasted shop link, or from a photo of a reading list.
 
 ## Stack
 
@@ -60,7 +60,7 @@ The responsive Angular UI shows the three solve results as tabs: **1 parcel** (o
 | Read layer | `matching/` normalises ISBNs, keeps seller certainty tri-state, and matches editions instead of averaging them. |
 | Solver | `solver/`: exhaustive assignment in integer cents. Tests in `solver/tests/`, including the Romanian basket. |
 | Storage | SQLite page cache, seeded from the locked Romanian basket. |
-| Front end | Angular and TypeScript in `ui/`, responsive. The membership control stays disabled: the service returns an empty membership list. |
+| Front end | Angular and TypeScript in `ui/`, responsive. Declared memberships are one switch each under Options, shown only for a shop that can take a book. |
 | Stores | Bookzone, eMAG, Libris and Amazon.de for the locked basket. Books-Express is a labelled fallback, not a core store. |
 
 ## Run the demo
@@ -69,8 +69,10 @@ One command from a fresh clone. It creates a Python 3.12 virtualenv, installs th
 dependencies in `requirements.txt`, builds the Angular UI, seeds the SQLite page cache from
 `data/cache/ro-v1-seed.json`, and serves the API and the built UI together.
 
-You need [uv](https://docs.astral.sh/uv/) and Node.js (npm). No API key is required: the demo replays
-the saved reads and calls neither a store nor a model. The reads are re-run with a key, one Muse Spark
+You need [uv](https://docs.astral.sh/uv/) and Node.js (npm). No API key is required: the sample basket replays
+the saved reads, and with no key nothing calls a model (the Why text falls back to the plain template sentence;
+Ask Omnibasket and the photo reader need a key). Searching for or adding other books still reads Open Library and
+the shops live, in demo mode too. The reads are re-run with a key, one Muse Spark
 call per saved page, in replay mode:
 
 ```bash
@@ -99,16 +101,16 @@ Demo mode is an explicit flag: `--demo` on `scripts/start-demo.sh`, which sets `
 The v1 tree is a working cache-first demo.
 
 - A locked seven-book Romanian basket (`ro-v1`): Ghici, The Very Hungry Caterpillar, Owl Babies, and four Amazon.de titles that share an ISBN with Libris.
-- An exhaustive integer-cents solver in `solver/`. The UI compares one-parcel (**558.73 lei** via Libris), cheapest (**515.16 lei**), and custom stores (**530.45 lei** for Amazon.de + Libris + Bookzone, with Ghici assigned to Bookzone).
+- An exhaustive integer-cents solver in `solver/`. The UI compares one order (**558.73 lei** via Libris), cheapest (**515.16 lei**), and custom stores (**530.45 lei** for Amazon.de + Libris + Bookzone, with Ghici assigned to Bookzone).
 - Bookzone under 200 lei is delivery from **10.90 lei** plus **1.99 lei** processing (cart at bookzone.ro/cos/produse), not the earlier lower delivery line.
 - Amazon.de free delivery to Romania starts at **262.17 lei** (printed on the Amazon.de product pages, read 28 Oct 2026; the lei value moves with the exchange rate). The under-threshold per-delivery and per-kg amounts are unknown and are not priced. eMAG is excluded because its three solver fee fields are null.
 - A read layer in `matching/` with the three spike fixes: ISBN check digits, sold-by tri-state, and edition matching that does not average different books.
 - Every one of the 15 saved pages carries a Muse Spark 1.3 read, stored with the page and checked
   against the captured price: 15 match, 0 mismatch, USD 0.19 for the job. Book detail says which
   offers were read, and shows a solid orange tag when a read disagrees with the page.
-- A cache-first service (`api/`) and the Angular UI (`ui/`), which the API serves after `ng build`. The demo runs on cached pages, shows the three result tabs, and says the pages are cached.
+- A cache-first service (`api/`) and the Angular UI (`ui/`), which the API serves after `ng build`. The demo runs on cached pages, shows the result tabs, and says the pages are cached.
 
-Membership is not implemented. The service returns an empty membership list and the UI control is disabled. No Genius-badged eMAG-sold title was found for this basket.
+Declared memberships are implemented (feature 5, `api/memberships.py`): the rules come from each shop's own page, recorded in `data/shops/*.yaml`, and a membership changes a total only when that page sets a member threshold. Today's rules are Amazon Prime (no effect on delivery to Romania) and eMAG Genius (unknown), so no membership changes a total yet. No Genius-badged eMAG-sold title was found for this basket.
 
 ## Novelty
 
