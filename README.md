@@ -121,8 +121,9 @@ A working app on a public URL. What is built:
 - **Read layer** (`matching/`): ISBN check digits, sold-by tri-state, and edition matching that does not average
   different books. Every Muse read is compared with its page; a disagreement is shown, never used.
 - **Why this split, Ask Omnibasket, photo of a list**: Muse Spark, with every number and shop name checked in code.
-- **Delivery gap, buy list per order, memberships** (Amazon Prime, eMAG Genius: a membership changes a total only when
-  the shop's own rules page says so; today none does), a basket item with no offer named next to the orders.
+- **Delivery gap, buy list per order, memberships** (`api/memberships.py`; Amazon Prime, eMAG Genius: a membership
+  changes a total only when the shop's own rules page says so; today none does), a basket item with no offer named
+  next to the orders.
 - **Romanian and English**, light, dark and system theme.
 - **Tests**: `pytest` 844 passed, 3 skipped; `ng test` 298; `ng build` green (1 Nov).
 
