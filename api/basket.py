@@ -26,7 +26,7 @@ class BasketError(ValueError):
 def load_locked() -> tuple[str, str, list[Store], list[Item], list[dict]]:
     """Return day, currency, stores, items, and the raw offer rows.
 
-    Offer rows keep the ISBN and the capture date so the cache can be keyed
+    Offer rows keep the ISBN and the basket's day so the cache can be keyed
     without inventing a price.
     """
 
@@ -62,7 +62,6 @@ def load_locked() -> tuple[str, str, list[Store], list[Item], list[dict]]:
                     "store_id": offer["store_id"],
                     "isbn13": isbn,
                     "day": day,
-                    "capture": offer.get("capture"),
                     "price_cents": int(offer["price_cents"]),
                     "seller_certainty": offer["seller_certainty"],
                     "currency": currency,

@@ -411,7 +411,8 @@ async def _read_one_page(
                 fields = checked["fields"]
                 if schema_org.price_cents is None and fields.get("price") is not None:
                     offer.price_cents = int(round(float(fields["price"]) * 100))
-                    offer.currency = fields.get("currency") or offer.currency
+                    # The row keeps the currency the live offer used.
+                    offer.currency = offer.currency or fields.get("currency")
                 if fields.get("isbn13"):
                     offer.isbn13 = fields["isbn13"]
                 offer.seller_certainty = fields.get("seller_certainty") or "unknown"
@@ -694,9 +695,9 @@ async def _fetch_and_extract(
             "day": day,
             "facts": facts_from_extraction(
                 schema_org,
+                result.text,
                 muse_result.fields if muse_result else None,
-                price_cents=price_cents,
-                currency=currency,
+                currency=offer.currency,
             ),
             "screenshot_path": None,
             "model_json": muse_result.fields if muse_result else None,

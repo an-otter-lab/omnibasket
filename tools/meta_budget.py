@@ -4,8 +4,10 @@
 Every call this process makes is refused before it is sent if the ledger total
 plus the estimate would reach 50 USD. The external hourly audit reads the
 ledger at `data/meta-spend.jsonl` (or `META_SPEND_PATH`) and sums cost_usd.
-The ledger, the spend windows and the key file are the main checkout's, found
-from any worktree (see `shared_root`), so every worktree spends from one cap.
+Each checkout writes its rows to its own tracked `data/meta-spend.jsonl`, which
+its branch commits. The caps count the rows of the main checkout and of every
+worktree together (see `ledger_paths`), so every worktree spends from one cap.
+The spend windows and the key file are the main checkout's (see `shared_root`).
 Set `META_SPEND_PATH`, `OMNIBASKET_ENV` or `META_SPEND_WINDOWS` to point elsewhere.
 
 Commands: status, check, calibrate, selftest.
@@ -37,8 +39,7 @@ def shared_root(root: Path) -> Path:
     """The main checkout when ``root`` is a git worktree, else ``root`` itself.
 
     A worktree's ``.git`` is a file naming ``<main>/.git/worktrees/<name>``. The
-    ledger, the windows and the key file must be one set for every worktree: a
-    per-worktree ledger would let each one spend up to the daily cap on its own.
+    windows and the key file are one set for every worktree.
     """
     marker = root / ".git"
     try:
@@ -55,8 +56,30 @@ def shared_root(root: Path) -> Path:
     return root
 
 
+def checkout_roots(shared: Path) -> list[Path]:
+    """The main checkout and every worktree git lists for it.
+
+    ``<main>/.git/worktrees/<name>/gitdir`` names the worktree's ``.git`` file.
+    """
+    roots = [shared]
+    try:
+        entries = sorted((shared / ".git" / "worktrees").iterdir())
+    except OSError:
+        entries = []
+    for entry in entries:
+        try:
+            gitfile = Path((entry / "gitdir").read_text().strip())
+        except OSError:
+            continue
+        if gitfile.parent not in roots:
+            roots.append(gitfile.parent)
+    return roots
+
+
 SHARED = shared_root(ROOT)
-LEDGER = SHARED / "data" / "meta-spend.jsonl"
+# This checkout's own ledger: a worktree's rows are committed on its branch and
+# reach main with the merge, never written into the main checkout's working copy.
+LEDGER = ROOT / "data" / "meta-spend.jsonl"
 
 # One row per provider this ledger can hold. A provider with no rate cannot be
 # priced, so a call to it is refused instead of being recorded as free: the cap
@@ -114,8 +137,21 @@ class WindowCapExceeded(CapExceeded):
 
 
 def ledger_path():
+    """Where this process writes its rows."""
     override = os.environ.get("META_SPEND_PATH")
     return Path(override) if override else LEDGER
+
+
+def ledger_paths():
+    """Every ledger the caps count: this one, the main checkout's and every worktree's."""
+    if os.environ.get("META_SPEND_PATH"):
+        return [ledger_path()]
+    paths = [LEDGER]
+    for root in checkout_roots(SHARED):
+        path = root / "data" / "meta-spend.jsonl"
+        if path not in paths:
+            paths.append(path)
+    return paths
 
 
 def provider_config(provider="meta"):
@@ -163,19 +199,36 @@ def _iter_rows(path):
                 yield row
 
 
+def _all_rows(path=None):
+    """Rows of one ledger, or of every ledger once each.
+
+    A row merged into main is also in each worktree branched after the merge;
+    an identical line is the same call, so it counts once.
+    """
+    if path is not None:
+        yield from _iter_rows(path)
+        return
+    seen = set()
+    for one in ledger_paths():
+        for row in _iter_rows(one):
+            line = json.dumps(row, sort_keys=True)
+            if line in seen:
+                continue
+            seen.add(line)
+            yield row
+
+
 def spent_usd(path=None):
-    path = path or ledger_path()
     total = 0.0
-    for row in _iter_rows(path):
+    for row in _all_rows(path):
         total += float(row["cost_usd"])
     return total
 
 
 def tonight_usd(path=None):
-    path = path or ledger_path()
     day = datetime.now(TZ).date().isoformat()
     total = 0.0
-    for row in _iter_rows(path):
+    for row in _all_rows(path):
         ts = str(row.get("ts", ""))
         if ts[:10] == day:
             total += float(row["cost_usd"])
@@ -209,11 +262,10 @@ def active_windows(now=None):
 
 
 def window_spent_usd(window, path=None):
-    path = path or ledger_path()
     start = datetime.fromisoformat(window["from"])
     end = datetime.fromisoformat(window["until"]) if window.get("until") else None
     total = 0.0
-    for row in _iter_rows(path):
+    for row in _all_rows(path):
         if window["provider"] != "*" and row.get("provider", "meta") != window["provider"]:
             continue
         try:
@@ -286,19 +338,19 @@ def _redact(text):
 
 
 def status_lines():
-    path = ledger_path()
-    rows = list(_iter_rows(path))
+    rows = list(_all_rows())
     spent = sum(float(r["cost_usd"]) for r in rows)
-    night = tonight_usd(path)
+    night = tonight_usd()
     return [
-        "ledger: %s" % path,
+        "ledger: %s" % ledger_path(),
+        "ledgers_counted: %d" % len(ledger_paths()),
         "calls: %d" % len(rows),
         "spend_usd: %.6f" % spent,
         "tonight_usd: %.6f" % night,
         "cap_usd: %.2f" % CAP_USD,
         "remaining_usd: %.6f" % (CAP_USD - spent),
     ] + [
-        "window_%s_since_%s: %.6f of %.2f" % (w["provider"], w["from"], window_spent_usd(w, path), float(w["cap_usd"]))
+        "window_%s_since_%s: %.6f of %.2f" % (w["provider"], w["from"], window_spent_usd(w), float(w["cap_usd"]))
         for w in active_windows()
     ] + [
         "rates_usd_per_mtok: in %.2f out %.2f" % (RATE_IN_PER_M, RATE_OUT_PER_M),

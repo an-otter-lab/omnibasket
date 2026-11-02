@@ -18,6 +18,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
 
 import meta_budget
+from api.extraction_prompt import PROMPT
 from api.schema_org import SchemaOrgData
 from matching.isbn import normalize_isbn13
 from matching.validate import validate_extraction
@@ -38,43 +39,6 @@ class MuseResult:
     endpoint: str | None = None
     cross_check_passed: bool = False
     cross_check_mismatches: list[str] | None = None
-
-
-# Prompt for Muse to extract book data from page text
-_MUSE_PROMPT = """You are reading a product page from an online bookstore. Extract the following information as JSON:
-
-{
-  "title": "Book title",
-  "author": "Author name",
-  "format": "Edition format (e.g., paperback, hardcover, board_book)",
-  "isbn13": "ISBN-13 if visible",
-  "publisher": "Publisher name",
-  "price": 123.45,
-  "currency": "RON",
-  "in_stock": true,
-  "sold_by": "Seller name if third-party",
-  "ships_from": "Shipper name if third-party",
-  "sold_and_shipped_by_store": true,
-  "shipping_note": "Delivery information",
-  "membership_note": "Membership benefits",
-  "confidence": "high",
-  "notes": "Any relevant observations"
-}
-
-Rules:
-- price is a number (no symbol), or null if not visible
-- currency is the code or symbol (RON, Lei, EUR, etc.)
-- in_stock is true, false, or null
-- sold_and_shipped_by_store is tri-state: true, false, or null
-  - true only when seller and fulfiller are the store itself
-  - false only when a third-party seller or fulfiller is named
-  - null when no seller is named
-- isbn13 is the ISBN-13 if explicitly labeled as ISBN, not a product code
-- Hyphens may be present in ISBN; do not invent a check digit
-- Use null for missing values, never guess
-- Quote only what is visible on the page
-
-Return ONLY the JSON object, no explanation or code fences."""
 
 
 def _estimate_cost(text: str) -> float:
@@ -144,7 +108,8 @@ def _payload_text(payload: dict) -> str:
 def _call_muse(page_text: str) -> tuple[dict, int, int, float, int, str]:
     """One Muse call through meta_budget.guarded_post (the spend-window HTTP path).
 
-    spike.extract.call_model is not used: it opens the API on its own.
+    It sends ``api.extraction_prompt.PROMPT``, the prompt the seed's stored reads
+    were made with, so a live read and a stored one follow the same rules.
     """
     estimate = _estimate_cost(page_text)
     body = {
@@ -152,7 +117,7 @@ def _call_muse(page_text: str) -> tuple[dict, int, int, float, int, str]:
         "input": [
             {
                 "role": "user",
-                "content": [{"type": "input_text", "text": _MUSE_PROMPT + "\n\nPAGE TEXT:\n" + page_text}],
+                "content": [{"type": "input_text", "text": PROMPT + "\n\nPAGE TEXT:\n" + page_text}],
             }
         ],
         "max_output_tokens": 2500,
@@ -187,10 +152,13 @@ def adopt_muse_fields(model_json: dict | None, page_text: str, schema_org: Schem
 def adopt_muse_fields_from_facts(model_json: dict | None, facts: dict | None, schema_org: SchemaOrgData) -> dict:
     """The same check for a cache row, which keeps facts instead of page text.
 
-    A number from Muse must match the structured fact the read stored: the
-    price in cents and the page's own ISBN. Anything else is dropped, exactly
-    as a number missing from the page was dropped before.
+    A number from Muse must match the page's structured data or a number the
+    page printed (``facts["page_evidence"]``, captured by plain code at read
+    time). Anything else is dropped, exactly as a number missing from the page
+    was dropped before.
     """
+    if not isinstance(model_json, dict):
+        return {}
     fields = dict(model_json)
     _passed, mismatches = cross_check_muse_fields_against_facts(fields, facts, schema_org)
     for name in mismatches:
@@ -203,9 +171,16 @@ def cross_check_muse_fields_against_facts(
     facts: dict | None,
     schema_org: SchemaOrgData,
 ) -> tuple[bool, list[str]]:
-    """Cross-check Muse numbers against structured facts, not page text."""
+    """Cross-check Muse numbers against the stored page facts, not page text.
+
+    The facts never hold a value Muse supplied, so this check can fail.
+    """
     if not fields:
         return True, []
+    evidence = (facts or {}).get("page_evidence") if isinstance(facts, dict) else None
+    evidence = evidence if isinstance(evidence, dict) else {}
+    printed_cents = set(evidence.get("price_cents") or [])
+    printed_isbns = set(evidence.get("isbn13") or [])
     mismatches: list[str] = []
     price = fields.get("price")
     if price is not None:
@@ -213,12 +188,12 @@ def cross_check_muse_fields_against_facts(
             cents = int(round(float(price) * 100))
         except (TypeError, ValueError):
             cents = None
-        if schema_org.price_cents is None or cents != schema_org.price_cents:
+        if cents is None or (cents != schema_org.price_cents and cents not in printed_cents):
             mismatches.append("price")
     isbn = fields.get("isbn13")
     if isbn is not None:
         normalized = normalize_isbn13(isbn)
-        if normalized is None or not schema_org.isbn13 or normalized != schema_org.isbn13:
+        if normalized is None or (normalized != schema_org.isbn13 and normalized not in printed_isbns):
             mismatches.append("isbn13")
     return len(mismatches) == 0, mismatches
 

@@ -4,7 +4,7 @@
 The reads are already in ``data/cache/ro-v1-seed.json``: one ``model_json`` per
 page, produced when the pages were captured. This tool never calls a model,
 opens a browser or fetches a shop, and it never spends: it re-checks each stored
-read against the facts and the locked basket the demo prices come from.
+read against the locked basket the demo prices come from.
 
 A page whose read disagrees with the capture is reported as a mismatch; the
 stored price is never changed here.

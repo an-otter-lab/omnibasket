@@ -1,9 +1,9 @@
-"""What a saved page read asks Muse Spark for, and the keys it returns.
+"""What a page read asks Muse Spark for, and the keys it returns.
 
-The demo seed's ``model_json`` rows were produced with this prompt. The prompt
-lives here so the rules it states (tri-state seller, selected format only, no
-invented check digit) stay testable after the exploration scripts left the
-repository.
+The one page-read prompt: ``api.muse_integration`` sends it on every live
+gap-fill, and the demo seed's ``model_json`` rows were produced with it. Its
+rules (tri-state seller, selected format only, no invented check digit) are
+tested here, on the text production sends.
 """
 
 from __future__ import annotations

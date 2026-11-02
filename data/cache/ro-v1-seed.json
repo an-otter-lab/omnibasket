@@ -12,20 +12,10 @@
         "authors": [
           "Sam McBratney"
         ],
-        "format": "board_book",
         "isbn13": "9786068996011",
         "price_cents": 4650,
         "currency": "RON",
-        "availability": "https://schema.org/InStock",
-        "in_stock": true,
-        "sold_by": null,
-        "ships_from": null,
-        "sold_and_shipped_by_store": null,
-        "delivery": {
-          "shipping_note": "Livrare în 1-5 zile lucrătoare",
-          "membership_note": null,
-          "free_shipping_threshold_cents": 20000
-        }
+        "availability": "https://schema.org/InStock"
       },
       "screenshot_path": null,
       "model_json": {
@@ -91,20 +81,10 @@
         "authors": [
           "Sam McBratney"
         ],
-        "format": "Carte cartonata integral",
         "isbn13": "9786068996011",
         "price_cents": 5600,
         "currency": "RON",
-        "availability": "https://schema.org/InStock",
-        "in_stock": true,
-        "sold_by": "CARTEA COPIILOR",
-        "ships_from": "CARTEA COPIILOR",
-        "sold_and_shipped_by_store": false,
-        "delivery": {
-          "shipping_note": null,
-          "membership_note": null,
-          "free_shipping_threshold_cents": null
-        }
+        "availability": "https://schema.org/InStock"
       },
       "screenshot_path": null,
       "model_json": {
@@ -170,20 +150,10 @@
         "authors": [
           "Sam Mcbratney"
         ],
-        "format": "board_book",
         "isbn13": "9786068996011",
         "price_cents": 5700,
         "currency": "RON",
-        "availability": "https://schema.org/InStock",
-        "in_stock": true,
-        "sold_by": null,
-        "ships_from": null,
-        "sold_and_shipped_by_store": null,
-        "delivery": {
-          "shipping_note": "Estimare livrare mâine, 29 octombrie",
-          "membership_note": null,
-          "free_shipping_threshold_cents": 13500
-        }
+        "availability": "https://schema.org/InStock"
       },
       "screenshot_path": null,
       "model_json": {
@@ -249,20 +219,10 @@
         "authors": [
           "Eric Carle"
         ],
-        "format": "Fizic",
         "isbn13": null,
         "price_cents": 5753,
         "currency": "RON",
-        "availability": "https://schema.org/InStock",
-        "in_stock": true,
-        "sold_by": "Libris English SRL",
-        "ships_from": "Libris English SRL",
-        "sold_and_shipped_by_store": false,
-        "delivery": {
-          "shipping_note": null,
-          "membership_note": null,
-          "free_shipping_threshold_cents": null
-        }
+        "availability": "https://schema.org/InStock"
       },
       "screenshot_path": null,
       "model_json": {
@@ -328,20 +288,10 @@
         "authors": [
           "Eric Carle"
         ],
-        "format": "board book",
         "isbn13": null,
         "price_cents": 6133,
         "currency": "RON",
-        "availability": "https://schema.org/InStock",
-        "in_stock": true,
-        "sold_by": null,
-        "ships_from": null,
-        "sold_and_shipped_by_store": null,
-        "delivery": {
-          "shipping_note": "Livrare in 2-4 saptamani",
-          "membership_note": null,
-          "free_shipping_threshold_cents": 13500
-        }
+        "availability": "https://schema.org/InStock"
       },
       "screenshot_path": null,
       "model_json": {
@@ -407,20 +357,10 @@
         "authors": [
           "Martin Waddell"
         ],
-        "format": "board_book",
         "isbn13": null,
         "price_cents": 5178,
         "currency": "RON",
-        "availability": "https://schema.org/InStock",
-        "in_stock": true,
-        "sold_by": null,
-        "ships_from": null,
-        "sold_and_shipped_by_store": null,
-        "delivery": {
-          "shipping_note": "Livrare in 2-4 saptamani",
-          "membership_note": null,
-          "free_shipping_threshold_cents": 13500
-        }
+        "availability": "https://schema.org/InStock"
       },
       "screenshot_path": null,
       "model_json": {
@@ -486,20 +426,10 @@
         "authors": [
           "Martin Waddell"
         ],
-        "format": "Fizic",
         "isbn13": null,
         "price_cents": 15700,
         "currency": "RON",
-        "availability": "https://schema.org/OutOfStock",
-        "in_stock": false,
-        "sold_by": "Karte",
-        "ships_from": "Karte",
-        "sold_and_shipped_by_store": false,
-        "delivery": {
-          "shipping_note": "Deschiderea coletului la livrare",
-          "membership_note": null,
-          "free_shipping_threshold_cents": null
-        }
+        "availability": "https://schema.org/OutOfStock"
       },
       "screenshot_path": null,
       "model_json": {
@@ -565,20 +495,10 @@
         "authors": [
           "Charlie Mackesy"
         ],
-        "format": "Gebundene Ausgabe",
         "isbn13": "9781529105100",
         "price_cents": 11653,
         "currency": "RON",
-        "availability": "https://schema.org/InStock",
-        "in_stock": true,
-        "sold_by": "Amazon",
-        "ships_from": "Amazon",
-        "sold_and_shipped_by_store": true,
-        "delivery": {
-          "shipping_note": "GRATIS Lieferung 4. - 6. November für von Amazon versandte Bestellungen über 262,17 RON",
-          "membership_note": null,
-          "free_shipping_threshold_cents": null
-        }
+        "availability": "https://schema.org/InStock"
       },
       "screenshot_path": null,
       "model_json": {
@@ -644,20 +564,10 @@
         "authors": [
           "Charlie Mackesy"
         ],
-        "format": null,
         "isbn13": "9781529105100",
         "price_cents": 14256,
         "currency": "RON",
-        "availability": "https://schema.org/InStock",
-        "in_stock": true,
-        "sold_by": null,
-        "ships_from": null,
-        "sold_and_shipped_by_store": null,
-        "delivery": {
-          "shipping_note": "TRANSPORT GRATUIT; Livrare in 2-4 saptamani",
-          "membership_note": null,
-          "free_shipping_threshold_cents": 13500
-        }
+        "availability": "https://schema.org/InStock"
       },
       "screenshot_path": null,
       "model_json": {
@@ -723,20 +633,10 @@
         "authors": [
           "Maurice Sendak"
         ],
-        "format": "Taschenbuch",
         "isbn13": "9780064431781",
         "price_cents": 3986,
         "currency": "RON",
-        "availability": "https://schema.org/InStock",
-        "in_stock": true,
-        "sold_by": "Amazon",
-        "ships_from": "Amazon",
-        "sold_and_shipped_by_store": true,
-        "delivery": {
-          "shipping_note": "GRATIS Lieferung 4. - 6. November für von Amazon versandte Bestellungen über 262,17 RON",
-          "membership_note": null,
-          "free_shipping_threshold_cents": null
-        }
+        "availability": "https://schema.org/InStock"
       },
       "screenshot_path": null,
       "model_json": {
@@ -802,20 +702,10 @@
         "authors": [
           "Maurice Sendak"
         ],
-        "format": null,
         "isbn13": "9780064431781",
         "price_cents": 7770,
         "currency": "RON",
-        "availability": "https://schema.org/InStock",
-        "in_stock": true,
-        "sold_by": null,
-        "ships_from": null,
-        "sold_and_shipped_by_store": null,
-        "delivery": {
-          "shipping_note": "Livrare in 2-4 saptamani",
-          "membership_note": null,
-          "free_shipping_threshold_cents": 13500
-        }
+        "availability": "https://schema.org/InStock"
       },
       "screenshot_path": null,
       "model_json": {
@@ -881,20 +771,10 @@
         "authors": [
           "Roald Dahl"
         ],
-        "format": "Taschenbuch",
         "isbn13": "9780141369365",
         "price_cents": 9433,
         "currency": "RON",
-        "availability": "https://schema.org/InStock",
-        "in_stock": true,
-        "sold_by": "Amazon",
-        "ships_from": "Amazon",
-        "sold_and_shipped_by_store": true,
-        "delivery": {
-          "shipping_note": "GRATIS Lieferung 4. - 13. November für von Amazon versandte Bestellungen über 262,17 RON",
-          "membership_note": null,
-          "free_shipping_threshold_cents": null
-        }
+        "availability": "https://schema.org/InStock"
       },
       "screenshot_path": null,
       "model_json": {
@@ -960,20 +840,10 @@
         "authors": [
           "Roald Dahl"
         ],
-        "format": null,
         "isbn13": "9780141369365",
         "price_cents": 8418,
         "currency": "RON",
-        "availability": "https://schema.org/InStock",
-        "in_stock": true,
-        "sold_by": null,
-        "ships_from": null,
-        "sold_and_shipped_by_store": null,
-        "delivery": {
-          "shipping_note": "Livrare in 2-4 saptamani",
-          "membership_note": null,
-          "free_shipping_threshold_cents": 13500
-        }
+        "availability": "https://schema.org/InStock"
       },
       "screenshot_path": null,
       "model_json": {
@@ -1039,20 +909,10 @@
         "authors": [
           "Roald Dahl"
         ],
-        "format": "Taschenbuch",
         "isbn13": "9780141369372",
         "price_cents": 9433,
         "currency": "RON",
-        "availability": "https://schema.org/InStock",
-        "in_stock": true,
-        "sold_by": "Amazon",
-        "ships_from": "Amazon",
-        "sold_and_shipped_by_store": true,
-        "delivery": {
-          "shipping_note": "GRATIS Lieferung 4. - 6. November für von Amazon versandte Bestellungen über 262,17 RON",
-          "membership_note": null,
-          "free_shipping_threshold_cents": null
-        }
+        "availability": "https://schema.org/InStock"
       },
       "screenshot_path": null,
       "model_json": {
@@ -1118,20 +978,10 @@
         "authors": [
           "Roald Dahl"
         ],
-        "format": null,
         "isbn13": "9780141369372",
         "price_cents": 8418,
         "currency": "RON",
-        "availability": "https://schema.org/InStock",
-        "in_stock": true,
-        "sold_by": null,
-        "ships_from": null,
-        "sold_and_shipped_by_store": null,
-        "delivery": {
-          "shipping_note": "Livrare in 2-4 saptamani",
-          "membership_note": null,
-          "free_shipping_threshold_cents": 13500
-        }
+        "availability": "https://schema.org/InStock"
       },
       "screenshot_path": null,
       "model_json": {

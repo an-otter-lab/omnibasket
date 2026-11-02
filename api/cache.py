@@ -9,9 +9,14 @@ is never stored on the cache and never shared across threads. WAL plus a busy
 timeout let a solve run while another request is reading. Callers must finish
 every read before they start yielding a stream.
 
-A row holds the facts a read produced (price, currency, ISBN, availability,
-seller, the shop's delivery lines) and the stored Muse read. It never holds the
+A row holds the facts a read produced (title, authors, ISBN, price in cents,
+currency, availability; a live read adds the numbers the page printed, see
+``api.schema_org.page_evidence``) and the stored Muse read. It never holds the
 shop's page text or HTML.
+
+``data/cache/ro-v1-seed.json`` is the source of the demo pages, not a build
+output: the page text and captures it was read from are not in this repository,
+so it is edited in place or regenerated from captures kept outside the repo.
 """
 
 from __future__ import annotations

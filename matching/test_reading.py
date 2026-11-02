@@ -194,6 +194,22 @@ class PromptTests(unittest.TestCase):
         self.assertIn("Puncte Express", PROMPT)
         self.assertIn("check digit", PROMPT.lower())
 
+    def test_the_live_gap_fill_sends_this_prompt(self):
+        from unittest.mock import patch
+
+        from api import muse_integration
+        from api.extraction_prompt import PROMPT
+
+        sent = []
+
+        def post(body, estimate, note, provider="meta", timeout=120):
+            sent.append(body["input"][0]["content"][0]["text"])
+            return {"output_text": "{}"}, {}
+
+        with patch.object(muse_integration.meta_budget, "guarded_post", post):
+            muse_integration._call_muse("page")
+        self.assertEqual(sent, [PROMPT + "\n\nPAGE TEXT:\npage"])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -174,38 +174,64 @@ def schema_from_facts(facts: dict | None) -> SchemaOrgData:
     )
 
 
+_NUMBER = re.compile(r"\d+(?:[.,]\d+)*")
+_ISBN13_RUN = re.compile(r"97[89](?:[-\s]?\d){10}")
+_MAX_CENTS = 10_000_000
+
+
+def _cents_readings(token: str) -> set[int]:
+    """Every price in cents a number printed on a page can mean.
+
+    ``1.234`` is a thousand-separated 1234 or a decimal 1.234; both are kept,
+    as the page-text check accepts either spelling.
+    """
+    parts = re.split(r"[.,]", token)
+    if any(len(p) > 9 for p in parts):
+        return set()
+    readings = {int("".join(parts)) * 100}
+    if len(parts) > 1:
+        readings.add(int(round(float("".join(parts[:-1]) + "." + parts[-1]) * 100)))
+    return {c for c in readings if 0 < c < _MAX_CENTS}
+
+
+def page_evidence(page_text: str | None) -> dict:
+    """The numbers a page prints, captured by plain code from its text.
+
+    A cache row keeps these instead of the text, so a stored Muse read is
+    still checked against what the page showed and not against a value Muse
+    itself supplied.
+    """
+    text = page_text or ""
+    cents: set[int] = set()
+    for token in _NUMBER.findall(text):
+        cents |= _cents_readings(token)
+    isbns = {n for n in (normalize_isbn13(m) for m in _ISBN13_RUN.findall(text)) if n}
+    return {"price_cents": sorted(cents), "isbn13": sorted(isbns)}
+
+
 def facts_from_extraction(
     schema: SchemaOrgData,
+    page_text: str | None,
     fields: dict | None = None,
-    delivery: dict | None = None,
-    price_cents: int | None = None,
     currency: str | None = None,
 ) -> dict:
     """The facts a cache row keeps after a live read: no page text, no raw HTML.
 
-    ``price_cents`` and ``currency`` are the ones the read used. When the page's
-    structured data had no price and the checked Muse read supplied it, they
-    differ from ``schema``; the row must keep the price the offer was built on, or
-    a later cache hit has no fact to check the stored Muse read against.
+    Prices and ISBN are the page's structured data only, never a value Muse
+    supplied, plus the numbers the page printed (``page_evidence``) for the
+    stored Muse read to be checked against on a cache hit. ``currency`` is the
+    one the offer used, the shop's own when the page named none.
     """
 
     fields = fields or {}
-    in_stock = fields.get("in_stock")
-    if in_stock is None and schema.availability:
-        in_stock = "instock" in schema.availability.lower()
     return {
         "title": fields.get("title") or schema.name,
         "authors": list(schema.authors or ([] if not fields.get("author") else [fields["author"]])),
-        "format": fields.get("format"),
-        "isbn13": schema.isbn13 or fields.get("isbn13"),
-        "price_cents": price_cents if price_cents is not None else schema.price_cents,
+        "isbn13": schema.isbn13,
+        "price_cents": schema.price_cents,
         "currency": currency or schema.currency,
         "availability": schema.availability,
-        "in_stock": in_stock,
-        "sold_by": fields.get("sold_by"),
-        "ships_from": fields.get("ships_from"),
-        "sold_and_shipped_by_store": fields.get("sold_and_shipped_by_store"),
-        "delivery": delivery or {},
+        "page_evidence": page_evidence(page_text),
     }
 
 

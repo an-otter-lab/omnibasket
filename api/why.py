@@ -31,9 +31,12 @@ EFFORT = "low"
 INFLIGHT_WAIT_S = 30  # a second identical request waits for the first call instead of paying again
 # One Why call: Muse spends most of its 3000 output tokens on reasoning and answers in 12 to 15 s
 # (measured 3 Nov, 1,400 to 1,700 tokens out). 8 s cut every such call off, so the shopper always
-# got the template sentence and the tokens were spent without a ledger row. It stays below
-# INFLIGHT_WAIT_S, so a duplicate request waits long enough to receive the leader's answer.
+# got the template sentence and the tokens were spent without a ledger row. The leader waits at
+# most this long in total (connect, read and the /chat/completions fallback together; urlopen's own
+# timeout is per socket operation), and it stays below INFLIGHT_WAIT_S, so a duplicate request
+# always receives the leader's outcome.
 MODEL_TIMEOUT_S = 25
+TIMED_OUT = "model call timed out"
 
 PROMPT = """You explain one shopping result to a shopper. Write ONE short paragraph (2 to 4 sentences) in {language}.
 
@@ -327,14 +330,45 @@ def explain(
     try:
         if may_call is not None and not may_call():
             return _template(payload, lang, "per-IP /why limit")
-        result = _ask(payload, lang)
-        with _lock:
-            _remember(key, result)
+        result = _ask_within(payload, lang, key)
+        if result.get("reason") != TIMED_OUT:
+            with _lock:
+                _remember(key, result)
     finally:
         with _lock:
             _inflight.pop(key, None)
         pending.set()
     return dict(result)
+
+
+def _ask_within(payload: dict, lang: str, key: str) -> dict:
+    """_ask with a hard MODEL_TIMEOUT_S bound on the caller's wait.
+
+    The call runs on a daemon thread. Past the bound the caller gets the template; an answer
+    that arrives later was paid for, so it is cached for the next identical request."""
+    state: dict = {"result": None, "abandoned": False}
+    finished = threading.Event()
+
+    def run() -> None:
+        try:
+            result = _ask(payload, lang)
+        except Exception as exc:  # _ask does not raise; this only guards the thread
+            result = _template(payload, lang, f"model call failed: {type(exc).__name__}")
+        with _lock:
+            if state["abandoned"]:
+                if result.get("source") == "muse":
+                    _remember(key, result)
+            else:
+                state["result"] = result
+        finished.set()
+
+    threading.Thread(target=run, name="why-model-call", daemon=True).start()
+    finished.wait(MODEL_TIMEOUT_S)
+    with _lock:
+        if state["result"] is not None:
+            return state["result"]
+        state["abandoned"] = True
+    return _template(payload, lang, TIMED_OUT)
 
 
 def _ask(payload: dict, lang: str) -> dict:
