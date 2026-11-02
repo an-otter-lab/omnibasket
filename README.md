@@ -68,7 +68,7 @@ The responsive Angular UI shows the solve results as tabs: **1 order** (one shop
 | Layer | What is built |
 |---|---|
 | Backend | Python, FastAPI. `POST /solve` and `GET /events` (server-sent events). The built UI is served from the same app. |
-| Page reading | Cache-first. Saved pages store the facts read from them (price, ISBN, stock, seller, delivery lines) in a SQLite page cache; no page text is kept. Live pages are read from schema.org; Muse Spark only fills a missing price or ISBN. |
+| Page reading | Cache-first. Saved pages store the facts read from them (title, authors, ISBN, price, currency, availability, and the numbers the page printed) in a SQLite page cache; no page text is kept. Live pages are read from schema.org; Muse Spark only fills a missing price or ISBN. |
 | Read layer | `matching/` normalises ISBNs, keeps seller certainty tri-state, and matches editions instead of averaging them. |
 | Solver | `solver/`: exhaustive assignment in integer cents. Tests in `solver/tests/`, including the Romanian basket. |
 | Storage | SQLite page cache, seeded from the locked Romanian basket. |
