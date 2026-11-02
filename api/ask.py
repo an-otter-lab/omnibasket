@@ -1,6 +1,7 @@
 """Ask Omnibasket: a typed command -> at most 4 of five closed UI actions.
 
-Contract: docs/ops/ask-contract.md. Plain code validates everything; the model
+Contract: the closed action list and its validators in this module, covered by
+its tests. Plain code validates everything; the model
 (Muse, via input_understanding.call_muse_json -> meta_budget.guarded_post) only
 maps a sentence onto action names and ids it is handed. It never writes prose
 the shopper sees: the reply is a key plus args, rendered by the UI.

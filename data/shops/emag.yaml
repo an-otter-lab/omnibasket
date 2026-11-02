@@ -25,8 +25,8 @@ shipping_rules:
     currency: RON
     source_url: https://www.emag.ro/help/livrarea-comenzilor-emag-2/
     read_date: 2026-10-28
-# Feature 5. Spike 3 (docs/ops/omnibasket-spikes-2026-10-30.md): the Genius
-# page refused both reads on 30 Oct 2026, so nothing about Genius is printed.
+# Feature 5. Membership read (30 Oct 2026): the Genius page refused both reads
+# on that day, so nothing about Genius is printed.
 memberships:
   - id: emag_genius
     name: eMAG Genius

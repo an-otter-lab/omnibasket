@@ -68,7 +68,7 @@ The responsive Angular UI shows the solve results as tabs: **1 order** (one shop
 | Layer | What is built |
 |---|---|
 | Backend | Python, FastAPI. `POST /solve` and `GET /events` (server-sent events). The built UI is served from the same app. |
-| Page reading | Cache-first. Saved pages live in a SQLite page cache. Live pages are read from schema.org; Muse Spark only fills a missing price or ISBN. The capture spike (Playwright) and the reader (`tools/muse_reads.py`) are separate from the demo path. |
+| Page reading | Cache-first. Saved pages store the facts read from them (price, ISBN, stock, seller, delivery lines) in a SQLite page cache; no page text is kept. Live pages are read from schema.org; Muse Spark only fills a missing price or ISBN. |
 | Read layer | `matching/` normalises ISBNs, keeps seller certainty tri-state, and matches editions instead of averaging them. |
 | Solver | `solver/`: exhaustive assignment in integer cents. Tests in `solver/tests/`, including the Romanian basket. |
 | Storage | SQLite page cache, seeded from the locked Romanian basket. |
@@ -82,16 +82,18 @@ dependencies in `requirements.txt`, builds the Angular UI, seeds the SQLite page
 `data/cache/ro-v1-seed.json`, and serves the API and the built UI together.
 
 You need [uv](https://docs.astral.sh/uv/) and Node.js (npm). No API key is required: the sample basket replays
-the saved reads, and with no key nothing calls a model (the Why text falls back to the plain template sentence;
-Ask Omnibasket and the photo reader need a key). Searching for or adding other books still reads Open Library and
-the shops live, in demo mode too. The reads are re-run with a key, one Muse Spark
-call per saved page, in replay mode:
+Muse Spark reads already stored in `data/cache/ro-v1-seed.json`, and with no key nothing calls a model (the Why text
+falls back to the plain template sentence; Ask Omnibasket and the photo reader need a key). Searching for or adding
+other books still reads Open Library and the shops live, in demo mode too.
+
+The stored reads can be re-checked against the captured basket at any time, without a key and without spending:
 
 ```bash
-META_API_KEY=<key> python3 tools/muse_reads.py
+python3 tools/muse_reads.py
 ```
 
-Every call is written to the spend ledger by `tools/meta_budget.py`, with a job stop short of USD 1.
+Every model call goes through `tools/meta_budget.py`, which records it in the spend ledger and refuses one that
+would cross the cap.
 
 ```bash
 ./scripts/start-demo.sh --demo   # demo mode: serves the ro-v1 sample basket

@@ -184,6 +184,45 @@ def adopt_muse_fields(model_json: dict | None, page_text: str, schema_org: Schem
     return fields
 
 
+def adopt_muse_fields_from_facts(model_json: dict | None, facts: dict | None, schema_org: SchemaOrgData) -> dict:
+    """The same check for a cache row, which keeps facts instead of page text.
+
+    A number from Muse must match the structured fact the read stored: the
+    price in cents and the page's own ISBN. Anything else is dropped, exactly
+    as a number missing from the page was dropped before.
+    """
+    fields = dict(model_json)
+    _passed, mismatches = cross_check_muse_fields_against_facts(fields, facts, schema_org)
+    for name in mismatches:
+        fields[name] = None
+    return fields
+
+
+def cross_check_muse_fields_against_facts(
+    fields: dict,
+    facts: dict | None,
+    schema_org: SchemaOrgData,
+) -> tuple[bool, list[str]]:
+    """Cross-check Muse numbers against structured facts, not page text."""
+    if not fields:
+        return True, []
+    mismatches: list[str] = []
+    price = fields.get("price")
+    if price is not None:
+        try:
+            cents = int(round(float(price) * 100))
+        except (TypeError, ValueError):
+            cents = None
+        if schema_org.price_cents is None or cents != schema_org.price_cents:
+            mismatches.append("price")
+    isbn = fields.get("isbn13")
+    if isbn is not None:
+        normalized = normalize_isbn13(isbn)
+        if normalized is None or not schema_org.isbn13 or normalized != schema_org.isbn13:
+            mismatches.append("isbn13")
+    return len(mismatches) == 0, mismatches
+
+
 def _cross_check_number(value: Any, page_text: str, field_name: str) -> bool:
     """Check if a number from Muse appears in the page text.
     

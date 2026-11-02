@@ -54,11 +54,21 @@ def test_second_read_same_day_keeps_link_and_read_time(cache, indexed_shops_db):
     assert second.price_cents == first.price_cents == 5700
 
 
+def _facts(price_cents=5700, availability="https://schema.org/InStock"):
+    return {
+        "title": "Ghici",
+        "isbn13": ISBN,
+        "price_cents": price_cents,
+        "currency": "RON",
+        "availability": availability,
+    }
+
+
 def test_seed_row_link_comes_from_final_url(cache):
     """Seed rows keep the link under provenance.meta.final_url."""
     cache.put({
         "store_id": "libris", "isbn13": ISBN, "item_id": "ghici", "day": _today(),
-        "page_text": PAGE, "screenshot_path": None, "model_json": None,
+        "facts": _facts(), "screenshot_path": None, "model_json": None,
         "provenance": {"source": "seed", "read_at": "2026-10-31T09:00:00+02:00", "meta": {"final_url": URL}},
     })
     with patch("api.offers.fetch", side_effect=AssertionError("no fetch on a hit")):
@@ -70,10 +80,10 @@ def test_seed_row_link_comes_from_final_url(cache):
 
 
 def test_out_of_stock_page_reads_false_on_a_hit(cache):
-    page = PAGE.replace("InStock", "OutOfStock")
     cache.put({
         "store_id": "libris", "isbn13": ISBN, "item_id": "ghici", "day": _today(),
-        "page_text": page, "screenshot_path": None, "model_json": None,
+        "facts": _facts(availability="https://schema.org/OutOfStock"),
+        "screenshot_path": None, "model_json": None,
         "provenance": {"source": "live_read", "url": URL, "read_at": "2026-10-31T10:00:00+02:00"},
     })
     with patch("api.offers.fetch", side_effect=AssertionError("no fetch on a hit")):

@@ -143,6 +143,60 @@ def extract_schema_org(html: str) -> SchemaOrgData:
     return result
 
 
+def schema_from_facts(facts: dict | None) -> SchemaOrgData:
+    """Structured page facts a saved read keeps, as the schema.org shape.
+
+    A cache row stores the facts the runtime needs (price, currency, ISBN,
+    availability, name, authors) instead of the shop's page text, so this is
+    the only way a cache hit reaches ``SchemaOrgData``.
+    """
+    if not isinstance(facts, dict):
+        return SchemaOrgData()
+    price_cents = facts.get("price_cents")
+    if price_cents is not None:
+        try:
+            price_cents = int(price_cents)
+        except (TypeError, ValueError):
+            price_cents = None
+    isbn = facts.get("isbn13")
+    normalized = normalize_isbn13(isbn) if isbn else None
+    authors = facts.get("authors")
+    if isinstance(authors, str):
+        authors = [authors]
+    return SchemaOrgData(
+        price_cents=price_cents,
+        currency=facts.get("currency"),
+        availability=facts.get("availability"),
+        isbn13=normalized,
+        name=facts.get("title"),
+        authors=list(authors) if isinstance(authors, list) else None,
+        raw=facts,
+    )
+
+
+def facts_from_extraction(schema: SchemaOrgData, fields: dict | None = None, delivery: dict | None = None) -> dict:
+    """The facts a cache row keeps after a live read: no page text, no raw HTML."""
+
+    fields = fields or {}
+    in_stock = fields.get("in_stock")
+    if in_stock is None and schema.availability:
+        in_stock = "instock" in schema.availability.lower()
+    return {
+        "title": fields.get("title") or schema.name,
+        "authors": list(schema.authors or ([] if not fields.get("author") else [fields["author"]])),
+        "format": fields.get("format"),
+        "isbn13": schema.isbn13 or fields.get("isbn13"),
+        "price_cents": schema.price_cents,
+        "currency": schema.currency,
+        "availability": schema.availability,
+        "in_stock": in_stock,
+        "sold_by": fields.get("sold_by"),
+        "ships_from": fields.get("ships_from"),
+        "sold_and_shipped_by_store": fields.get("sold_and_shipped_by_store"),
+        "delivery": delivery or {},
+    }
+
+
 def extract_price_from_text(text: str) -> tuple[int | None, str | None]:
     """Extract price from visible text as fallback.
     

@@ -10,6 +10,9 @@ node_modules/
 dist/
 .angular/
 
+# Scratch space for one-off diagnostics: never committed
+/tmp/
+
 # Data and caches
 *.db
 *.sqlite
@@ -21,9 +24,4 @@ runs/
 .idea/
 .vscode/
 
-
-# Spike output: ignored except representative screenshots named in spike/RESULTS.md
-spike/out/*
-!spike/out/.gitkeep
-!spike/samples/
 data/index/

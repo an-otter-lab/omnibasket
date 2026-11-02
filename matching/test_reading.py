@@ -186,7 +186,7 @@ class EditionTests(unittest.TestCase):
 
 class PromptTests(unittest.TestCase):
     def test_prompt_states_the_three_rules(self):
-        from spike.extract import PROMPT
+        from api.extraction_prompt import PROMPT
 
         self.assertIn("tri-state", PROMPT)
         self.assertIn("false only when", PROMPT)

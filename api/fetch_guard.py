@@ -32,6 +32,27 @@ def _tls_context() -> ssl.SSLContext:
 
 
 _CHUNK = 64 * 1024
+# A page that names any of these is a challenge, not a read. It counts as a
+# failed load and is never retried or worked around.
+BLOCK_MARKERS = (
+    "just a moment",
+    "checking your browser",
+    "verify you are human",
+    "captcha",
+    "access denied",
+    "are you a robot",
+    "robot or human",
+    "unusual traffic",
+    "px-captcha",
+    "press & hold",
+    "attention required",
+    "enable javascript and cookies",
+    "sorry, we just need to make sure",
+)
+PRICE_RE = re.compile(
+    r"(?:(?:\$|RON|USD|€|£)\s?\d+[.,]\d{2}|\d+[.,]\d{2}\s*(?:lei|ron)|\d+\s*(?:lei|ron))",
+    re.I,
+)
 _ALLOWED_TYPES = frozenset({"text/html", "application/xhtml+xml"})
 _REDIRECTS = frozenset({301, 302, 303, 307, 308})
 _CGNAT = ipaddress.ip_network("100.64.0.0/10")
@@ -49,6 +70,25 @@ _REQUEST_HEADERS = (
     ("Accept", "text/html, application/xhtml+xml"),
     ("Connection", "close"),
 )
+
+
+def detect_block(status: int | None, text: str | None, title: str | None) -> str | None:
+    """Reason a page is a challenge or an empty load, or None when it is readable.
+
+    A block is final: the caller records a failed load and does not retry.
+    """
+
+    low = (text or "").lower() + " " + (title or "").lower()
+    if status in (401, 403, 429, 503):
+        return f"HTTP {status}" + (" + challenge marker" if any(m in low for m in BLOCK_MARKERS) else "")
+    for m in BLOCK_MARKERS:
+        if m in low:
+            return f"marker: {m}"
+    if len((text or "").strip()) < 500:
+        return f"body under 500 chars ({len((text or '').strip())})"
+    if not PRICE_RE.search(text or ""):
+        return "suspected: no price in rendered text after 30 s (challenge overlay or skeleton page; check screenshot)"
+    return None
 
 
 class FetchRefused(Exception):

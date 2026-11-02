@@ -1,6 +1,6 @@
 # Omnibasket: rules for every agent working in this repo
 
-The plan being built is `docs/ops/omnibasket-hackathon-push-2026-10-29.md`. Where an older plan disagrees, that plan wins.
+The plan being built is the Tuesday-to-Wednesday push to the 4 Nov submission; where an older plan disagrees, that plan wins.
 
 ## Branches and worktrees
 - `~/Projects/omnibasket` stays on `main` and is used only for merging. Don't work in it directly.

@@ -2,10 +2,12 @@
 """Muse Spark spend ledger and 50 USD cap.
 
 Every call this process makes is refused before it is sent if the ledger total
-plus the estimate would reach 50 USD. The external hourly audit reads exactly
-~/Projects/omnibasket/data/meta-spend.jsonl and sums cost_usd.
+plus the estimate would reach 50 USD. The external hourly audit reads the
+ledger at `data/meta-spend.jsonl` (or `META_SPEND_PATH`) and sums cost_usd.
+Paths are relative to this checkout, so the same file works in any worktree;
+set `META_SPEND_PATH`, `OMNIBASKET_ENV` or `META_SPEND_WINDOWS` to point elsewhere.
 
-Commands: status, check, calibrate, model, selftest.
+Commands: status, check, calibrate, selftest.
 Never prints the API key.
 """
 from __future__ import annotations
@@ -27,7 +29,8 @@ CAP_USD = 50.0
 RATE_IN_PER_M = 1.25
 RATE_OUT_PER_M = 4.25
 MODEL = "muse-spark-1.3"
-LEDGER = Path("~/Projects/omnibasket/data/meta-spend.jsonl")
+ROOT = Path(__file__).resolve().parents[1]
+LEDGER = ROOT / "data" / "meta-spend.jsonl"
 
 # One row per provider this ledger can hold. A provider with no rate cannot be
 # priced, so a call to it is refused instead of being recorded as free: the cap
@@ -55,11 +58,11 @@ PROVIDERS = {
         "rate_out_env": "BASETEN_RATE_OUT_PER_M",
     },
 }
-MAIN_ENV = Path("~/Projects/omnibasket/.env")
+MAIN_ENV = Path(os.environ.get("OMNIBASKET_ENV") or (ROOT / ".env"))
 # Dated spend windows on top of the lifetime cap, e.g. Adrian's 10 USD limit on Meta
-# for the 30 Oct overnight session. Read from the main checkout so every worktree's
+# for the 30 Oct overnight session. One file for the checkout, so every worktree's
 # copy of this file obeys the same windows.
-WINDOWS = Path("~/Projects/omnibasket/config/spend-windows.json")
+WINDOWS = ROOT / "config" / "spend-windows.json"
 TZ = ZoneInfo("Europe/Bucharest")
 
 
@@ -424,65 +427,6 @@ def cmd_calibrate(a):
     return 0
 
 
-def _estimate_content(content):
-    chars = 0
-    images = 0
-    for part in content:
-        if part.get("type") == "text":
-            chars += len(part.get("text") or "")
-        else:
-            images += 1
-    # Text ~4 chars/token. A viewport screenshot was ~1,711 tokens in the US spike.
-    tin = int(chars / 4) + images * 2000 + 200
-    return compute_cost(tin, 2500)
-
-
-def cmd_model(a):
-    """Run spike/extract.py's model phase with call_model routed through the cap.
-    Does not modify extract.py. Text variant first; screenshot only as fallback.
-    """
-    load_dotenv()
-    spike = Path(__file__).resolve().parents[1] / "spike"
-    sys.path.insert(0, str(spike))
-    import extract  # noqa: E402
-
-    orig = extract.call_model
-
-    def wrapped(content):
-        est = _estimate_content(content)
-        assert_can_spend(est)
-        out, ms, toks, ep = orig(content)
-        tin, tout = int(toks[0] or 0), int(toks[1] or 0)
-        cost = compute_cost(tin, tout)
-        record(tin, tout, cost, note="extract-model", extra={"endpoint": ep, "latency_ms": ms, "cost_source": "computed_list_rate"})
-        return out, ms, toks, ep
-
-    extract.call_model = wrapped
-    stores = set(filter(None, (a.stores or "").split(",")))
-    variants = [v for v in (a.variants or "b_text").split(",") if v]
-    root = a.replay
-    try:
-        runs = extract.model_phase(stores, set(variants), root=root, replay=True)
-    except CapExceeded as e:
-        print(_redact(str(e)))
-        return 2
-    # Screenshot fallback only when text did not return parseable JSON.
-    if variants == ["b_text"] or (len(variants) == 1 and variants[0] == "b_text"):
-        failed = []
-        for (name, variant), rec in runs.items():
-            if variant == "b_text" and not (rec.get("status") == "OK" and rec.get("json_ok")):
-                failed.append(name)
-        if failed:
-            print(json.dumps({"fallback": "a_screenshot", "stores": failed}))
-            try:
-                extract.model_phase(set(failed), {"a_screenshot"}, root=root, replay=True)
-            except CapExceeded as e:
-                print(_redact(str(e)))
-                return 2
-    print("\n".join(status_lines()))
-    return 0
-
-
 def cmd_selftest(_a):
     """Prove the cap and that status does not echo a key. Uses a temp ledger only."""
     import tempfile
@@ -549,11 +493,6 @@ def main(argv=None):
     cal = sub.add_parser("calibrate")
     cal.add_argument("--provider", default="meta", choices=sorted(PROVIDERS))
     cal.set_defaults(fn=cmd_calibrate)
-    m = sub.add_parser("model")
-    m.add_argument("--replay", required=True)
-    m.add_argument("--stores", default="")
-    m.add_argument("--variants", default="b_text")
-    m.set_defaults(fn=cmd_model)
     sub.add_parser("selftest").set_defaults(fn=cmd_selftest)
     args = ap.parse_args(argv)
     try:

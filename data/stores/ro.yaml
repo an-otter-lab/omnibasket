@@ -12,7 +12,6 @@ stores:
     membership: null
     source_url: https://www.libris.ro/informatiiUtile/beneficii
     read_date: 2026-10-28
-    capture: spike/out/libris-shipping/text.txt
     read_at: 2026-10-28
     notes: >-
       Courier in Romania is free above 135 lei, otherwise 12.90 lei.
@@ -27,7 +26,6 @@ stores:
     membership: null
     source_url: https://bookzone.ro/cos/produse
     read_date: 2026-10-28
-    capture: spike/out/fee-confirm-2026-10-28/bz3-cart/text.txt
     read_at: 2026-10-28
     notes: >-
       Cart step: https://bookzone.ro/cos/produse after adding
@@ -53,7 +51,6 @@ stores:
     free_shipping_threshold_source: Amazon.de product buy boxes (Liefern nach Rumänien), the four saved product pages in the basket
     free_shipping_threshold_read_at: 2026-10-28
     read_date: 2026-10-28
-    capture: spike/out/fee-confirm-2026-10-28/amz3-cart/text.txt
     read_at: 2026-10-28
     notes: >-
       Threshold 262,17 RON is the value printed on the four product buy
@@ -87,7 +84,6 @@ stores:
     membership: null
     source_url: https://www.emag.ro/help/livrarea-comenzilor-emag-2/
     read_date: 2026-10-28
-    capture: spike/out/headful/emag-delivery/text.txt
     read_at: 2026-10-28
     notes: >-
       1% operational fee, minimum 1.49 lei, maximum 3.99 lei.

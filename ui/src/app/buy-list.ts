@@ -152,10 +152,9 @@ export function safeListingUrl(storeId: string, url: string | null): string | nu
 }
 
 /**
- * Libris only: the plain GET cart-add link proved in
- * docs/ops/omnibasket-spikes-2026-10-30.md, Spike 2 (d). Product id = the
- * trailing number in the Libris product URL. No other shop gets a cart link
- * (Amazon.de's add-to-cart URL hit a sign-in wall in Spike 2 (b)).
+ * Libris only: the plain GET cart-add link confirmed against the shop (28 Oct 2026).
+ * Product id = the trailing number in the Libris product URL. No other shop gets a
+ * cart link (Amazon.de's add-to-cart URL hit a sign-in wall).
  */
 export function librisCartUrl(storeId: string, listingUrl: string | null): string | null {
   if (storeId !== 'libris') return null;
