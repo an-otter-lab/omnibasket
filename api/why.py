@@ -29,6 +29,11 @@ log = logging.getLogger("omnibasket.why")
 MAX_OUTPUT_TOKENS = 3000  # reasoning shares this budget; Adrian approved 3000 (card V2, 31 Oct)
 EFFORT = "low"
 INFLIGHT_WAIT_S = 30  # a second identical request waits for the first call instead of paying again
+# One Why call: Muse spends most of its 3000 output tokens on reasoning and answers in 12 to 15 s
+# (measured 3 Nov, 1,400 to 1,700 tokens out). 8 s cut every such call off, so the shopper always
+# got the template sentence and the tokens were spent without a ledger row. It stays below
+# INFLIGHT_WAIT_S, so a duplicate request waits long enough to receive the leader's answer.
+MODEL_TIMEOUT_S = 25
 
 PROMPT = """You explain one shopping result to a shopper. Write ONE short paragraph (2 to 4 sentences) in {language}.
 
@@ -342,7 +347,7 @@ def _ask(payload: dict, lang: str) -> dict:
     }
     try:
         estimate = meta_budget.compute_cost(len(prompt) // 3 + 200, MAX_OUTPUT_TOKENS)
-        response, _row = meta_budget.guarded_post(body, estimate, note="why-this-split", timeout=8)
+        response, _row = meta_budget.guarded_post(body, estimate, note="why-this-split", timeout=MODEL_TIMEOUT_S)
     except Exception as exc:  # budget refusal, HTTP, network, missing key, timeout
         return _template(payload, lang, f"model call failed: {type(exc).__name__}")
     text = _text_of(response).strip()
