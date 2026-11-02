@@ -3,8 +3,8 @@
 The plan being built is the Tuesday-to-Wednesday push to the 4 Nov submission; where an older plan disagrees, that plan wins.
 
 ## Branches and worktrees
-- `~/Projects/omnibasket` stays on `main` and is used only for merging. Don't work in it directly.
-- Each task gets a `feat/<topic>-<task>` branch in its own short-lived worktree under `~/Projects/omnibasket-wt/<branch-with-dashes>`.
+- The main checkout stays on `main` and is used only for merging. Don't work in it directly.
+- Each task gets a `feat/<topic>` branch in its own short-lived worktree off `main`, one task per branch.
 - A branch merges into `main` once its acceptance checks pass. Remove its worktree in the same step.
 - Commit only your own task's files. Never commit `tmp/`, `ui-ux-design/` or `docs/ops/omnibasket-v1-plan.md`.
 
