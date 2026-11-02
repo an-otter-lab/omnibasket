@@ -2,17 +2,24 @@
 
 **One basket, every shop, lowest total.**
 
-Splits a multi-item shopping basket across independent online stores for the lowest real total,
-including shipping and per-order fees. The pitch is a Romanian parent splitting a children's book
-order across local shops. The United States is parked: only Amazon.com loaded cleanly from this
+Splits a basket of books across independent Romanian online bookshops for the lowest real total,
+including shipping and per-order fees. The pitch is a Romanian parent splitting a school reading
+list across local shops. The United States is parked: only Amazon.com loaded cleanly from this
 machine, and a Romanian egress distorts US prices.
+
+- **Live:** https://omnibasket.anottersolution.com (Romanian and English, no sign-in)
+- **Architecture:** [one-page diagram](docs/submission/architecture.svg)
+- **Models:** Muse Spark 1.3 on Meta's Model API. See [Where Muse Spark runs](#where-muse-spark-runs).
+- **Built during the hackathon:** the first commit is from 26 Oct 2026, 23:29 UTC; there is none before it.
+
+![Architecture](docs/submission/architecture.svg)
 
 Built for the [Meta Global AI Developer Hackathon](https://cerebralvalley.ai/e/meta-ai-developer-hackathon)
 (indie developer track, theme: Build for Your World). Submission due 4 Nov 2026, 9:00 PM ET.
 
 ## The problem
 
-A seven-item basket across several stores means several free-shipping thresholds and a per-order fee.
+A basket of several books across several stores means several free-shipping thresholds and a per-order fee.
 The cheapest answer is not "buy each item where it is cheapest":
 
 - Paying *more* for one item can cross a store's free-shipping threshold and win the basket.
@@ -36,10 +43,15 @@ per-store thresholds.
 4. **Compare** — the UI presents the result as tabs: **1 order**, **Cheapest**, and **Custom**. When the cheapest split is itself one order, the first two are one tab ("1 order · cheapest"), so there are two tabs; when only one shop can price the basket, that shop is the only result. Cheapest assigns each book for the lowest valid basket total. In custom stores, every switched-on shop must take at least one book; books move among enabled shops in the cheapest way. If an enabled shop cannot be served, no custom total is shown.
 5. **Inspect** — book details include links to the real shop offers, so you can open the underlying listing, and each offer says whether Muse Spark read it and whether the read matches the page.
 
-### Where Muse Spark is used today
+### Where Muse Spark runs
 
-Every call goes through `tools/meta_budget.py`, which records it in the spend ledger and stops at the day cap.
+Every model call is **Muse Spark 1.3 on Meta's Model API** (`muse-spark-1.3`), made from the server; the browser never
+holds a key. Every call goes through `tools/meta_budget.py`, which prices it, records it in the spend ledger and stops at
+the day cap. Plain code, never a model, does prices, ISBN checks, currency and all money arithmetic. `meta_budget.py` also
+has a provider entry for an open-weight model on Baseten; no part of the app uses it today.
 
+- **Understanding the search box**: free text in Romanian or English becomes a title, author and language to look up in our
+  index. Muse never supplies an ISBN.
 - **Why this split**: one short paragraph per result. Plain code checks every number and shop name in it, and the
   plain template sentence is shown instead when the check fails or Muse is unavailable.
 - **Ask Omnibasket**: maps a typed sentence onto a few closed UI actions. It never writes text the shopper sees.
@@ -61,7 +73,7 @@ The responsive Angular UI shows the solve results as tabs: **1 order** (one shop
 | Solver | `solver/`: exhaustive assignment in integer cents. Tests in `solver/tests/`, including the Romanian basket. |
 | Storage | SQLite page cache, seeded from the locked Romanian basket. |
 | Front end | Angular and TypeScript in `ui/`, responsive. Declared memberships are one switch each under Options, shown only for a shop that can take a book. |
-| Stores | Bookzone, eMAG, Libris and Amazon.de for the locked basket. Books-Express is a labelled fallback, not a core store. |
+| Stores | Five indexed shops: Libris, Bookzone, eMAG, Books-Express and Amazon.de (Amazon.de is never read live). Any other shop works only by pasting a link, in that shopper's basket. |
 
 ## Run the demo
 
@@ -98,19 +110,40 @@ Demo mode is an explicit flag: `--demo` on `scripts/start-demo.sh`, which sets `
 
 ## Status
 
-The v1 tree is a working cache-first demo.
+A working app on a public URL. What is built:
 
-- A locked seven-book Romanian basket (`ro-v1`): Ghici, The Very Hungry Caterpillar, Owl Babies, and four Amazon.de titles that share an ISBN with Libris.
-- An exhaustive integer-cents solver in `solver/`. The UI compares one order (**558.73 lei** via Libris), cheapest (**515.16 lei**), and custom stores (**530.45 lei** for Amazon.de + Libris + Bookzone, with Ghici assigned to Bookzone).
-- Bookzone under 200 lei is delivery from **10.90 lei** plus **1.99 lei** processing (cart at bookzone.ro/cos/produse), not the earlier lower delivery line.
-- Amazon.de free delivery to Romania starts at **262.17 lei** (printed on the Amazon.de product pages, read 28 Oct 2026; the lei value moves with the exchange rate). The under-threshold per-delivery and per-kg amounts are unknown and are not priced. eMAG is excluded because its three solver fee fields are null.
-- A read layer in `matching/` with the three spike fixes: ISBN check digits, sold-by tri-state, and edition matching that does not average different books.
-- Every one of the 15 saved pages carries a Muse Spark 1.3 read, stored with the page and checked
-  against the captured price: 15 match, 0 mismatch, USD 0.19 for the job. Book detail says which
-  offers were read, and shows a solid orange tag when a read disagrees with the page.
-- A cache-first service (`api/`) and the Angular UI (`ui/`), which the API serves after `ng build`. The demo runs on cached pages, shows the result tabs, and says the pages are cached.
+- **One box**: type a title, author or ISBN (Romanian or English), paste a shop link, or photograph a reading list. Any
+  book can go in the basket; the saved `ro-v1` basket is only the demo-mode sample and the test fixture.
+- **Search** on our own index of five shops, built from their sitemaps, plus Open Library for ISBNs and covers. No shop
+  search page is ever fetched; each product page gets one live read, Amazon.de none.
+- **An exhaustive integer-cents solver** (`solver/`): one order, the cheapest split, or a set of shops you choose, with
+  each shop's delivery fee, free-delivery threshold and per-order fee. Unknown fees are never priced as zero.
+- **Read layer** (`matching/`): ISBN check digits, sold-by tri-state, and edition matching that does not average
+  different books. Every Muse read is compared with its page; a disagreement is shown, never used.
+- **Why this split, Ask Omnibasket, photo of a list**: Muse Spark, with every number and shop name checked in code.
+- **Delivery gap, buy list per order, memberships** (Amazon Prime, eMAG Genius: a membership changes a total only when
+  the shop's own rules page says so; today none does), a basket item with no offer named next to the orders.
+- **Romanian and English**, light, dark and system theme.
+- **Tests**: `pytest` 844 passed, 3 skipped; `ng test` 298; `ng build` green (1 Nov).
 
-Declared memberships are implemented (feature 5, `api/memberships.py`): the rules come from each shop's own page, recorded in `data/shops/*.yaml`, and a membership changes a total only when that page sets a member threshold. Today's rules are Amazon Prime (no effect on delivery to Romania) and eMAG Genius (unknown), so no membership changes a total yet. No Genius-badged eMAG-sold title was found for this basket.
+Bookzone under 200 lei is delivery from **10.90 lei** plus **1.99 lei** processing (cart at bookzone.ro/cos/produse).
+Amazon.de free delivery to Romania starts at **262.17 lei** (printed on its product pages, read 28 Oct 2026; the lei
+value moves with the exchange rate). The under-threshold Amazon.de amounts are unknown and are not priced.
+
+Demo mode (`--demo`) replays the saved `ro-v1` basket: with it, the UI compares one order (**558.73 lei** via Libris),
+cheapest (**515.16 lei**) and custom stores (**530.45 lei**). Every one of its 15 saved pages carries a Muse Spark 1.3
+read, checked against the captured price: 15 match, 0 mismatch, USD 0.19 for the job.
+
+## Next steps
+
+Future work; none of it is built.
+
+1. **Finding shops**: a web search for who else sells an ISBN and ships to Romania, so new shops come from search and
+   not only from pasted links.
+2. **Shops learned by Muse**: Muse checks a new shop's robots.txt and terms, finds its product sitemaps and reads its
+   delivery page into a profile that a person confirms.
+3. **Sanctioned data**: partner feeds and affiliate APIs in place of page reads where a shop offers them.
+4. **Beyond books**: GTIN as the match key, like ISBN, for any basket from shops that publish thresholds.
 
 ## Novelty
 

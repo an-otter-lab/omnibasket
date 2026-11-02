@@ -35,6 +35,10 @@ The plan being built is `docs/ops/omnibasket-hackathon-push-2026-10-29.md`. Wher
 - No keys, tokens or `.env` files in git.
 - Never print a secret in logs, chat or docs.
 
+## Submission claims
+- Models: the submission says Muse Spark 1.3 on the Meta Model API only. No open-weight or Baseten claim: no part of the app calls it (Adrian, 2 Nov).
+- The public tree is a client deliverable: no shop screenshots or copied shop text, no internal plans, no exploration scripts, no local paths or IPs. The spend ledger and `docs/ground-truth.xlsx` stay (Adrian, 2 Nov).
+
 ## Copy
 - Say "order" in EN and "comandă" in RO, never "parcel".
 - The entry screen keeps its headline, subtitle, field, Find book, Photo of a list and footnote in every state; with books in the basket only How it works gives way to the basket chips (Adrian, 31 Oct).

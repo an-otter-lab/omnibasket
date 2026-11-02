@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 720" width="1000" height="720" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#444"/>
+    </marker>
+  </defs>
+  <rect width="1000" height="720" fill="#ffffff"/>
+  <text x="30" y="38" font-size="22" font-weight="700" fill="#1a1a1a">Omnibasket: architecture</text>
+  <text x="30" y="60" font-size="13" fill="#555">Muse understands and explains. Plain code reads pages, matches editions and counts every cent.</text>
+
+  <!-- Shopper -->
+  <rect x="30" y="85" width="940" height="70" rx="8" fill="#eef3fb" stroke="#4a6fa5"/>
+  <text x="48" y="108" font-size="14" font-weight="700" fill="#1a1a1a">Shopper (browser, phone or desktop)</text>
+  <text x="48" y="130" font-size="12" fill="#333">Angular UI, Romanian and English, light and dark: type a title or ISBN · paste a shop link · photo of a list · Ask Omnibasket</text>
+  <text x="48" y="147" font-size="12" fill="#333">Results: orders and totals · delivery gap · buy list per order · Why this split</text>
+
+  <line x1="500" y1="155" x2="500" y2="190" stroke="#444" stroke-width="1.5" marker-end="url(#a)" marker-start="url(#a)"/>
+  <text x="510" y="177" font-size="11" fill="#555">HTTPS (Caddy) · /search /input /photo /solve /why /ask · /events (SSE)</text>
+
+  <!-- API -->
+  <rect x="30" y="190" width="940" height="150" rx="8" fill="#f5f5f5" stroke="#777"/>
+  <text x="48" y="212" font-size="14" font-weight="700" fill="#1a1a1a">FastAPI service, Oracle Cloud VM (eu-frankfurt-1)</text>
+
+  <rect x="48" y="226" width="205" height="100" rx="6" fill="#ffffff" stroke="#888"/>
+  <text x="58" y="246" font-size="12" font-weight="700" fill="#1a1a1a">Search and input</text>
+  <text x="58" y="264" font-size="11" fill="#333">Index of 5 shops built from</text>
+  <text x="58" y="278" font-size="11" fill="#333">their sitemaps (SQLite)</text>
+  <text x="58" y="296" font-size="11" fill="#333">Open Library: ISBNs, covers</text>
+  <text x="58" y="312" font-size="11" fill="#333">Pasted-link handling</text>
+
+  <rect x="263" y="226" width="205" height="100" rx="6" fill="#ffffff" stroke="#888"/>
+  <text x="273" y="246" font-size="12" font-weight="700" fill="#1a1a1a">Page reader</text>
+  <text x="273" y="264" font-size="11" fill="#333">schema.org price, ISBN, stock</text>
+  <text x="273" y="280" font-size="11" fill="#333">robots.txt and terms respected</text>
+  <text x="273" y="296" font-size="11" fill="#333">One attempt per page, cached</text>
+  <text x="273" y="312" font-size="11" fill="#333">Amazon.de never read live</text>
+
+  <rect x="478" y="226" width="205" height="100" rx="6" fill="#ffffff" stroke="#888"/>
+  <text x="488" y="246" font-size="12" font-weight="700" fill="#1a1a1a">Match and solve (no model)</text>
+  <text x="488" y="264" font-size="11" fill="#333">ISBN and edition matching</text>
+  <text x="488" y="280" font-size="11" fill="#333">Exhaustive solver, integer cents</text>
+  <text x="488" y="296" font-size="11" fill="#333">Delivery rules, memberships</text>
+  <text x="488" y="312" font-size="11" fill="#333">Unknown fee is never zero</text>
+
+  <rect x="693" y="226" width="262" height="100" rx="6" fill="#ffffff" stroke="#888"/>
+  <text x="703" y="246" font-size="12" font-weight="700" fill="#1a1a1a">Checks before the shopper sees text</text>
+  <text x="703" y="264" font-size="11" fill="#333">Every number and shop name in a Why</text>
+  <text x="703" y="278" font-size="11" fill="#333">paragraph must match the solver, else</text>
+  <text x="703" y="292" font-size="11" fill="#333">a plain sentence is shown</text>
+  <text x="703" y="310" font-size="11" fill="#333">Ask actions: closed list, validated</text>
+
+  <!-- arrows down to Muse and to shops -->
+  <line x1="300" y1="340" x2="300" y2="420" stroke="#444" stroke-width="1.5" marker-end="url(#a)"/>
+  <text x="310" y="385" font-size="11" fill="#555">live product pages</text>
+  <line x1="640" y1="340" x2="640" y2="420" stroke="#444" stroke-width="1.5" marker-end="url(#a)" marker-start="url(#a)"/>
+  <text x="650" y="385" font-size="11" fill="#555">all model calls, server side only</text>
+
+  <!-- Shops -->
+  <rect x="30" y="420" width="380" height="120" rx="8" fill="#fff7e8" stroke="#c28a2b"/>
+  <text x="48" y="442" font-size="14" font-weight="700" fill="#1a1a1a">Shops (read, not scraped for search)</text>
+  <text x="48" y="464" font-size="12" fill="#333">Libris · Bookzone · eMAG · Books-Express</text>
+  <text x="48" y="482" font-size="12" fill="#333">Amazon.de: indexed, links out, never read live</text>
+  <text x="48" y="504" font-size="12" fill="#333">Any other shop: pasted link, that shopper's basket only</text>
+  <text x="48" y="524" font-size="12" fill="#333">Links open the shop's own listing; no shop images used</text>
+
+  <!-- budget + Muse -->
+  <rect x="430" y="420" width="540" height="285" rx="8" fill="#eaf6ee" stroke="#3f8f5b"/>
+  <text x="448" y="442" font-size="14" font-weight="700" fill="#1a1a1a">tools/meta_budget.py: the only door to a model</text>
+  <text x="448" y="462" font-size="12" fill="#333">Prices each call · writes the spend ledger · daily cap and per-job stop · per-IP limits on the demo</text>
+  <line x1="700" y1="472" x2="700" y2="500" stroke="#444" stroke-width="1.5" marker-end="url(#a)"/>
+
+  <rect x="448" y="500" width="504" height="190" rx="6" fill="#ffffff" stroke="#3f8f5b"/>
+  <text x="462" y="522" font-size="13" font-weight="700" fill="#1a1a1a">Muse Spark 1.3, Meta Model API (hosted by Meta)</text>
+  <text x="462" y="546" font-size="12" fill="#333">1  Understand the search box (title, author, language; never an ISBN)</text>
+  <text x="462" y="568" font-size="12" fill="#333">2  Read a photo of a school list (image input)</text>
+  <text x="462" y="590" font-size="12" fill="#333">3  Why this split: one paragraph, in the shopper's language</text>
+  <text x="462" y="612" font-size="12" fill="#333">4  Ask Omnibasket: a sentence becomes up to 4 actions from a closed list</text>
+  <text x="462" y="634" font-size="12" fill="#333">5  Fill a missing price or ISBN from the page text, then compare to the page</text>
+  <text x="462" y="662" font-size="11" fill="#555">Muse never writes money. Plain code does prices, ISBNs, currency and all arithmetic.</text>
+  <text x="462" y="679" font-size="11" fill="#555">The key lives on the server only (root-only environment file).</text>
+
+  <!-- Storage -->
+  <rect x="30" y="560" width="380" height="145" rx="8" fill="#f3eefb" stroke="#7a5ca8"/>
+  <text x="48" y="582" font-size="14" font-weight="700" fill="#1a1a1a">Data on the VM</text>
+  <text x="48" y="604" font-size="12" fill="#333">Search index (SQLite, copied by the deploy script)</text>
+  <text x="48" y="622" font-size="12" fill="#333">Page cache (SQLite)</text>
+  <text x="48" y="640" font-size="12" fill="#333">Shop rules: data/shops/*.yaml (delivery, memberships)</text>
+  <text x="48" y="658" font-size="12" fill="#333">Spend ledger (JSONL)</text>
+  <text x="48" y="682" font-size="11" fill="#555">Deploy: main from git, systemd + Caddy, rate limits per IP</text>
+
+  <line x1="220" y1="540" x2="220" y2="560" stroke="#444" stroke-width="1.5" marker-end="url(#a)" marker-start="url(#a)"/>
+</svg>
