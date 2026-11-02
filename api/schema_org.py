@@ -174,8 +174,20 @@ def schema_from_facts(facts: dict | None) -> SchemaOrgData:
     )
 
 
-def facts_from_extraction(schema: SchemaOrgData, fields: dict | None = None, delivery: dict | None = None) -> dict:
-    """The facts a cache row keeps after a live read: no page text, no raw HTML."""
+def facts_from_extraction(
+    schema: SchemaOrgData,
+    fields: dict | None = None,
+    delivery: dict | None = None,
+    price_cents: int | None = None,
+    currency: str | None = None,
+) -> dict:
+    """The facts a cache row keeps after a live read: no page text, no raw HTML.
+
+    ``price_cents`` and ``currency`` are the ones the read used. When the page's
+    structured data had no price and the checked Muse read supplied it, they
+    differ from ``schema``; the row must keep the price the offer was built on, or
+    a later cache hit has no fact to check the stored Muse read against.
+    """
 
     fields = fields or {}
     in_stock = fields.get("in_stock")
@@ -186,8 +198,8 @@ def facts_from_extraction(schema: SchemaOrgData, fields: dict | None = None, del
         "authors": list(schema.authors or ([] if not fields.get("author") else [fields["author"]])),
         "format": fields.get("format"),
         "isbn13": schema.isbn13 or fields.get("isbn13"),
-        "price_cents": schema.price_cents,
-        "currency": schema.currency,
+        "price_cents": price_cents if price_cents is not None else schema.price_cents,
+        "currency": currency or schema.currency,
         "availability": schema.availability,
         "in_stock": in_stock,
         "sold_by": fields.get("sold_by"),

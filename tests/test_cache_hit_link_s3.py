@@ -90,3 +90,44 @@ def test_out_of_stock_page_reads_false_on_a_hit(cache):
         hit = read_offers_sync(["libris"], ISBN, "ghici", cache, index_lookup=_index)[0]
     assert hit.in_stock is False
     assert hit.listing_url == URL
+
+
+PAGE_NO_SCHEMA = (
+    "<html><head><title>Ghici</title></head><body><h1>Ghici cat de mult te iubesc</h1>"
+    "<p>Pret 57.00 lei</p><p>ISBN " + ISBN + "</p></body></html>"
+)
+
+
+def test_price_muse_filled_survives_a_cache_hit(cache, indexed_shops_db):
+    """A page with no structured price is priced by Muse; the second read keeps that price.
+
+    The cache row keeps facts, not page text, so the price the first read used
+    must be in the facts, or the stored Muse read has nothing to be checked against.
+    """
+    from api.muse_integration import MuseResult
+
+    def _fetch(url):
+        return GuardedFetch(url, 200, "text/html", PAGE_NO_SCHEMA.encode(), PAGE_NO_SCHEMA, 0)
+
+    muse = MuseResult(
+        fields={
+            "title": "Ghici cat de mult te iubesc",
+            "price": 57.0,
+            "currency": "RON",
+            "isbn13": ISBN,
+            "in_stock": True,
+            "format": "board_book",
+            "seller_certainty": "direct",
+        },
+        accepted=True,
+        cross_check_passed=True,
+    )
+    with patch("api.offers.fetch", side_effect=_fetch), patch("api.offers.gap_fill_with_muse", return_value=muse):
+        first = read_offers_sync(["libris"], ISBN, "ghici", cache, index_lookup=_index)[0]
+        second = read_offers_sync(["libris"], ISBN, "ghici", cache, index_lookup=_index)[0]
+
+    assert first.cache == "live" and first.status == "ok" and first.price_cents == 5700
+    assert second.cache == "hit"
+    assert second.status == "ok", second.reason
+    assert second.price_cents == 5700
+    assert second.currency == "RON"

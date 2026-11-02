@@ -692,7 +692,12 @@ async def _fetch_and_extract(
             "isbn13": isbn,
             "item_id": item_id,
             "day": day,
-            "facts": facts_from_extraction(schema_org, muse_result.fields if muse_result else None),
+            "facts": facts_from_extraction(
+                schema_org,
+                muse_result.fields if muse_result else None,
+                price_cents=price_cents,
+                currency=currency,
+            ),
             "screenshot_path": None,
             "model_json": muse_result.fields if muse_result else None,
             "provenance": {

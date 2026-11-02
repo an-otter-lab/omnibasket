@@ -4,8 +4,9 @@
 Every call this process makes is refused before it is sent if the ledger total
 plus the estimate would reach 50 USD. The external hourly audit reads the
 ledger at `data/meta-spend.jsonl` (or `META_SPEND_PATH`) and sums cost_usd.
-Paths are relative to this checkout, so the same file works in any worktree;
-set `META_SPEND_PATH`, `OMNIBASKET_ENV` or `META_SPEND_WINDOWS` to point elsewhere.
+The ledger, the spend windows and the key file are the main checkout's, found
+from any worktree (see `shared_root`), so every worktree spends from one cap.
+Set `META_SPEND_PATH`, `OMNIBASKET_ENV` or `META_SPEND_WINDOWS` to point elsewhere.
 
 Commands: status, check, calibrate, selftest.
 Never prints the API key.
@@ -30,7 +31,32 @@ RATE_IN_PER_M = 1.25
 RATE_OUT_PER_M = 4.25
 MODEL = "muse-spark-1.3"
 ROOT = Path(__file__).resolve().parents[1]
-LEDGER = ROOT / "data" / "meta-spend.jsonl"
+
+
+def shared_root(root: Path) -> Path:
+    """The main checkout when ``root`` is a git worktree, else ``root`` itself.
+
+    A worktree's ``.git`` is a file naming ``<main>/.git/worktrees/<name>``. The
+    ledger, the windows and the key file must be one set for every worktree: a
+    per-worktree ledger would let each one spend up to the daily cap on its own.
+    """
+    marker = root / ".git"
+    try:
+        if marker.is_file():
+            text = marker.read_text().strip()
+            if text.startswith("gitdir:"):
+                gitdir = Path(text[len("gitdir:"):].strip())
+                if not gitdir.is_absolute():
+                    gitdir = (root / gitdir).resolve()
+                if gitdir.parent.name == "worktrees" and gitdir.parent.parent.name == ".git":
+                    return gitdir.parent.parent.parent
+    except OSError:
+        pass
+    return root
+
+
+SHARED = shared_root(ROOT)
+LEDGER = SHARED / "data" / "meta-spend.jsonl"
 
 # One row per provider this ledger can hold. A provider with no rate cannot be
 # priced, so a call to it is refused instead of being recorded as free: the cap
@@ -58,11 +84,11 @@ PROVIDERS = {
         "rate_out_env": "BASETEN_RATE_OUT_PER_M",
     },
 }
-MAIN_ENV = Path(os.environ.get("OMNIBASKET_ENV") or (ROOT / ".env"))
+MAIN_ENV = Path(os.environ.get("OMNIBASKET_ENV") or (SHARED / ".env"))
 # Dated spend windows on top of the lifetime cap, e.g. Adrian's 10 USD limit on Meta
-# for the 30 Oct overnight session. One file for the checkout, so every worktree's
-# copy of this file obeys the same windows.
-WINDOWS = ROOT / "config" / "spend-windows.json"
+# for the 30 Oct overnight session. The main checkout's file, so every worktree
+# obeys the same windows.
+WINDOWS = SHARED / "config" / "spend-windows.json"
 TZ = ZoneInfo("Europe/Bucharest")
 
 
