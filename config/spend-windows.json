@@ -31,16 +31,11 @@
     {
       "provider": "meta",
       "from": "2026-11-03T00:00:00+02:00",
-      "until": "2026-11-04T00:00:00+02:00",
+      "until": null,
+      "period": "day",
+      "gates": "own",
       "cap_usd": 10.0,
-      "note": "Adrian, 30 Oct: at most 10 USD of Meta API credits per day, weekends included, until we submit (Wed 4 Nov)."
-    },
-    {
-      "provider": "meta",
-      "from": "2026-11-04T00:00:00+02:00",
-      "until": "2026-11-05T00:00:00+02:00",
-      "cap_usd": 10.0,
-      "note": "Adrian, 30 Oct: at most 10 USD of Meta API credits per day, weekends included, until we submit (Wed 4 Nov)."
+      "note": "Adrian, 3 Nov (T2): at most 10 USD of Meta API credits per day, every day, also after go-live. Stops only Meta calls; replaces the dated 3 and 4 Nov windows. No lifetime cap."
     },
     {
       "provider": "baseten",
