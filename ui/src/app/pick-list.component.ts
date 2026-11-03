@@ -39,6 +39,9 @@ export type PickState = 'idle' | 'searching' | 'results' | 'empty' | 'error' | '
       }
       @default {
         <h2 class="h2">{{ m.pickTitle }}</h2>
+        @if (fromListings) {
+          <p class="s" data-from-listings>{{ m.pickFromListings }}</p>
+        }
         <ul class="picks">
           @for (c of items; track $index) {
             <li class="pickcard">
@@ -89,6 +92,11 @@ export class PickListComponent {
 
   get m() {
     return MESSAGES[this.lang];
+  }
+
+  /** Open Library did not answer: the titles are the shops' own (search.py, "source": "shop_listings"). */
+  get fromListings(): boolean {
+    return this.items.some((c) => c.source === 'shop_listings');
   }
 
   initialsOf(c: Candidate): string {

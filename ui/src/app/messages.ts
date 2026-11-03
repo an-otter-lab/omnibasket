@@ -479,6 +479,8 @@ export interface Messages {
   buyListFree: string;
   /** H3: Find book when the search answers 503 (Open Library busy or down). */
   pickSearchBusy: string;
+  /** Find book when Open Library did not answer and the results come from the shop index. */
+  pickFromListings: string;
   /** P3: the sub-label of the disabled "orders" tab when only one shop works (RO plural). */
   tabOrdersNotPossible: string;
   /** P3: the sub-label of the "1 order" tab when one order is not possible (RO agrees with "comandă"). */
@@ -849,6 +851,7 @@ export const MESSAGES: Record<Lang, Messages> = {
     leftOutNotHere: 'none of the shops in these orders has a price for it',
     buyListFree: 'Free',
     pickSearchBusy: 'Search is busy right now. Try again in a moment.',
+    pickFromListings: 'The book catalogue is not answering, so these titles come from shop listings.',
     tabOrdersNotPossible: 'not possible',
     tabOneNotPossible: 'not possible',
   },
@@ -1215,6 +1218,7 @@ export const MESSAGES: Record<Lang, Messages> = {
     leftOutNotHere: 'niciunul dintre magazinele din aceste comenzi nu are un preț pentru ea',
     buyListFree: 'Gratuită',
     pickSearchBusy: 'Căutarea este ocupată acum. Încearcă din nou peste câteva clipe.',
+    pickFromListings: 'Catalogul de cărți nu răspunde, așa că aceste titluri vin din listele magazinelor.',
     tabOrdersNotPossible: 'imposibile',
     tabOneNotPossible: 'imposibilă',
   },
