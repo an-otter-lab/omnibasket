@@ -120,6 +120,21 @@ describe('Ask box', () => {
     expect(f.app.askLeftOut).toEqual([]);
   });
 
+  it('leaving out the only shop that has a book says there is no plan, EN and RO, not "Left out"', async () => {
+    (window as unknown as { __noPlan?: boolean }).__noPlan = true;
+    askReply = () => new Response(JSON.stringify({ status: 'ok', actions: [act('exclude_store', { store_id: 'libris' })], reply_key: 'askDoneExclude', reply_args: { shop: 'Libris' } }), { status: 200 });
+    const f = await setup();
+    await ask(f, 'I’d rather not order from Libris');
+    expect(solves[solves.length - 1]['selected_store_ids']).toEqual(['emag', 'amazon_de']);
+    expect(solves[solves.length - 1]['selected_within']).toBeTrue();
+    expect(reply(f)).toBe(MESSAGES.en.askNoPlan);
+    f.app.lang = 'ro';
+    f.fixture.detectChanges();
+    await ask(f, 'Fără Libris');
+    expect(reply(f)).toBe(MESSAGES.ro.askNoPlan);
+    f.app.lang = 'en';
+  });
+
   it('a request whose plan has no total says so plainly, EN and RO, instead of "Showing" or "Left out"', async () => {
     (window as unknown as { __noPlan?: boolean }).__noPlan = true;
     askReply = () => ok(
