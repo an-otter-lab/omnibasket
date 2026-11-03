@@ -73,3 +73,21 @@ def test_absent_shop_plus_one_order_possible_applies_it():
 def test_absent_shop_only_unchanged():
     r = run_items("no Amazon", ["libris", "emag"], _items(["libris"], ["emag"]))
     assert r["status"] == "unsupported" and r["reply_key"] == "askNotInBasket" and "replies" not in r
+
+
+def test_model_exclude_of_a_shop_not_in_the_basket_says_not_in_basket():
+    # Live basket priced only at Books-Express: Amazon.de is never read live, so it is not in store_ids.
+    def muse(*a, **k):
+        return {"actions": [{"name": "exclude_store", "args": {"store_id": "amazon_de"}}]}
+    res = ask.answer("Nu vreau să cumpăr din Germania", "ro", state(["books_express"]), muse=muse, names=NAMES)
+    r = res.as_response()
+    assert res.via == "muse"
+    assert r["status"] == "unsupported" and r["actions"] == []
+    assert r["reply_key"] == "askNotInBasket" and r["reply_args"] == {"shop": "Amazon.de"}
+
+
+def test_model_unknown_shop_id_stays_unsupported():
+    def muse(*a, **k):
+        return {"actions": [{"name": "exclude_store", "args": {"store_id": "zorgblatt"}}]}
+    r = ask.answer("not from Zorgblatt", "en", state(FULL), muse=muse, names=NAMES).as_response()
+    assert r["status"] == "unsupported" and r["reply_key"] == "askUnsupported"

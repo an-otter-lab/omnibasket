@@ -281,12 +281,16 @@ def test_prompt_holds_only_sentence_and_id_lists(client, model):
     body = model.calls[0]["body"]
     assert model.calls[0]["note"] == "ask-map"
     prompt = body["input"][0]["content"][0]["text"]
-    assert prompt == ask.MAP_PROMPT + "\n\n" + ask.build_user_text("bring them together somehow", st)
-    user_part = ask.build_user_text("bring them together somehow", st)
+    names = ask.load_names()
+    assert prompt == ask.MAP_PROMPT + "\n\n" + ask.build_user_text("bring them together somehow", st, names)
+    user_part = ask.build_user_text("bring them together somehow", st, names)
     assert user_part.splitlines()[0] == 'SENTENCE: "bring them together somehow"'
     assert json.loads(user_part.splitlines()[1].split(": ", 1)[1]) == st["store_ids"]
     assert json.loads(user_part.splitlines()[2].split(": ", 1)[1]) == st["membership_ids"]
-    assert len(user_part.splitlines()) == 3
+    absent = json.loads(user_part.splitlines()[3].split(": ", 1)[1])
+    assert absent == [s for s in names["stores"] if s not in st["store_ids"]]
+    assert len(user_part.splitlines()) == 4
+    assert len(ask.build_user_text("x", {**st, "store_ids": list(names["stores"])}, names).splitlines()) == 3
     assert "SECRET" not in prompt and "lei" not in prompt.lower().replace("lei.", "")
 
 
