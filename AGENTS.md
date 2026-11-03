@@ -20,7 +20,7 @@ The plan being built is the Tuesday-to-Wednesday push to the 4 Nov submission; w
 - Respect robots.txt and shop terms. Never fetch shop search pages.
 - Amazon.de is never read live by the app.
 - One honest attempt per page. No bot-wall bypass.
-- The user agent names Omnibasket and gives a contact URL. It never contains "spider" or "crawler".
+- The user agent names Omnibasket and gives a contact URL. It never contains "spider" or "crawler". No contact email in it, even where an API (Open Library) would allow more requests for one; search waits at most 3 s for Open Library, then falls back (T2, 2026-11-03, Adrian).
 - Tests never touch the network: use fixtures and mocks.
 - Book covers come from Open Library only, never from shop images.
 - Elefant (T2, 3 Nov, Adrian): index its imported books only (slugs ending in a binding), read its pages with `api/elefant_page.py` (plain code, never Muse), rank an offer only when the page names Elefant as seller, and charge 9,99 lei per order. Cărturești is not added (Cloudflare challenge for everyone).
