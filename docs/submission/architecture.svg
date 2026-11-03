@@ -23,7 +23,7 @@
 
   <rect x="48" y="226" width="205" height="100" rx="6" fill="#ffffff" stroke="#888"/>
   <text x="58" y="246" font-size="12" font-weight="700" fill="#1a1a1a">Search and input</text>
-  <text x="58" y="264" font-size="11" fill="#333">Index of 5 shops built from</text>
+  <text x="58" y="264" font-size="11" fill="#333">Shop index built from</text>
   <text x="58" y="278" font-size="11" fill="#333">their sitemaps (SQLite)</text>
   <text x="58" y="296" font-size="11" fill="#333">Open Library: ISBNs, covers</text>
   <text x="58" y="312" font-size="11" fill="#333">Pasted-link handling</text>
@@ -58,9 +58,9 @@
   <!-- Shops -->
   <rect x="30" y="420" width="380" height="120" rx="8" fill="#fff7e8" stroke="#c28a2b"/>
   <text x="48" y="442" font-size="14" font-weight="700" fill="#1a1a1a">Shops (read, not scraped for search)</text>
-  <text x="48" y="464" font-size="12" fill="#333">Libris · Bookzone · eMAG · Elefant</text>
+  <text x="48" y="464" font-size="12" fill="#333">Indexed, read live: Libris · Elefant</text>
   <text x="48" y="482" font-size="12" fill="#333">Amazon.de: indexed, links out, never read live</text>
-  <text x="48" y="504" font-size="12" fill="#333">Any other shop: pasted link, that shopper's basket only</text>
+  <text x="48" y="504" font-size="12" fill="#333">Bookzone, eMAG, any other shop: pasted link only</text>
   <text x="48" y="524" font-size="12" fill="#333">Links open the shop's own listing; no shop images used</text>
 
   <!-- budget + Muse -->
