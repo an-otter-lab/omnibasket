@@ -28,6 +28,8 @@ PLAN_REASON = {
     "no_chosen_shop_lists": "no shop chosen lists {title}",
     "no_shop_prints_as": "no shop prints {title} as {edition}",
     "no_chosen_shop_prints_as": "no shop chosen prints {title} as {edition}",
+    "no_shop_left_lists": "no shop left lists {title}",
+    "no_shop_left_prints_as": "no shop left prints {title} as {edition}",
     "fee_not_printed_split": "a delivery fee is not printed for this split",
     "no_single_shop_fees": "no single shop has a known delivery fee for every book",
     "no_single_shop_lists_all": "no single shop lists every book",
@@ -141,12 +143,14 @@ def _usable(
     return kept, missing
 
 
-def _missing_reason(missing: list[dict], chosen: bool = False) -> dict:
+def _missing_reason(missing: list[dict], chosen: bool = False, left: bool = False) -> dict:
+    """left: Ask left shops out, so every book no remaining shop lists is named, not only the first."""
     first = missing[0]
-    where = "chosen_shop" if chosen else "shop"
+    where = "shop_left" if left else "chosen_shop" if chosen else "shop"
     if first["pin"]:
         return _why(f"no_{where}_prints_as", title=first["title"], edition=first["pin"])
-    return _why(f"no_{where}_lists", title=first["title"])
+    title = ", ".join(m["title"] for m in missing if not m["pin"]) if left else first["title"]
+    return _why(f"no_{where}_lists", title=title)
 
 
 def delivery_gap(
@@ -617,7 +621,7 @@ def _custom(
         return {**base, **_answer(ctx, None, why=_why("chosen_shop_unusable", shops=[u["store_id"] for u in unselectable]))}
     items, missing = _usable(ctx, pins, set(chosen))
     if missing:
-        return {**base, **_answer(ctx, None, why=_missing_reason(missing, chosen=True))}
+        return {**base, **_answer(ctx, None, why=_missing_reason(missing, chosen=True, left=within))}
     if within:
         # Ask's "leave a shop out": the cheapest split over these shops; none has to take a book.
         # The answer names the shops it uses, so the Custom switches show them.

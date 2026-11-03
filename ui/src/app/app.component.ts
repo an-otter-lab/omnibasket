@@ -1188,7 +1188,28 @@ export class AppComponent implements OnDestroy {
     const ok = !(this.data?.edition.status === 'not_possible' && JSON.stringify(before) !== JSON.stringify(this.pins));
     if (!ok) { this.pins = before; await this.solve(); }
     this.go('result/' + this.tab);
-    r.done(ok, { orders: this.orders.length, missing: this.leftOutBooks.map((b) => b.item.title), tab: this.tab });
+    r.done(ok, { orders: this.orders.length, missing: this.leftOutBooks.map((b) => b.item.title), tab: this.tab, noShop: this.noShopLeft });
+  }
+
+  /** Ask left shops out and Custom has no plan: the books no remaining shop lists (in the pinned edition, if any). */
+  get noShopLeft(): string[] {
+    const c = this.data?.custom;
+    if (!this.askWithin || this.tab !== 'custom' || c?.status !== 'not_possible') return [];
+    const left = new Set(c.selected_store_ids);
+    return (this.data?.books || [])
+      .filter((b) => {
+        const where = b.edition_pin
+          ? b.editions.find((e) => e.edition === b.edition_pin)?.store_ids || []
+          : b.shops.filter((o) => o.price_cents != null).map((o) => o.store_id);
+        return !where.some((id) => left.has(id));
+      })
+      .map((b) => b.title);
+  }
+
+  /** Custom's no-total heading: after Ask left shops out it names them, so the page says why no plan fits. */
+  get noTotalHeading(): string {
+    const out = this.askWithin ? this.askLeftOut.map((id) => this.shopName(id)) : [];
+    return out.length ? this.t('noPlanWithout', { shops: out.join(', ') }) : this.m.noTotalShops;
   }
 
   setMemberships(ids: string[]): void {

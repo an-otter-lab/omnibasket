@@ -560,7 +560,7 @@
                       <ng-container *ngTemplateOutlet="notranked; context: { list: c.not_ranked }"></ng-container>
                     } @else {
                       <div class="box">
-                        <p class="pt">{{ m.noTotalShops }}</p>
+                        <p class="pt">{{ noTotalHeading }}</p>
                         <p class="s">{{ why(c) }}</p>
                         @for (u of c.unselectable; track u.store_id) { <p class="s"><strong>{{ shopName(u.store_id) }}</strong>: {{ shopWhy('lock', u.code, u.reason) }}</p> }
                       </div>

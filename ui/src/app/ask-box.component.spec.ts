@@ -15,13 +15,15 @@ const order = (store: string, ids: string[]) => ({
 const ans = (orders: ReturnType<typeof order>[]) => ({ status: 'ranked', reason: null, total_cents: 2000, books_subtotal_cents: 2000, order_count: orders.length, orders, delta_vs_cheapest_cents: 0, not_ranked: [] });
 
 const noPlan = () => (window as unknown as { __noPlan?: boolean }).__noPlan === true;
+// With __noPlan, b1 is sold only at Libris and b2 at Libris and eMAG.
+const offers = (id: string) => (id === 'b1' ? ['libris'] : ['libris', 'emag']).map((s) => ({ store_id: s, price_cents: 1000 }));
 
 function payload(notPossible: boolean, selected: string[] | null = null) {
   const o = [order('libris', ['b1']), order('emag', ['b2'])];
   return {
     currency: 'RON', cached: true, read_at_range: { oldest: null, newest: null }, degraded: null,
     shops: ['libris', 'emag', 'amazon_de'].map((s) => ({ store_id: s, priced: true, excluded: false, selectable: !((window as unknown as { __unsel?: string }).__unsel === s), not_selectable_code: null, not_selectable_reason: null, read_at: null, books_listed: 2, failed_reads: [], free_delivery_threshold_cents: null, delivery_cents: 0, delivery_known: true, order_fee_cents: 0 })),
-    books: ['b1', 'b2'].map((id) => ({ item_id: id, title: id, isbn13: null, edition_pin: null, editions: [{ edition: id === 'b1' ? 'paperback' : 'hardcover', cheapest_price_cents: 1000, store_ids: ['libris'] }], assigned_store_id: 'libris', shops: [] })),
+    books: ['b1', 'b2'].map((id) => ({ item_id: id, title: id, isbn13: null, edition_pin: null, editions: [{ edition: id === 'b1' ? 'paperback' : 'hardcover', cheapest_price_cents: 1000, store_ids: ['libris'] }], assigned_store_id: 'libris', shops: noPlan() ? offers(id) : [] })),
     failed_reads: [],
     memberships: [{ id: 'emag_genius', store_id: 'emag', store_name: 'eMAG', name: 'Genius', effect: 'unknown' }, { id: 'amazon_prime', store_id: 'amazon_de', store_name: 'Amazon.de', name: 'Prime', effect: 'none' }],
     cheapest: ans(o),
@@ -127,11 +129,57 @@ describe('Ask box', () => {
     await ask(f, 'I’d rather not order from Libris');
     expect(solves[solves.length - 1]['selected_store_ids']).toEqual(['emag', 'amazon_de']);
     expect(solves[solves.length - 1]['selected_within']).toBeTrue();
-    expect(reply(f)).toBe(MESSAGES.en.askNoPlan);
+    expect(reply(f)).toBe('That isn’t possible: no shop left has b1, so no plan fits.');
     f.app.lang = 'ro';
     f.fixture.detectChanges();
     await ask(f, 'Fără Libris');
-    expect(reply(f)).toBe(MESSAGES.ro.askNoPlan);
+    expect(reply(f)).toBe('Asta nu se poate: niciun magazin rămas nu are b1, așa că niciun plan nu se potrivește.');
+    f.app.lang = 'en';
+  });
+
+  // 3 Nov walk: The Gruffalo only at Elefant. The excluded shop is Off, the others stay chosen, the page and the reply name the book.
+  it('an impossible leave-out keeps the other shops On and names the book with no shop on the page, EN and RO', async () => {
+    (window as unknown as { __noPlan?: boolean }).__noPlan = true;
+    askReply = () => ok([act('exclude_store', { store_id: 'libris' })], [{ reply_key: 'askDoneExclude', reply_args: { shop: 'Libris' } }]);
+    const f = await setup();
+    await ask(f, 'leave out Libris');
+    expect(window.location.hash).toBe('#/result/custom');
+    const on = (id: string) => f.el.querySelector<HTMLInputElement>('[data-shop-switch="' + id + '"] input')!.checked;
+    expect([on('libris'), on('emag'), on('amazon_de')]).toEqual([false, true, true]);
+    expect(f.el.textContent).toContain('No plan fits without Libris');
+    f.app.lang = 'ro';
+    f.fixture.detectChanges();
+    expect(f.el.textContent).toContain('Niciun plan nu merge fără Libris');
+    f.app.lang = 'en';
+  });
+
+  it('back on Cheapest, a leave-out starts from every shop again instead of leaving none', async () => {
+    (window as unknown as { __noPlan?: boolean }).__noPlan = true;
+    askReply = () => ok([act('exclude_store', { store_id: 'libris' })], [{ reply_key: 'askDoneExclude', reply_args: { shop: 'Libris' } }]);
+    const f = await setup();
+    await ask(f, 'leave out Libris');
+    f.app.tab = 'cheapest';
+    f.fixture.detectChanges();
+    askReply = () => ok([act('exclude_store', { store_id: 'emag' })], [{ reply_key: 'askDoneExclude', reply_args: { shop: 'eMAG' } }]);
+    await ask(f, 'leave out eMAG');
+    expect((asks[1]['state'] as Record<string, unknown>)['selected_store_ids']).toEqual(['libris', 'emag', 'amazon_de']);
+    expect(solves[solves.length - 1]['selected_store_ids']).toEqual(['libris', 'amazon_de']);
+    expect(f.app.askLeftOut).toEqual(['emag']);
+    expect(f.app.tab).toBe('custom');
+  });
+
+  it('on Custom a second leave-out still keeps the first out, and one that leaves no shop says so, EN and RO', async () => {
+    askReply = () => ok([act('exclude_store', { store_id: 'libris' })]);
+    const f = await setup();
+    await ask(f, 'leave out Libris');
+    askReply = () => new Response(JSON.stringify({ status: 'unsupported', actions: [], reply_key: 'askNoShopLeft', reply_args: {} }), { status: 200 });
+    await ask(f, 'leave out eMAG and Amazon');
+    expect((asks[1]['state'] as Record<string, unknown>)['selected_store_ids']).toEqual(['emag', 'amazon_de']);
+    expect(reply(f)).toBe('That would leave no shop to buy from.');
+    f.app.lang = 'ro';
+    f.fixture.detectChanges();
+    await ask(f, 'fără eMAG și Amazon');
+    expect(reply(f)).toBe('Așa nu ar mai rămâne niciun magazin de la care să cumperi.');
     f.app.lang = 'en';
   });
 
@@ -144,11 +192,11 @@ describe('Ask box', () => {
     const f = await setup();
     await ask(f, 'everything in one order from eMAG');
     expect(f.app.tab).toBe('custom');
-    expect(reply(f)).toBe(MESSAGES.en.askNoPlan);
+    expect(reply(f)).toBe('That isn’t possible: no shop left has b1, so no plan fits.');
     f.app.lang = 'ro';
     f.fixture.detectChanges();
     await ask(f, 'totul într-o comandă de la eMAG');
-    expect(reply(f)).toBe(MESSAGES.ro.askNoPlan);
+    expect(reply(f)).toBe('Asta nu se poate: niciun magazin rămas nu are b1, așa că niciun plan nu se potrivește.');
     f.app.lang = 'en';
   });
 

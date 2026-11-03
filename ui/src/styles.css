@@ -138,6 +138,8 @@ a.row:hover{color:var(--ink);background:var(--surface-2)}
 .tog input:checked{background:var(--brand)}
 .tog input:checked::after{left:23px}
 .tog input:disabled{background:var(--disabled-bg);cursor:not-allowed}
+/* A locked or busy switch that is on still reads as on: the brand track, dimmed, never the off grey. */
+.tog input:checked:disabled{background:var(--brand);opacity:.6}
 /* R10: a locked switch carries a glyph, not only low contrast. */
 .tog.locked .strong::before{content:'🔒';font-size:12px;margin-right:6px}
 .step{display:flex;gap:14px;align-items:flex-start}

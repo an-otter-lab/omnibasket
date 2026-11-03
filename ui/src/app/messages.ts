@@ -324,6 +324,7 @@ export interface Messages {
   sameAsCheapest: string;
   movedTitle: string;
   noTotalShops: string;
+  noPlanWithout: string;
   workingSplit: string;
   deliveryIncluded: string;
   oneOrderCosts: string;
@@ -392,6 +393,8 @@ export interface Messages {
   askNotInBasket: string;
   askOneNotPossible: string;
   askNoPlan: string;
+  askNoPlanBooks: string;
+  askNoShopLeft: string;
   askOneLeavesOut: string;
   askOneTakesMore: string;
   askUnavailable: string;
@@ -435,6 +438,8 @@ export interface Messages {
   /** S23: the API's "why not" lines, rendered from reason_code (plan) or code (shop rows). */
   rsNoShopLists: string;
   rsNoChosenShopLists: string;
+  rsNoShopLeftLists: string;
+  rsNoShopLeftPrintsAs: string;
   rsNoShopPrintsAs: string;
   rsNoChosenShopPrintsAs: string;
   rsFeeNotPrintedSplit: string;
@@ -717,6 +722,7 @@ export const MESSAGES: Record<Lang, Messages> = {
     sameAsCheapest: 'same as the cheapest',
     movedTitle: 'Moved',
     noTotalShops: 'No total for these shops',
+    noPlanWithout: 'No plan fits without {shops}',
     workingSplit: 'Working out the split…',
     deliveryIncluded: 'Delivery included',
     oneOrderCosts: 'one order costs',
@@ -777,6 +783,8 @@ export const MESSAGES: Record<Lang, Messages> = {
     askNotInBasket: '{shop} isn’t part of this basket.',
     askOneNotPossible: 'One order isn’t possible: no single shop lists every book.',
     askNoPlan: 'That isn’t possible: no plan fits it, so there’s no total.',
+    askNoPlanBooks: 'That isn’t possible: no shop left has {books}, so no plan fits.',
+    askNoShopLeft: 'That would leave no shop to buy from.',
     askOneLeavesOut: 'One order can’t hold every book. Not in it: {books}.',
     askOneTakesMore: 'One order isn’t possible with these shops: this takes {n} orders.',
     askUnavailable: 'Ask is not available right now.',
@@ -811,6 +819,8 @@ export const MESSAGES: Record<Lang, Messages> = {
     photoReadingList: 'Reading your list\u2026',
     rsNoShopLists: 'no shop lists {title}',
     rsNoChosenShopLists: 'no shop chosen lists {title}',
+    rsNoShopLeftLists: 'no shop left lists {title}',
+    rsNoShopLeftPrintsAs: 'no shop left prints {title} as {edition}',
     rsNoShopPrintsAs: 'no shop prints {title} as {edition}',
     rsNoChosenShopPrintsAs: 'no shop chosen prints {title} as {edition}',
     rsFeeNotPrintedSplit: 'a delivery fee is not printed for this split',
@@ -1083,6 +1093,7 @@ export const MESSAGES: Record<Lang, Messages> = {
     sameAsCheapest: 'la fel ca cea mai ieftină',
     movedTitle: 'Mutate',
     noTotalShops: 'Niciun total pentru aceste magazine',
+    noPlanWithout: 'Niciun plan nu merge fără {shops}',
     workingSplit: 'Calculăm împărțirea…',
     deliveryIncluded: 'Livrare inclusă',
     oneOrderCosts: 'o singură comandă costă',
@@ -1143,6 +1154,8 @@ export const MESSAGES: Record<Lang, Messages> = {
     askNotInBasket: '{shop} nu face parte din acest coș.',
     askOneNotPossible: 'O singură comandă nu este posibilă: niciun magazin nu are toate cărțile.',
     askNoPlan: 'Asta nu se poate: niciun plan nu se potrivește, așa că nu există un total.',
+    askNoPlanBooks: 'Asta nu se poate: niciun magazin rămas nu are {books}, așa că niciun plan nu se potrivește.',
+    askNoShopLeft: 'Așa nu ar mai rămâne niciun magazin de la care să cumperi.',
     askOneLeavesOut: 'O singură comandă nu poate cuprinde toate cărțile. Nu intră în ea: {books}.',
     askOneTakesMore: 'O singură comandă nu se poate cu aceste magazine: sunt {n} comenzi.',
     askUnavailable: 'Întrebările nu sunt disponibile acum.',
@@ -1177,6 +1190,8 @@ export const MESSAGES: Record<Lang, Messages> = {
     photoReadingList: 'Citesc lista\u2026',
     rsNoShopLists: 'niciun magazin nu are {title}',
     rsNoChosenShopLists: 'niciunul dintre magazinele alese nu are {title}',
+    rsNoShopLeftLists: 'niciun magazin rămas nu are {title}',
+    rsNoShopLeftPrintsAs: 'niciun magazin rămas nu are {title} în ediția {edition}',
     rsNoShopPrintsAs: 'niciun magazin nu are {title} în ediția {edition}',
     rsNoChosenShopPrintsAs: 'niciunul dintre magazinele alese nu are {title} în ediția {edition}',
     rsFeeNotPrintedSplit: 'o taxă de livrare nu este afișată pentru această împărțire',
@@ -1274,6 +1289,8 @@ const REASON_KEY: Record<string, keyof Messages> = {
   no_chosen_shop_lists: 'rsNoChosenShopLists',
   no_shop_prints_as: 'rsNoShopPrintsAs',
   no_chosen_shop_prints_as: 'rsNoChosenShopPrintsAs',
+  no_shop_left_lists: 'rsNoShopLeftLists',
+  no_shop_left_prints_as: 'rsNoShopLeftPrintsAs',
   fee_not_printed_split: 'rsFeeNotPrintedSplit',
   no_single_shop_fees: 'rsNoSingleShopFees',
   no_single_shop_lists_all: 'rsNoSingleShopListsAll',

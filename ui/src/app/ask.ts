@@ -44,6 +44,9 @@ function isObj(v: unknown): v is Record<string, unknown> {
 export function applyActions(actions: unknown, ui: AskUiState): AskNext {
   const next: AskNext = { tab: ui.tab, selected: ui.selected ? [...ui.selected] : null, memberships: [...ui.memberships], pins: { ...ui.pins }, within: !!ui.within, leftOut: [...(ui.leftOut ?? [])], ignored: 0 };
   const pool = ui.base ?? ui.stores;
+  // Ask works from the page the shopper sees: off Custom, an earlier exclusion is not on screen, so a
+  // shop action starts again from every shop instead of piling onto it (and leaving no shop at all).
+  let fresh = ui.tab !== 'custom';
   for (const raw of Array.isArray(actions) ? actions : []) {
     const a = isObj(raw) ? raw : {};
     const args = isObj(a['args']) ? a['args'] : {};
@@ -56,6 +59,7 @@ export function applyActions(actions: unknown, ui: AskUiState): AskNext {
       case 'include_store': {
         const id = args['store_id'];
         if (typeof id !== 'string' || !ui.stores.includes(id)) { next.ignored++; break; }
+        if (fresh) { next.selected = null; next.within = false; next.leftOut = []; fresh = false; }
         if (a['name'] === 'exclude_store') {
           // T2, 3 Nov, Adrian: leaving a shop out gives the cheapest plan over every other shop,
           // not the default Custom set where each chosen shop must take a book.
@@ -95,8 +99,9 @@ export function applyActions(actions: unknown, ui: AskUiState): AskNext {
   return next;
 }
 
-/** What the host's solve gave on the tab Ask landed on: how many orders, and the titles of basket books in none of them. */
-export interface AskPlan { orders: number; missing: string[]; tab?: AskTab }
+/** What the host's solve gave on the tab Ask landed on: how many orders, the titles of basket books in none of them,
+ *  and (no plan after Ask left shops out) the titles no remaining shop lists. */
+export interface AskPlan { orders: number; missing: string[]; tab?: AskTab; noShop?: string[] }
 
 /** Structural view of the /solve payload: only what Ask reads. */
 export interface AskData {
@@ -127,8 +132,9 @@ export function askState(data: AskData, cur: AskInputs): Record<string, unknown>
   return {
     tab: cur.tab,
     // An exclude starts from every selectable shop but the ones Ask left out, not from a hand-picked
-    // Custom set: the same pool applyActions uses, so the server's "never zero shops" check agrees with it.
-    selected_store_ids: cur.within ? cur.selected : ui.base,
+    // Custom set; off Custom it starts from every selectable shop. The same pool applyActions uses,
+    // so the server's "never zero shops" check agrees with it.
+    selected_store_ids: cur.within && cur.tab === 'custom' ? cur.selected : ui.base,
     memberships: cur.memberships,
     edition_pins: cur.pins,
     store_ids: ui.stores,
