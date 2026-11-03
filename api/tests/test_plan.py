@@ -328,14 +328,19 @@ def test_one_book_ranks_shops_and_lists_unknown_fee_shops_unranked(client: TestC
     assert body["cheapest"]["total_cents"] == 1400
 
 
-def test_only_one_shop_returns_the_one_parcel_answer_and_not_possible_elsewhere(client: TestClient) -> None:
-    stores = [_store("a", threshold=0)]
-    items = [_item("x", [("a", 1000)], title="X"), _item("y", [("a", 2000)], title="Y")]
-    body = _post(client, stores, items, selected_store_ids=["a"])
-    assert body["degraded"]["kind"] == "one_shop"
+def test_only_one_shop_with_every_book_is_the_cheapest_answer_too(client: TestClient) -> None:
+    # Adrian, 3 Nov: Libris prices Matilda and Gruffalo, Books-Express failed to read. The one Libris
+    # order is the cheapest answer (126,51), the same as the one-order tab; "only one shop" is a note.
+    stores = [_store("libris", threshold=20000, shipping=1290)]
+    items = [_item("matilda", [("libris", 5661)], title="Matilda"), _item("gruffalo", [("libris", 5700)], title="Gruffalo")]
+    body = _post(client, stores, items, selected_store_ids=["libris"])
+    assert body["degraded"]["kind"] == "one_shop" and body["degraded"]["reason_code"] == "one_shop"
+    assert body["cheapest"]["status"] == "ranked" and body["cheapest"]["total_cents"] == 12651
+    assert [o["store_id"] for o in body["cheapest"]["orders"]] == ["libris"]
+    assert body["cheapest"]["order_count"] == 1 and "degraded" not in body["cheapest"]
     assert body["one_parcel"]["status"] == "ranked"
-    assert body["one_parcel"]["answer"]["total_cents"] == 3000
-    assert body["cheapest"]["status"] == "not_possible" and body["cheapest"]["total_cents"] is None
+    assert body["one_parcel"]["answer"]["total_cents"] == 12651
+    assert body["one_parcel"]["answer"]["delta_vs_cheapest_cents"] == 0
     assert body["custom"]["status"] == "not_possible" and body["custom"]["total_cents"] is None
 
 

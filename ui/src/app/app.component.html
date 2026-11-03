@@ -468,8 +468,9 @@
               <nav class="tabs rtabs" role="tablist" [class.two]="cheapestIsOneOrder && degraded !== 'one_shop'"
                    [attr.aria-label]="m.tabsLabel" (keydown)="onTabsKey($event)">
                 @if (degraded === 'one_shop') {
-                  <a id="tab-one" role="tab" (click)="onLinkClick($event, 'result/one')" [attr.aria-selected]="tab === 'one'" [attr.tabindex]="tab === 'one' ? 0 : -1"
-                     [class.on]="tab === 'one'" href="#/result/one">{{ t('onlyShop', { shop: shopName(data.degraded?.store_id) }) }}<span>{{ m.onlyWay }}</span></a>
+                  <!-- One shop priced: its one order is the cheapest answer too (Adrian, 3 Nov). -->
+                  <a id="tab-cheapest" role="tab" (click)="onLinkClick($event, 'result/cheapest')" [attr.aria-selected]="tab !== 'custom'" [attr.tabindex]="tab !== 'custom' ? 0 : -1"
+                     [class.on]="tab !== 'custom'" href="#/result/cheapest">{{ t('onlyShop', { shop: shopName(data.degraded?.store_id) }) }}<span>{{ m.onlyWay }}</span></a>
                   <span id="tab-orders" class="off" role="tab" aria-selected="false" aria-disabled="true" tabindex="-1">{{ m.tabOrders }}<span>{{ m.tabOrdersNotPossible }}</span></span>
                   <span id="tab-custom" class="off" role="tab" aria-selected="false" aria-disabled="true" tabindex="-1">{{ m.tabCustom }}<span>{{ m.noOtherShop }}</span></span>
                 } @else if (cheapestIsOneOrder) {
@@ -501,7 +502,7 @@
                     @if (degraded === 'one_shop') {
                       <div class="box">
                         <p class="pt">{{ m.whyNotSplit }}</p>
-                        <p class="s">{{ why(data.cheapest) }}</p>
+                        <p class="s">{{ why(data.degraded) }}</p>
                         @for (s of otherShops(); track s.store_id) { <p class="s"><strong>{{ shopName(s.store_id) }}</strong>: @for (r of s.reasons; track r.code; let last = $last) { {{ shopWhy('shop', r.code, r.text) }}{{ last ? '' : '; ' }} }</p> }
                       </div>
                     } @else {
@@ -606,7 +607,8 @@
                 @if (tab === 'cheapest' && data.cheapest.status === 'ranked') {
                   <div class="head">
                     <p class="big n">{{ lei(data.cheapest.total_cents) }}</p>
-                    <p class="s ink">{{ m.deliveryIncluded }}@if (oneDelta != null && !cheapestIsOneOrder) { · {{ m.oneOrderCosts }} <strong class="n">{{ t('amountMore', { amount: lei(oneDelta) }) }}</strong> }</p>
+                    @if (degraded === 'one_shop') { <p class="s ink">{{ t('onlyShopLists', { shop: shopName(data.degraded?.store_id) }) }}</p> } @else {
+                    <p class="s ink">{{ m.deliveryIncluded }}@if (oneDelta != null && !cheapestIsOneOrder) { · {{ m.oneOrderCosts }} <strong class="n">{{ t('amountMore', { amount: lei(oneDelta) }) }}</strong> }</p> }
                     @if (data.cheapest.order_count != null) { <p class="s n" data-order-count>{{ orderWord(data.cheapest.order_count) }}</p> }
                   </div>
                 } @else if (tab === 'one') {

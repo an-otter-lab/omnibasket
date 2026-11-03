@@ -319,7 +319,7 @@ describe('one tab when the cheapest split is one order (R7)', () => {
     const tabs = [...list.querySelectorAll<HTMLElement>('[role="tab"]')];
     expect(tabs.length).toBe(3);
     expect(tabs[1].getAttribute('aria-disabled')).toBe('true');
-    const one = el.querySelector<HTMLElement>('#tab-one')!;
+    const one = el.querySelector<HTMLElement>('#tab-cheapest')!;
     let clicks = 0;
     one.addEventListener('click', (event) => {
       event.preventDefault();

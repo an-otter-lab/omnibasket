@@ -702,8 +702,10 @@ def build_plan(
     if cheapest["status"] == "ranked":
         cheapest["not_ranked"] = _cheaper_unranked(ctx, items, cheapest["total_cents"])
         cheapest["delta_vs_cheapest_cents"] = 0
-    if degraded and degraded["kind"] == "one_shop":
-        # One shop only: the one-parcel answer stands, the other tabs cannot differ.
+    if degraded and degraded["kind"] == "one_shop" and cheapest["status"] != "ranked":
+        # One shop only and no ranked order there: say why. When that shop prices every book with
+        # its fees printed, its one order is the cheapest answer (Adrian, 3 Nov); `degraded` keeps
+        # "only one shop can be priced" as a note, not a refusal.
         cheapest = {**_answer(ctx, None, why=_why(degraded["reason_code"], **degraded["reason_args"])), "degraded": True}
 
     states = _shop_states(ctx)
