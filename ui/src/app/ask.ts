@@ -18,6 +18,10 @@ export interface AskUiState {
   membershipIds: string[];
   /** item_id -> edition of the offer the current tab's answer chose (books with no known edition absent). */
   chosen: Record<string, string>;
+  /** The custom selection is a pool to pick the cheapest from (Ask left a shop out), not shops that must each take a book. */
+  within?: boolean;
+  /** Shops Ask was told to leave out. */
+  leftOut?: string[];
 }
 
 export interface AskNext {
@@ -25,6 +29,8 @@ export interface AskNext {
   selected: string[] | null;
   memberships: string[];
   pins: Record<string, string>;
+  within: boolean;
+  leftOut: string[];
   /** Actions that were not one of the five, or named an id that is not in the current answer. */
   ignored: number;
 }
@@ -36,7 +42,8 @@ function isObj(v: unknown): v is Record<string, unknown> {
 }
 
 export function applyActions(actions: unknown, ui: AskUiState): AskNext {
-  const next: AskNext = { tab: ui.tab, selected: ui.selected ? [...ui.selected] : null, memberships: [...ui.memberships], pins: { ...ui.pins }, ignored: 0 };
+  const next: AskNext = { tab: ui.tab, selected: ui.selected ? [...ui.selected] : null, memberships: [...ui.memberships], pins: { ...ui.pins }, within: !!ui.within, leftOut: [...(ui.leftOut ?? [])], ignored: 0 };
+  const pool = ui.base ?? ui.stores;
   for (const raw of Array.isArray(actions) ? actions : []) {
     const a = isObj(raw) ? raw : {};
     const args = isObj(a['args']) ? a['args'] : {};
@@ -49,12 +56,21 @@ export function applyActions(actions: unknown, ui: AskUiState): AskNext {
       case 'include_store': {
         const id = args['store_id'];
         if (typeof id !== 'string' || !ui.stores.includes(id)) { next.ignored++; break; }
-        const cur = next.selected ?? [...(ui.base ?? ui.stores)];
         if (a['name'] === 'exclude_store') {
-          const rest = cur.filter((s) => s !== id);
+          // T2, 3 Nov, Adrian: leaving a shop out gives the cheapest plan over every other shop,
+          // not the default Custom set where each chosen shop must take a book.
+          const out = next.leftOut.includes(id) ? next.leftOut : [...next.leftOut, id];
+          const rest = pool.filter((s) => !out.includes(s));
           if (!rest.length) { next.ignored++; break; }
+          next.leftOut = out;
           next.selected = rest;
+          next.within = true;
+        } else if (next.within) {
+          next.leftOut = next.leftOut.filter((s) => s !== id);
+          const rest = pool.filter((s) => !next.leftOut.includes(s));
+          next.selected = rest.includes(id) ? rest : [...rest, id];
         } else {
+          const cur = next.selected ?? [...pool];
           next.selected = cur.includes(id) ? cur : [...cur, id];
         }
         next.tab = 'custom';
@@ -90,7 +106,7 @@ export interface AskData {
 }
 interface AskOrder { store_id?: string; books: { item_id: string; edition: string | null }[] }
 
-export interface AskInputs { tab: AskTab; selected: string[] | null; pins: Record<string, string>; memberships: string[] }
+export interface AskInputs { tab: AskTab; selected: string[] | null; pins: Record<string, string>; memberships: string[]; within?: boolean; leftOut?: string[] }
 
 export function uiState(data: AskData, cur: AskInputs): AskUiState {
   const orders = (cur.tab === 'one' ? data.one_order.answer?.orders : cur.tab === 'custom' ? data.custom?.orders : data.cheapest.orders) || [];
@@ -107,7 +123,8 @@ export function askState(data: AskData, cur: AskInputs): Record<string, unknown>
   const ui = uiState(data, cur);
   return {
     tab: cur.tab,
-    selected_store_ids: cur.selected,
+    // An exclude starts from every shop but the ones Ask left out, not from a hand-picked Custom set.
+    selected_store_ids: cur.within ? cur.selected : null,
     memberships: cur.memberships,
     edition_pins: cur.pins,
     store_ids: ui.stores,

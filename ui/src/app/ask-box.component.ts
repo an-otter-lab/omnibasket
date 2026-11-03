@@ -67,6 +67,10 @@ export class AskBoxComponent implements OnChanges {
   @Input() selected: string[] | null = null;
   @Input() pins: Record<string, string> = {};
   @Input() memberships: string[] = [];
+  /** The custom selection is the pool Ask picks the cheapest from, after leaving shops out. */
+  @Input() within = false;
+  /** Shops Ask was told to leave out. */
+  @Input() leftOut: string[] = [];
   /** The host is solving. */
   @Input() busy = false;
   @Output() applied = new EventEmitter<AskApplied>();
@@ -121,7 +125,7 @@ export class AskBoxComponent implements OnChanges {
     this.working = true;
     this.lines = [];
     try {
-      const cur = { tab: this.tab, selected: this.selected, pins: this.pins, memberships: this.memberships };
+      const cur = { tab: this.tab, selected: this.selected, pins: this.pins, memberships: this.memberships, within: this.within, leftOut: this.leftOut };
       let res: Response;
       try {
         res = await fetch('/ask', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text, lang: this.lang, state: askState(this.data, cur) }) });

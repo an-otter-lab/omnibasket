@@ -154,6 +154,7 @@ def solution_payload(
     excluded_stores: list[dict] | None = None,
     plan_ctx: PlanContext | None = None,
     selected_store_ids: list[str] | None = None,
+    selected_within: bool = False,
     edition_pins: dict[str, str] | None = None,
 ) -> dict:
     """Honest optimum plus the cheapest split that uses eMAG or Bookzone.
@@ -207,7 +208,12 @@ def solution_payload(
     payload["romanian_inclusive"] = _romanian_answer(romanian)
     payload["excluded_stores"] = list(excluded_stores or [])
     payload.update(
-        build_plan(ctx, selected_store_ids=selected_store_ids, edition_pins=edition_pins)
+        build_plan(
+            ctx,
+            selected_store_ids=selected_store_ids,
+            selected_within=selected_within,
+            edition_pins=edition_pins,
+        )
     )
     return payload
 

@@ -99,7 +99,23 @@ describe('Ask box', () => {
     const f = await setup();
     await ask(f, 'no amazon');
     expect(solves[solves.length - 1]['selected_store_ids']).toEqual(['libris', 'emag']);
+    expect(solves[solves.length - 1]['selected_within']).toBeTrue();
     expect(f.app.tab).toBe('custom');
+  });
+
+  it('a second leave-out keeps the first out; a hand toggle in Custom ends the leave-out mode', async () => {
+    askReply = () => ok([act('exclude_store', { store_id: 'amazon_de' })]);
+    const f = await setup();
+    await ask(f, 'no amazon');
+    askReply = () => ok([act('exclude_store', { store_id: 'emag' })]);
+    await ask(f, 'no emag');
+    expect(asks[1]['state'] as Record<string, unknown>).toEqual(jasmine.objectContaining({ selected_store_ids: ['libris', 'emag'] }));
+    expect(solves[solves.length - 1]['selected_store_ids']).toEqual(['libris']);
+    expect(solves[solves.length - 1]['selected_within']).toBeTrue();
+    expect(f.app.askLeftOut).toEqual(['amazon_de', 'emag']);
+    await f.app.toggleShop('emag');
+    expect(solves[solves.length - 1]['selected_within']).toBeUndefined();
+    expect(f.app.askLeftOut).toEqual([]);
   });
 
   it('set_membership sends memberships on /solve and saves them', async () => {
