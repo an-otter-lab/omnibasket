@@ -155,18 +155,14 @@ def test_bookzone_and_emag_are_links_with_honest_reason(db_path):
     assert "9780062316097" in other["emag"]["url"]
 
 
-def test_open_library_down_is_unavailable_not_empty(db_path):
+def test_open_library_down_is_unavailable_not_empty(db_path, monkeypatch):
     with pytest.raises(search_module.SearchUnavailable):
         run(db_path, "anything", FakeOL(fail=True))
+    # /search falls back to the shop index; with nothing there either it is still a 503, never [].
     app = create_app(db_path=db_path.parent / "u.sqlite3")
     app.state.index_db_path = db_path
-    import index.search as s
-    old = s.urllib.request.urlopen
-    s.urllib.request.urlopen = FakeOL(fail=True)
-    try:
-        r = TestClient(app).get("/search", params={"q": "anything"})
-    finally:
-        s.urllib.request.urlopen = old
+    monkeypatch.setattr(search_module, "_ol_open", FakeOL(fail=True))
+    r = TestClient(app).get("/search", params={"q": "anything"})
     assert r.status_code == 503 and r.json() == {"query": "anything", "results": [], "error": "search_unavailable"}
 
 

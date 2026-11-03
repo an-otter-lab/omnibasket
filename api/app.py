@@ -162,7 +162,7 @@ def create_app(db_path: Path | None = None) -> FastAPI:
         from index.search import SearchUnavailable, search
 
         try:
-            results = search(q, limit=limit, db_path=app.state.index_db_path)
+            results = search(q, limit=limit, db_path=app.state.index_db_path, fallback=True)
         except SearchUnavailable:
             return JSONResponse({"query": q, "results": [], "error": "search_unavailable"}, status_code=503)
         return {"query": q, "results": results}

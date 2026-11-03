@@ -9,6 +9,8 @@ export interface Candidate {
   shops: { shop: string; url: string }[];
   /** Shops that are not indexed: a link and an honest reason, never a price. */
   other_shops?: { shop: string; url: string; status: string; reason: string }[];
+  /** Set when Open Library did not answer and the row comes from the shop index. */
+  source?: 'shop_listings';
 }
 
 /** Up to two capitals from the title, for the cover placeholder. */

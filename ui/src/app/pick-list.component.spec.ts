@@ -81,6 +81,18 @@ describe('the pick list', () => {
     box.remove();
   });
 
+  it('says the titles come from shop listings only when the search fell back to them', () => {
+    expect(render(BOOKS).nativeElement.querySelector('[data-from-listings]')).toBeNull();
+    const listed: Candidate[] = [{ ...BOOKS[0], source: 'shop_listings' }];
+    const note = render(listed).nativeElement.querySelector('[data-from-listings]') as HTMLElement;
+    expect(note.textContent).toContain('come from shop listings');
+    const fixture = TestBed.createComponent(PickListComponent);
+    fixture.componentInstance.lang = 'ro';
+    fixture.componentInstance.items = listed;
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[data-from-listings]').textContent).toContain('listele magazinelor');
+  });
+
   it('says so when nothing matches', () => {
     const el: HTMLElement = render([], 'empty').nativeElement;
     expect(el.textContent).toContain('No match');
