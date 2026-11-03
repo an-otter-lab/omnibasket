@@ -50,6 +50,8 @@ export interface LiveOffer {
   isbn13?: string | null;
   /** The shop's page declares another ISBN of the same work. */
   other_printing?: boolean;
+  /** The printing's language as the shop's page names it ("EN", "RO"), when it does. */
+  language?: string | null;
   ranked: boolean;
   not_ranked_reason?: string;
 }

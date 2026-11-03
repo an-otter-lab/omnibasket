@@ -8,8 +8,8 @@ import { LiveOffer, isbnLang } from './live';
 const PUFFIN = '9780142402535';
 const RO_PRINTING = '9786063321955';
 
-function offer(store_id: string, isbn13: string, other_printing: boolean): LiveOffer {
-  return { store_id, status: 'ok', price_cents: 4500, listing_url: null, isbn13, other_printing, ranked: true };
+function offer(store_id: string, isbn13: string, other_printing: boolean, language?: string): LiveOffer {
+  return { store_id, status: 'ok', price_cents: 4500, listing_url: null, isbn13, other_printing, ranked: true, ...(language ? { language } : {}) };
 }
 
 async function render(liveOffers: LiveOffer[], picked = PUFFIN): Promise<HTMLElement> {
@@ -96,5 +96,14 @@ describe('S13: another-language printing on the order chip', () => {
   it('picked book in an unknown-language group: no language on any chip, even for a known RO printing', async () => {
     const c = chips(await render([offer('libris', RO_PRINTING, true), offer('books_express', '9798886451740', true)], '9788804668237'));
     expect(c).toEqual(['Matilda', 'Matilda']);
+  });
+
+  // 3 Nov: Blue Dot Books prints English classics under 978-630 (RO group); the page's "Limba: Engleza" wins.
+  it('an English printing under 978-630 named EN by its page: no chip', async () => {
+    expect(chips(await render([offer('libris', '9786309535191', true, 'EN'), offer('books_express', PUFFIN, false)]))).toEqual(['Matilda', 'Matilda']);
+  });
+
+  it('a page that names RO wins over an EN-looking ISBN: "Matilda · RO"', async () => {
+    expect(chips(await render([offer('libris', '9780000000002', true, 'RO'), offer('books_express', PUFFIN, false)]))).toContain('Matilda · RO');
   });
 });

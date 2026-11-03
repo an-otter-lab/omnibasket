@@ -314,6 +314,7 @@ export interface Messages {
   whyNotSplit: string;
   /** {amount} */
   deltaFrom: string;
+  deliveryAndFees: string;
   /** {amount} */
   booksAmount: string;
   noSingleShop: string;
@@ -716,6 +717,7 @@ export const MESSAGES: Record<Lang, Messages> = {
     openEachAt: 'Open each book at {shop}',
     whyNotSplit: 'Why not a split into orders?',
     deltaFrom: 'Where the {amount} comes from',
+    deliveryAndFees: 'Delivery and fees',
     booksAmount: 'Books {amount}',
     noSingleShop: 'No single shop',
     customIntro: 'Switch off shops you’d rather not use. Their books move to the shops you keep, the cheapest way.',
@@ -1088,6 +1090,7 @@ export const MESSAGES: Record<Lang, Messages> = {
     openEachAt: 'Deschide fiecare carte la {shop}',
     whyNotSplit: 'De ce nu o împărțire în comenzi?',
     deltaFrom: 'De unde vine diferența de {amount}',
+    deliveryAndFees: 'Livrare și taxe',
     booksAmount: 'Cărți {amount}',
     noSingleShop: 'Niciun magazin nu le are pe toate',
     customIntro: 'Oprește magazinele pe care nu vrei să le folosești. Cărțile lor se mută la magazinele rămase, în varianta cea mai ieftină.',

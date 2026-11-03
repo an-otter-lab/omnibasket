@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import re
 import sys
+import unicodedata
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -68,6 +69,7 @@ class OfferRead:
     cache: str = "miss"  # "hit", "miss", "live"
     day: str | None = None
     other_printing: bool = False  # shop page declares another ISBN of the same work
+    language: str | None = None  # the printing's language as the page names it ("EN", "RO", ...)
 
 
 # Progress callback type
@@ -761,6 +763,7 @@ async def _fetch_and_extract(
         reason="edition_mismatch" if edition_rejected else (None if price_cents is not None else "no_price_extracted"),
         cache="live",
         day=day,
+        language=page_language(result.text),
     )
     
     # Store in cache if successful
@@ -809,7 +812,8 @@ async def _read_other_printing(
     """
     from api.title_match import strong_match, MATCHER_VERSION
 
-    key = "|".join(["printing", str(MATCHER_VERSION), store_id, isbn13 or "", title.strip().lower(), author.strip().lower()])
+    # "lang1": confirmations kept before the page's language was read are read again once.
+    key = "|".join(["printing", str(MATCHER_VERSION), "lang1", store_id, isbn13 or "", title.strip().lower(), author.strip().lower()])
     kept = cache.get_confirmation(key) if cache is not None else None
     if kept is not None:
         return _offer_from_confirmation(kept, store_id, isbn13, item_id, profile, day)
@@ -854,7 +858,7 @@ async def _read_other_printing(
         cache.put_confirmation(key, {
             "matched": True, "url": url, "isbn13": data.isbn13, "price_cents": data.price_cents,
             "currency": data.currency, "availability": data.availability,
-            "name": data.name, "authors": data.authors or [],
+            "name": data.name, "authors": data.authors or [], "language": page_language(result.text),
         })
     return OfferRead(
         store_id=store_id,
@@ -872,6 +876,7 @@ async def _read_other_printing(
         cache="live",
         day=day,
         other_printing=data.isbn13 != isbn13,
+        language=page_language(result.text),
     )
 
 
@@ -1039,6 +1044,7 @@ def _elefant_offer(kept: dict, store_id, isbn13, item_id, profile, day, cache_st
         cache=cache_state,
         day=day,
         other_printing=kept["isbn13"] != isbn13,
+        language=language_code(kept.get("language")),
     )
 
 
@@ -1046,6 +1052,32 @@ def _book_isbn(value) -> str | None:
     """A valid ISBN-13 that is a book number (978/979), else None. S4: 642... is a shop barcode."""
     digits = normalize_isbn13(value)
     return digits if digits and digits[:3] in ("978", "979") else None
+
+
+# A shop's details list names the printing's language ("Limba: Engleza" on Libris and Elefant). The
+# order chip uses it before the ISBN group, which says where a printing was published, not its
+# language: Blue Dot Books prints English classics under the Romanian group 978-630 (3 Nov).
+_LANGUAGE_CODES = {"engleza": "EN", "english": "EN", "romana": "RO", "romanian": "RO", "germana": "DE",
+                   "german": "DE", "franceza": "FR", "french": "FR"}
+_LIMBA_ROW = re.compile(r"<span[^>]*>\s*Limba\s*:?\s*</span>(.*?)</li>", re.IGNORECASE | re.DOTALL)
+
+
+def language_code(name: str | None) -> str | None:
+    """A details-list language name as a code ("Engleza" is EN); None for one the app does not label."""
+    if not name:
+        return None
+    folded = unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode().strip().lower()
+    return _LANGUAGE_CODES.get(folded)
+
+
+def page_language(html: str | None) -> str | None:
+    """The one language a Libris product page names in its details list, as a code."""
+    found = _LIMBA_ROW.search(html or "")
+    if not found:
+        return None
+    names = [n.strip() for n in re.sub(r"<[^>]+>", " ", found.group(1)).split(",") if n.strip()]
+    # A bilingual printing ("Romana, Engleza") gets no single label.
+    return language_code(names[0]) if len(names) == 1 else None
 
 
 def _offer_from_confirmation(kept, store_id, isbn13, item_id, profile, day) -> OfferRead:
@@ -1064,6 +1096,7 @@ def _offer_from_confirmation(kept, store_id, isbn13, item_id, profile, day) -> O
         listing_url=kept["url"], read_at=datetime.now(TZ).isoformat(timespec="seconds"),
         in_stock=("instock" in avail.lower()) if avail else None, schema_org=data,
         status="ok", cache="hit", day=day, other_printing=kept["isbn13"] != isbn13,
+        language=kept.get("language"),
     )
 
 
@@ -1147,6 +1180,8 @@ def live_offer_row(offer: OfferRead, priced: set[str], unranked_fees: set[str]) 
         "ranked": reason is None,
         "other_printing": bool(offer.other_printing),
     }
+    if offer.language:
+        row["language"] = offer.language
     if reason is not None:
         row["not_ranked_reason"] = reason
         if offer.store_id in unranked_fees:

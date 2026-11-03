@@ -917,13 +917,21 @@ export class AppComponent implements OnDestroy {
     return this.sampleMode ? [] : this.basketSvc.items;
   }
 
-  /** S13 (D1): the order chip names the printing's language when the shop priced another-language printing. */
+  /** S13 (D1): the order chip names the printing's language when the shop priced another-language printing.
+   *  The language the page names wins over the ISBN group, which says where it was published (3 Nov). */
   printingLang(itemId: string, storeId: string): string {
     const item = this.basketItems.find((i) => i.id === itemId);
     const o = item?.live_offers?.find((x) => x.store_id === storeId);
-    const got = o?.other_printing ? isbnLang(o.isbn13) : null;
+    const got = o?.other_printing ? (o.language || isbnLang(o.isbn13)) : null;
     const picked = isbnLang(item?.isbn);
     return got && picked && got !== picked ? got : '';
+  }
+
+  /** One order against the cheapest: what delivery and order fees add beyond the books' price gaps. */
+  deliveryDelta(a: { delta_vs_cheapest_cents?: number | null }): number {
+    const books = this.data?.one_order?.per_book_delta || [];
+    if (a.delta_vs_cheapest_cents == null || books.some((d) => d.delta_cents == null)) return 0;
+    return a.delta_vs_cheapest_cents - books.reduce((sum, d) => sum + (d.delta_cents || 0), 0);
   }
 
   get unplacedItems(): BasketItem[] {

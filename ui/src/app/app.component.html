@@ -514,6 +514,9 @@
                               <a class="row" [href]="'#/book/' + d.item_id"><span>{{ d.title }}</span><span class="v"><span class="s n">{{ money(d.cheapest_price_cents) }} → {{ money(d.price_cents) }}</span> <strong class="n">{{ d.delta_cents! > 0 ? '+' : '−' }}{{ money(d.delta_cents! > 0 ? d.delta_cents : -d.delta_cents!) }}</strong></span></a>
                             }
                           }
+                          @if (deliveryDelta(a); as dd) {
+                            <div class="row" data-delivery-delta><span>{{ m.deliveryAndFees }}</span><span class="v"><strong class="n">{{ dd > 0 ? '+' : '−' }}{{ money(dd > 0 ? dd : -dd) }}</strong></span></div>
+                          }
                         </div>
                       }
                       @for (s of otherShops(); track s.store_id) {
