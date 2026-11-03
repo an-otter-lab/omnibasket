@@ -14,6 +14,8 @@ const order = (store: string, ids: string[]) => ({
 });
 const ans = (orders: ReturnType<typeof order>[]) => ({ status: 'ranked', reason: null, total_cents: 2000, books_subtotal_cents: 2000, order_count: orders.length, orders, delta_vs_cheapest_cents: 0, not_ranked: [] });
 
+const noPlan = () => (window as unknown as { __noPlan?: boolean }).__noPlan === true;
+
 function payload(notPossible: boolean, selected: string[] | null = null) {
   const o = [order('libris', ['b1']), order('emag', ['b2'])];
   return {
@@ -24,7 +26,7 @@ function payload(notPossible: boolean, selected: string[] | null = null) {
     memberships: [{ id: 'emag_genius', store_id: 'emag', store_name: 'eMAG', name: 'Genius', effect: 'unknown' }, { id: 'amazon_prime', store_id: 'amazon_de', store_name: 'Amazon.de', name: 'Prime', effect: 'none' }],
     cheapest: ans(o),
     ['one_' + 'par' + 'cel']: { status: 'ranked', reason: null, best_store_id: 'libris', answer: ans([order('libris', ['b1', 'b2'])]), per_book_delta: [], shops: [] },
-    custom: selected ? { ...ans(o), selected_store_ids: selected, unselectable: [], moves: [] } : null,
+    custom: selected ? (noPlan() ? { ...ans([]), status: 'not_possible', total_cents: null, selected_store_ids: selected, unselectable: [], moves: [] } : { ...ans(o), selected_store_ids: selected, unselectable: [], moves: [] }) : null,
     edition: { pins: {}, unknown_pins: [], status: notPossible ? 'not_possible' : 'ranked', reason: null, unpinned_total_cents: null, total_cents: null, delta_cents: null, not_ranked: [] },
   };
 }
@@ -76,7 +78,7 @@ describe('Ask box', () => {
       return new Response(JSON.stringify(payload(Object.keys(body['edition_pins'] || {}).length > 0 && (window as unknown as { __np?: boolean }).__np === true, (body['selected_store_ids'] as string[] | undefined) ?? null)), { status: 200 });
     });
   });
-  afterEach(() => { localStorage.removeItem(MEMBERSHIPS_KEY); window.location.hash = ''; delete (window as unknown as { __np?: boolean }).__np; delete (window as unknown as { __unsel?: string }).__unsel; });
+  afterEach(() => { localStorage.removeItem(MEMBERSHIPS_KEY); window.location.hash = ''; delete (window as unknown as { __np?: boolean }).__np; delete (window as unknown as { __unsel?: string }).__unsel; delete (window as unknown as { __noPlan?: boolean }).__noPlan; });
 
   it('is present with data, sends the state, and set_tab one routes to result/one', async () => {
     const f = await setup();
@@ -99,7 +101,55 @@ describe('Ask box', () => {
     const f = await setup();
     await ask(f, 'no amazon');
     expect(solves[solves.length - 1]['selected_store_ids']).toEqual(['libris', 'emag']);
+    expect(solves[solves.length - 1]['selected_within']).toBeTrue();
     expect(f.app.tab).toBe('custom');
+  });
+
+  it('a second leave-out keeps the first out; a hand toggle in Custom ends the leave-out mode', async () => {
+    askReply = () => ok([act('exclude_store', { store_id: 'amazon_de' })]);
+    const f = await setup();
+    await ask(f, 'no amazon');
+    askReply = () => ok([act('exclude_store', { store_id: 'emag' })]);
+    await ask(f, 'no emag');
+    expect(asks[1]['state'] as Record<string, unknown>).toEqual(jasmine.objectContaining({ selected_store_ids: ['libris', 'emag'] }));
+    expect(solves[solves.length - 1]['selected_store_ids']).toEqual(['libris']);
+    expect(solves[solves.length - 1]['selected_within']).toBeTrue();
+    expect(f.app.askLeftOut).toEqual(['amazon_de', 'emag']);
+    await f.app.toggleShop('emag');
+    expect(solves[solves.length - 1]['selected_within']).toBeUndefined();
+    expect(f.app.askLeftOut).toEqual([]);
+  });
+
+  it('leaving out the only shop that has a book says there is no plan, EN and RO, not "Left out"', async () => {
+    (window as unknown as { __noPlan?: boolean }).__noPlan = true;
+    askReply = () => new Response(JSON.stringify({ status: 'ok', actions: [act('exclude_store', { store_id: 'libris' })], reply_key: 'askDoneExclude', reply_args: { shop: 'Libris' } }), { status: 200 });
+    const f = await setup();
+    await ask(f, 'I’d rather not order from Libris');
+    expect(solves[solves.length - 1]['selected_store_ids']).toEqual(['emag', 'amazon_de']);
+    expect(solves[solves.length - 1]['selected_within']).toBeTrue();
+    expect(reply(f)).toBe(MESSAGES.en.askNoPlan);
+    f.app.lang = 'ro';
+    f.fixture.detectChanges();
+    await ask(f, 'Fără Libris');
+    expect(reply(f)).toBe(MESSAGES.ro.askNoPlan);
+    f.app.lang = 'en';
+  });
+
+  it('a request whose plan has no total says so plainly, EN and RO, instead of "Showing" or "Left out"', async () => {
+    (window as unknown as { __noPlan?: boolean }).__noPlan = true;
+    askReply = () => ok(
+      [act('set_tab', { tab: 'one' }), act('exclude_store', { store_id: 'libris' }), act('exclude_store', { store_id: 'amazon_de' })],
+      [{ reply_key: 'askDoneTab', reply_args: { tab: 'one' } }, { reply_key: 'askDoneExclude', reply_args: { shop: 'Libris' } }, { reply_key: 'askDoneExclude', reply_args: { shop: 'Amazon.de' } }],
+    );
+    const f = await setup();
+    await ask(f, 'everything in one order from eMAG');
+    expect(f.app.tab).toBe('custom');
+    expect(reply(f)).toBe(MESSAGES.en.askNoPlan);
+    f.app.lang = 'ro';
+    f.fixture.detectChanges();
+    await ask(f, 'totul într-o comandă de la eMAG');
+    expect(reply(f)).toBe(MESSAGES.ro.askNoPlan);
+    f.app.lang = 'en';
   });
 
   it('set_membership sends memberships on /solve and saves them', async () => {
@@ -283,5 +333,62 @@ describe('Ask box', () => {
     f.app.fixture = 'failed-read';
     f.fixture.detectChanges();
     expect(f.el.querySelector('app-ask-box input')).toBeNull();
+  });
+});
+
+describe('Ask box reply after the solve', () => {
+  const data = {
+    shops: [{ store_id: 'libris' }, { store_id: 'emag' }], books: [{ item_id: 'b1', editions: [], shops: [] }],
+    memberships: [{ id: 'libris_card', store_id: 'libris', name: 'Libris card' }],
+    cheapest: { orders: [] }, one_order: { answer: null }, custom: null,
+  };
+  const ONE = { status: 'ok', actions: [{ name: 'set_tab', args: { tab: 'one' } }], reply_key: 'askDoneTab', reply_args: { tab: 'one' } };
+  async function run(lang: 'en' | 'ro', plan: { orders: number; missing: string[] }, body: object = ONE) {
+    spyOn(window, 'fetch').and.resolveTo(new Response(JSON.stringify(body), { status: 200 }));
+    const fixture = TestBed.createComponent(AskBoxComponent);
+    const box = fixture.componentInstance;
+    box.lang = lang;
+    box.data = data;
+    box.applied.subscribe((a) => a.done(true, plan));
+    await box.send('o singură comandă');
+    return box.lines;
+  }
+  it('one order that cannot hold a book no shop has says so, EN', async () => {
+    expect(await run('en', { orders: 1, missing: ['Matilda'] })).toEqual(['One order can’t hold every book. Not in it: Matilda.']);
+  });
+  it('one order that cannot hold a book no shop has says so, RO', async () => {
+    expect(await run('ro', { orders: 1, missing: ['Matilda', 'Gruffalo'] })).toEqual(['O singură comandă nu poate cuprinde toate cărțile. Nu intră în ea: Matilda, Gruffalo.']);
+  });
+  it('one order that holds every book still says Showing 1 order', async () => {
+    expect(await run('en', { orders: 1, missing: [] })).toEqual(['Showing 1 order.']);
+  });
+  it('one order asked, but the page lands on several orders: says so, EN and RO', async () => {
+    expect(await run('en', { orders: 3, missing: [] })).toEqual(['One order isn’t possible with these shops: this takes 3 orders.']);
+  });
+  it('one order asked, several orders, RO', async () => {
+    expect(await run('ro', { orders: 3, missing: [] })).toEqual(['O singură comandă nu se poate cu aceste magazine: sunt 3 comenzi.']);
+  });
+  it('no orders at all: askNoPlan', async () => {
+    expect(await run('ro', { orders: 0, missing: [] })).toEqual([MESSAGES.ro.askNoPlan]);
+  });
+  it('one order asked, landing on Custom with one order that leaves a book out: says so, not Showing 1 order', async () => {
+    const body = {
+      status: 'ok', actions: [{ name: 'set_tab', args: { tab: 'one' } }, { name: 'include_store', args: { store_id: 'libris' } }],
+      reply_key: 'askDoneTab', reply_args: { tab: 'one' },
+      replies: [{ reply_key: 'askDoneTab', reply_args: { tab: 'one' } }, { reply_key: 'askDoneInclude', reply_args: { shop: 'Libris' } }],
+    };
+    expect(await run('en', { orders: 1, missing: ['Matilda'] }, body)).toEqual(['One order can’t hold every book. Not in it: Matilda.', 'Added Libris back.']);
+  });
+  it('a membership on a page with no total is still said, not askNoPlan: it was applied', async () => {
+    const body = { status: 'ok', actions: [{ name: 'set_membership', args: { membership_id: 'libris_card', on: true } }], reply_key: 'askDoneMembership', reply_args: { name: 'Libris card' } };
+    expect(await run('en', { orders: 0, missing: [] }, body)).toEqual(['Counted your Libris card.']);
+  });
+  it('a leave-out with no total says askNoPlan, and a membership in the same question is still said, RO', async () => {
+    const body = {
+      status: 'ok', actions: [{ name: 'exclude_store', args: { store_id: 'libris' } }, { name: 'set_membership', args: { membership_id: 'libris_card', on: true } }],
+      reply_key: 'askDoneExclude', reply_args: { shop: 'Libris' },
+      replies: [{ reply_key: 'askDoneExclude', reply_args: { shop: 'Libris' } }, { reply_key: 'askDoneMembership', reply_args: { name: 'cardul Libris' } }],
+    };
+    expect(await run('ro', { orders: 0, missing: [] }, body)).toEqual([MESSAGES.ro.askNoPlan, 'Am luat în calcul cardul Libris.']);
   });
 });

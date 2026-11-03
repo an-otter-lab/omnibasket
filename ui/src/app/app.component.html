@@ -648,7 +648,7 @@
               }
 
               <div class="rask">
-                <app-ask-box [lang]="lang" [data]="fixture ? null : data" [tab]="tab" [selected]="selected" [pins]="pins" [memberships]="declaredMemberships" [busy]="busy" (applied)="onAsk($event)" />
+                <app-ask-box [lang]="lang" [data]="fixture ? null : data" [tab]="tab" [selected]="selected" [pins]="pins" [memberships]="declaredMemberships" [within]="askWithin" [leftOut]="askLeftOut" [busy]="busy" (applied)="onAsk($event)" />
               </div>
 
               <!-- R10: Options. Editions only when a book has a second edition; memberships only
@@ -670,7 +670,7 @@
           <!-- 11 one book -->
           <h1 class="h2">{{ oneBookHeading }}</h1>
           @if (basket.size > 0) {
-            <app-ask-box [lang]="lang" [data]="fixture ? null : data" [tab]="tab" [selected]="selected" [pins]="pins" [memberships]="declaredMemberships" [busy]="busy" (applied)="onAsk($event)" />
+            <app-ask-box [lang]="lang" [data]="fixture ? null : data" [tab]="tab" [selected]="selected" [pins]="pins" [memberships]="declaredMemberships" [within]="askWithin" [leftOut]="askLeftOut" [busy]="busy" (applied)="onAsk($event)" />
           }
           <p class="s">@for (b of books; track b.item_id) { <a class="lnk" [href]="'#/book/' + b.item_id">{{ b.title }}</a> } @if (hasEditions) { · <a class="lnk" href="#/editions">{{ editionsPill() }}</a> }@if (stamp()) { · {{ stamp() }} }</p>
           <div class="split">

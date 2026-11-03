@@ -46,3 +46,4 @@ The plan being built is the Tuesday-to-Wednesday push to the 4 Nov submission; w
 - A book in the basket that is in none of the orders is named next to the orders, with why ("no shop we read has it"), and links to its row; the counts never leave it unexplained (Adrian, 31 Oct).
 - Search hides titles with strong profanity (it is a children's books demo) unless the shopper typed such a word or searched by ISBN; hidden, not ranked lower (Adrian, 1 Nov).
 - A priced printing in another language than the book the shopper picked carries its language on the book's chip in the order card, e.g. "Matilda · RO" (Adrian, 31 Oct).
+- Ask exclusions (T2, 2026-11-03, Adrian): leaving a shop out gives the cheapest plan over the remaining shops, not the default Custom set.

@@ -146,6 +146,34 @@ def test_custom_with_no_feasible_split_gives_a_reason_and_no_total(client: TestC
     assert "Ghici" in custom["reason"]
 
 
+def test_ask_leave_out_amazon_is_the_cheapest_over_the_rest_not_each_shop(client: TestClient) -> None:
+    # Ask "no Amazon" (Adrian, 3 Nov): the cheapest plan over the other shops, 558,73 at Libris alone,
+    # not the Custom rule where Libris and Bookzone must each take a book (561,12).
+    rest = ["libris", "bookzone"]
+    each = client.post("/solve", json={"selected_store_ids": rest}).json()["custom"]
+    within = client.post("/solve", json={"selected_store_ids": rest, "selected_within": True}).json()["custom"]
+    assert each["total_cents"] == 56112
+    assert within["status"] == "ranked" and within["total_cents"] == 55873
+    assert within["selected_store_ids"] == ["libris"]
+    assert {o["store_id"] for o in within["orders"]} == {"libris"}
+
+
+def test_selected_within_names_only_the_shops_it_uses(client: TestClient) -> None:
+    stores = [_store("a"), _store("b"), _store("c")]
+    items = [_item("x", [("a", 3000), ("c", 2500)]), _item("y", [("b", 2000), ("c", 1000)]), _item("z", [("a", 1500), ("c", 1400)])]
+    each = _post(client, stores, items, selected_store_ids=["a", "b", "c"])["custom"]
+    within = _post(client, stores, items, selected_store_ids=["a", "b", "c"], selected_within=True)["custom"]
+    assert {o["store_id"] for o in each["orders"]} == {"a", "b", "c"}
+    assert within["selected_store_ids"] == ["c"] and within["total_cents"] == 4900 + 500
+    assert within["total_cents"] < each["total_cents"]
+
+
+def test_selected_within_a_shop_missing_a_book_has_no_total(client: TestClient) -> None:
+    custom = client.post("/solve", json={"selected_store_ids": ["amazon_de"], "selected_within": True}).json()["custom"]
+    assert custom["status"] == "not_possible"
+    assert custom["total_cents"] is None and custom["orders"] == []
+
+
 def test_failed_read_shop_is_not_selectable_and_cached_is_said(tmp_path: Path) -> None:
     app = create_app(tmp_path / "pages.sqlite")
     client = TestClient(app)

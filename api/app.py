@@ -98,6 +98,8 @@ class SolveIn(BaseModel):
     require_romanian_store: bool = False
     # Custom tab: the shops the shopper chose. Each must take a book.
     selected_store_ids: list[str] | None = None
+    # Ask's "leave a shop out": the cheapest plan over selected_store_ids instead; none has to take a book.
+    selected_within: bool = False
     # Exact edition: {item_id: edition}. A missing book or "any" means any edition.
     edition_pins: dict[str, str] | None = None
     # Feature 5: memberships the shopper declares, by id from data/shops.
@@ -405,6 +407,7 @@ def _solve(
             excluded_stores=excluded,
             plan_ctx=context_from_body(stores, items, item_rows, store_rows, excluded),
             selected_store_ids=body.selected_store_ids,
+            selected_within=body.selected_within,
             edition_pins=body.edition_pins,
         )
         payload["memberships"] = memberships_payload(stores, declared, profiles)
@@ -415,6 +418,7 @@ def _solve(
         source,
         require_romanian_store=require_romanian_store,
         selected_store_ids=body.selected_store_ids if body else None,
+        selected_within=bool(body and body.selected_within),
         edition_pins=body.edition_pins if body else None,
         memberships=declared,
     )
@@ -427,6 +431,7 @@ def _cached_solution(
     *,
     require_romanian_store: bool = False,
     selected_store_ids: list[str] | None = None,
+    selected_within: bool = False,
     edition_pins: dict[str, str] | None = None,
     memberships: list[str] | None = None,
 ) -> tuple[list[dict], dict]:
@@ -448,6 +453,7 @@ def _cached_solution(
         excluded_stores=excluded_for_unresolved_fees(),
         plan_ctx=context_from_locked(stores, items, pages, events, locked_shop_rows()),
         selected_store_ids=selected_store_ids,
+        selected_within=selected_within,
         edition_pins=edition_pins,
     )
     payload["memberships"] = memberships_payload(stores, declared, profiles)

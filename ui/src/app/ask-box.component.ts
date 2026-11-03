@@ -1,12 +1,13 @@
 import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
-import { AskData, AskInputs, AskNext, AskTab, applyActions, askState, uiState } from './ask';
+import { AskData, AskInputs, AskNext, AskPlan, AskTab, applyActions, askState, uiState } from './ask';
 import { Lang, MESSAGES, Messages, fill } from './messages';
 import { shopsThatTakeBooks } from './memberships';
 
-/** What the host applies: set the fields, solve, route, then call done(ok). ok=false: the pins were not possible and were rolled back. */
+/** What the host applies: set the fields, solve, route, then call done(ok, plan). ok=false: the pins were not possible and were rolled back.
+ *  plan: what the solve gave, so the reply never claims a plan the page cannot show. */
 export interface AskApplied {
   next: AskNext;
-  done: (ok: boolean) => void;
+  done: (ok: boolean, plan?: AskPlan) => void;
 }
 
 type ReplyKey = 'askDoneTab' | 'askDoneExclude' | 'askDoneInclude' | 'askDoneMembership' | 'askDoneMembershipOff' | 'askDonePinned' | 'askDonePinsCleared' | 'askUnsupported' | 'askNotInBasket' | 'askOneNotPossible' | 'askUnavailable' | 'askBusy';
@@ -14,6 +15,8 @@ const REPLY_KEYS: readonly string[] = ['askDoneTab', 'askDoneExclude', 'askDoneI
 
 interface Reply { reply_key: string; reply_args?: Record<string, unknown> }
 interface AskResponse extends Reply { status: 'ok' | 'unsupported'; actions: unknown[]; replies?: Reply[] }
+/** Replies that say where the plan landed; with no orders they give way to askNoPlan. */
+const PLAN_REPLIES: readonly string[] = ['askDoneTab', 'askDoneExclude', 'askDoneInclude'];
 
 @Component({
   selector: 'app-ask-box',
@@ -67,6 +70,10 @@ export class AskBoxComponent implements OnChanges {
   @Input() selected: string[] | null = null;
   @Input() pins: Record<string, string> = {};
   @Input() memberships: string[] = [];
+  /** The custom selection is the pool Ask picks the cheapest from, after leaving shops out. */
+  @Input() within = false;
+  /** Shops Ask was told to leave out. */
+  @Input() leftOut: string[] = [];
   /** The host is solving. */
   @Input() busy = false;
   @Output() applied = new EventEmitter<AskApplied>();
@@ -121,7 +128,7 @@ export class AskBoxComponent implements OnChanges {
     this.working = true;
     this.lines = [];
     try {
-      const cur = { tab: this.tab, selected: this.selected, pins: this.pins, memberships: this.memberships };
+      const cur = { tab: this.tab, selected: this.selected, pins: this.pins, memberships: this.memberships, within: this.within, leftOut: this.leftOut };
       let res: Response;
       try {
         res = await fetch('/ask', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text, lang: this.lang, state: askState(this.data, cur) }) });
@@ -136,11 +143,22 @@ export class AskBoxComponent implements OnChanges {
       if (body.status !== 'ok') { this.lines = (body.replies?.length ? body.replies : [body]).map((r) => this.say(r.reply_key, r.reply_args)); return; }
       const next = applyActions(body.actions, uiState(this.data, cur));
       if (next.ignored || !Array.isArray(body.actions) || !body.actions.length) { this.lines = [this.say('askUnsupported')]; return; }
-      const ok = await new Promise<boolean>((done) => this.applied.emit({ next, done }));
-      const replies = body.replies?.length ? body.replies : [body];
-      this.lines = replies.filter((r) => ok || r.reply_key !== 'askDonePinned').map((r) => this.say(r.reply_key, r.reply_args));
-      if (!ok) this.lines.push(this.m.askPinsNotPossible);
+      const { ok, plan } = await new Promise<{ ok: boolean; plan?: AskPlan }>((resolve) =>
+        this.applied.emit({ next, done: (ok, plan) => resolve({ ok, plan }) }));
       this.value = '';
+      const replies = (body.replies?.length ? body.replies : [body]).filter((r) => ok || r.reply_key !== 'askDonePinned');
+      if (plan && !plan.orders) {
+        // The page has no total: a tab or shop reply becomes askNoPlan, never "Showing …" or "Left out …".
+        // A membership or edition reply stays: that change was applied.
+        const kept = replies.filter((r) => !PLAN_REPLIES.includes(r.reply_key));
+        this.lines = [...(kept.length < replies.length ? [this.m.askNoPlan] : []), ...kept.map((r) => this.say(r.reply_key, r.reply_args))];
+      } else {
+        // "Showing 1 order" only when the page shows one order holding every book, whichever tab it landed on.
+        const one = !plan ? '' : plan.orders > 1 ? fill(this.m.askOneTakesMore, { n: String(plan.orders) })
+          : plan.missing.length ? fill(this.m.askOneLeavesOut, { books: plan.missing.join(', ') }) : '';
+        this.lines = replies.map((r) => one && r.reply_key === 'askDoneTab' && r.reply_args?.['tab'] === 'one' ? one : this.say(r.reply_key, r.reply_args));
+      }
+      if (!ok) this.lines.push(this.m.askPinsNotPossible);
     } finally {
       this.working = false;
     }

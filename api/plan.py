@@ -593,6 +593,7 @@ def _custom(
     pins: dict[str, str],
     states: list[dict],
     cheapest: dict,
+    within: bool = False,
 ) -> dict | None:
     if selected is None:
         return None
@@ -617,7 +618,15 @@ def _custom(
     items, missing = _usable(ctx, pins, set(chosen))
     if missing:
         return {**base, **_answer(ctx, None, why=_missing_reason(missing, chosen=True))}
-    kind, rows = _solve_rows(ctx, items, set(chosen))
+    if within:
+        # Ask's "leave a shop out": the cheapest split over these shops; none has to take a book.
+        # The answer names the shops it uses, so the Custom switches show them.
+        kind, rows = _solve_rows(ctx, items)
+        if rows is not None:
+            used = {row["store_id"] for row in rows}
+            base["selected_store_ids"] = [sid for sid in chosen if sid in used]
+    else:
+        kind, rows = _solve_rows(ctx, items, set(chosen))
     if rows is None:
         return {**base, **_answer(ctx, None, why=_why("no_split_for_chosen"))}
     answer = _answer(ctx, rows)
@@ -669,6 +678,7 @@ def build_plan(
     ctx: PlanContext,
     *,
     selected_store_ids: list[str] | None = None,
+    selected_within: bool = False,
     edition_pins: dict[str, str] | None = None,
 ) -> dict:
     pins = {k: v for k, v in (edition_pins or {}).items() if v and v != "any"}
@@ -700,7 +710,7 @@ def build_plan(
     one_parcel = _one_parcel(ctx, items, missing, pins, cheapest, states)
     if missing:
         one_parcel.update({"status": "not_possible", **_missing_reason(missing), "answer": None, "best_store_id": None})
-    custom = _custom(ctx, selected_store_ids, pins, states, cheapest)
+    custom = _custom(ctx, selected_store_ids, pins, states, cheapest, selected_within)
     if custom is not None and degraded and degraded["kind"] == "one_shop":
         custom = {**custom, **_answer(ctx, None, why=_why(degraded["reason_code"], **degraded["reason_args"])), "moves": []}
 

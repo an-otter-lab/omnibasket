@@ -308,6 +308,9 @@ export class AppComponent implements OnDestroy {
   draftPins: Record<string, string> = {};
   preview: Payload | null = null;
   selected: string[] | null = null;
+  /** Ask left shops out: `selected` is the pool the custom answer picks the cheapest from (Adrian, 3 Nov). */
+  askWithin = false;
+  askLeftOut: string[] = [];
   lastOrderTab: Tab = 'cheapest';
   // Feature 8: the language lives in I18nService (browser default, toggle, storage).
   get lang(): Lang {
@@ -889,6 +892,7 @@ export class AppComponent implements OnDestroy {
   private resetPlan(): void {
     this.pins = {};
     this.selected = null;
+    this.askWithin = false; this.askLeftOut = [];
     this.dirty = false;
     this.tab = 'cheapest';
   }
@@ -1161,6 +1165,7 @@ export class AppComponent implements OnDestroy {
     if (!body) return null;
     if (Object.keys(pins).length) body['edition_pins'] = pins;
     if (selected) body['selected_store_ids'] = selected;
+    if (selected && this.askWithin) body['selected_within'] = true;
     if (this.declaredMemberships.length) body['memberships'] = this.declaredMemberships;
     const res = await fetch('/solve', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
     const payload = adapt((await res.json()) as Payload);
@@ -1172,15 +1177,17 @@ export class AppComponent implements OnDestroy {
   }
 
   // Feature 7: apply the Ask box's answer, solve, route; if exact editions cannot be bought together, roll the pins back.
+  // The box hears what the solve gave, so its reply can say when there is no plan.
   async onAsk(r: AskApplied): Promise<void> {
     const before = this.pins;
     this.tab = r.next.tab; this.selected = r.next.selected; this.pins = r.next.pins; this.declaredMemberships = r.next.memberships;
+    this.askWithin = r.next.within; this.askLeftOut = r.next.leftOut;
     saveDeclared(this.declaredMemberships);
     await this.solve();
     const ok = !(this.data?.edition.status === 'not_possible' && JSON.stringify(before) !== JSON.stringify(this.pins));
     if (!ok) { this.pins = before; await this.solve(); }
     this.go('result/' + this.tab);
-    r.done(ok);
+    r.done(ok, { orders: this.orders.length, missing: this.leftOutBooks.map((b) => b.item.title) });
   }
 
   setMemberships(ids: string[]): void {
@@ -1362,6 +1369,7 @@ export class AppComponent implements OnDestroy {
     const start = (this.data.cheapest.orders || []).map((o) => o.store_id);
     if (!start.length) return;
     this.selected = start;
+    this.askWithin = false; this.askLeftOut = [];
     void this.solve();
   }
 
@@ -1370,6 +1378,7 @@ export class AppComponent implements OnDestroy {
     const next = cur.includes(id) ? cur.filter((s) => s !== id) : [...cur, id];
     if (!next.length) return;
     this.selected = next;
+    this.askWithin = false; this.askLeftOut = [];
     await this.solve();
   }
 
@@ -1388,6 +1397,7 @@ export class AppComponent implements OnDestroy {
     if (!this.preview || this.preview.edition.status === 'not_possible') return;
     this.pins = { ...this.draftPins };
     this.selected = null;
+    this.askWithin = false; this.askLeftOut = [];
     this.data = this.preview;
     this.go('result/' + this.tab);
   }
