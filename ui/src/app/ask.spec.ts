@@ -57,7 +57,7 @@ describe('applyActions', () => {
     expect({ ...n, ignored: 0 }).toEqual({ tab: 'cheapest', selected: null, memberships: [], pins: {}, within: false, leftOut: [], ignored: 0 });
   });
   it('never excludes the last shop', () => {
-    const n = applyActions([{ name: 'exclude_store', args: { store_id: 'libris' } }], { ...UI, selected: ['libris'], within: true, leftOut: ['emag', 'amazon_de'] });
+    const n = applyActions([{ name: 'exclude_store', args: { store_id: 'libris' } }], { ...UI, tab: 'custom', selected: ['libris'], within: true, leftOut: ['emag', 'amazon_de'] });
     expect(n.selected).toEqual(['libris']);
     expect(n.leftOut).toEqual(['emag', 'amazon_de']);
     expect(n.ignored).toBe(1);
@@ -89,6 +89,19 @@ describe('applyActions', () => {
     expect(n.selected).toEqual(['libris', 'amazon_de']);
     expect(n.within).toBeFalse();
   });
+  it('off Custom, a leave-out starts from every shop instead of piling onto an earlier one that is not on screen', () => {
+    const n = applyActions([{ name: 'exclude_store', args: { store_id: 'libris' } }], { ...UI, tab: 'cheapest', selected: ['libris'], within: true, leftOut: ['emag', 'amazon_de'] });
+    expect(n.ignored).toBe(0);
+    expect(n.selected).toEqual(['emag', 'amazon_de']);
+    expect(n.leftOut).toEqual(['libris']);
+    expect(n.tab).toBe('custom');
+  });
+  it('off Custom, a membership or tab change leaves an earlier leave-out alone', () => {
+    const n = applyActions([{ name: 'set_tab', args: { tab: 'one' } }], { ...UI, tab: 'cheapest', selected: ['libris'], within: true, leftOut: ['emag'] });
+    expect(n.selected).toEqual(['libris']);
+    expect(n.leftOut).toEqual(['emag']);
+    expect(n.within).toBeTrue();
+  });
   it('does not mutate its input', () => {
     const ui = { ...UI, pins: { b1: 'x' } };
     applyActions([{ name: 'pin_editions', args: { mode: 'clear' } }], ui);
@@ -104,6 +117,10 @@ describe('askState', () => {
     const cur = { tab: 'custom' as const, selected: ['libris'], pins: {}, memberships: [] };
     expect(askState(data, cur)['selected_store_ids']).toEqual(['libris', 'amazon_de']);
     expect(askState(data, { ...cur, within: true, leftOut: ['amazon_de'] })['selected_store_ids']).toEqual(['libris']);
+  });
+  it('off Custom the server checks every selectable shop, as applyActions does', () => {
+    const cur = { tab: 'cheapest' as const, selected: ['libris'], pins: {}, memberships: [], within: true, leftOut: ['amazon_de'] };
+    expect(askState(data, cur)['selected_store_ids']).toEqual(['libris', 'amazon_de']);
   });
   it('a shop that is not selectable is not in the pool the server checks, as in applyActions', () => {
     const d: AskData = { ...data, shops: [{ store_id: 'libris' }, { store_id: 'emag', selectable: false }] };

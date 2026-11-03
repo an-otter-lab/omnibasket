@@ -10,8 +10,8 @@ export interface AskApplied {
   done: (ok: boolean, plan?: AskPlan) => void;
 }
 
-type ReplyKey = 'askDoneTab' | 'askDoneExclude' | 'askDoneInclude' | 'askDoneMembership' | 'askDoneMembershipOff' | 'askDonePinned' | 'askDonePinsCleared' | 'askUnsupported' | 'askNotInBasket' | 'askOneNotPossible' | 'askUnavailable' | 'askBusy';
-const REPLY_KEYS: readonly string[] = ['askDoneTab', 'askDoneExclude', 'askDoneInclude', 'askDoneMembership', 'askDoneMembershipOff', 'askDonePinned', 'askDonePinsCleared', 'askUnsupported', 'askNotInBasket', 'askOneNotPossible', 'askUnavailable', 'askBusy'];
+type ReplyKey = 'askDoneTab' | 'askDoneExclude' | 'askDoneInclude' | 'askDoneMembership' | 'askDoneMembershipOff' | 'askDonePinned' | 'askDonePinsCleared' | 'askUnsupported' | 'askNotInBasket' | 'askOneNotPossible' | 'askUnavailable' | 'askBusy' | 'askNoShopLeft';
+const REPLY_KEYS: readonly string[] = ['askDoneTab', 'askDoneExclude', 'askDoneInclude', 'askDoneMembership', 'askDoneMembershipOff', 'askDonePinned', 'askDonePinsCleared', 'askUnsupported', 'askNotInBasket', 'askOneNotPossible', 'askUnavailable', 'askBusy', 'askNoShopLeft'];
 
 interface Reply { reply_key: string; reply_args?: Record<string, unknown> }
 interface AskResponse extends Reply { status: 'ok' | 'unsupported'; actions: unknown[]; replies?: Reply[] }
@@ -148,10 +148,11 @@ export class AskBoxComponent implements OnChanges {
       this.value = '';
       const replies = (body.replies?.length ? body.replies : [body]).filter((r) => ok || r.reply_key !== 'askDonePinned');
       if (plan && !plan.orders) {
-        // The page has no total: a tab or shop reply becomes askNoPlan, never "Showing …" or "Left out …".
-        // A membership or edition reply stays: that change was applied.
+        // The page has no total: a tab or shop reply becomes askNoPlan, never "Showing …" or "Left out …",
+        // and names the books no shop left lists when Ask left shops out. A membership or edition reply stays: that change was applied.
         const kept = replies.filter((r) => !PLAN_REPLIES.includes(r.reply_key));
-        this.lines = [...(kept.length < replies.length ? [this.m.askNoPlan] : []), ...kept.map((r) => this.say(r.reply_key, r.reply_args))];
+        const none = plan.noShop?.length ? fill(this.m.askNoPlanBooks, { books: plan.noShop.join(', ') }) : this.m.askNoPlan;
+        this.lines = [...(kept.length < replies.length ? [none] : []), ...kept.map((r) => this.say(r.reply_key, r.reply_args))];
       } else {
         // "Showing 1 order" only when the page shows one order holding every book, whichever tab it landed on.
         const one = !plan ? '' : plan.orders > 1 ? fill(this.m.askOneTakesMore, { n: String(plan.orders) })

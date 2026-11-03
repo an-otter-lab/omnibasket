@@ -32,6 +32,7 @@ UNSUPPORTED = "askUnsupported"
 NOT_IN_BASKET = "askNotInBasket"
 UNAVAILABLE = "askUnavailable"
 ONE_NOT_POSSIBLE = "askOneNotPossible"
+NO_SHOP_LEFT = "askNoShopLeft"
 
 
 @dataclass
@@ -146,11 +147,11 @@ def _validate(model_json, state: dict, names: dict) -> AskResult:
             return unsupported()
         if name == "include_store" and ("exclude_store", target) in seen:
             return unsupported()
-        # 5. never leave zero shops
+        # 5. never leave zero shops, and say so rather than "can't do that yet"
         if name == "exclude_store":
             current = [s for s in current if s != target]
             if not current:
-                return unsupported()
+                return unsupported(NO_SHOP_LEFT)
         elif name == "include_store" and target not in current:
             current.append(target)
         clean.append({"name": name, "args": dict(args)})
