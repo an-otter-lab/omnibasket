@@ -23,6 +23,7 @@ The plan being built is the Tuesday-to-Wednesday push to the 4 Nov submission; w
 - The user agent names Omnibasket and gives a contact URL. It never contains "spider" or "crawler".
 - Tests never touch the network: use fixtures and mocks.
 - Book covers come from Open Library only, never from shop images.
+- Elefant (T2, 3 Nov, Adrian): index its imported books only (slugs ending in a binding), read its pages with `api/elefant_page.py` (plain code, never Muse), rank an offer only when the page names Elefant as seller, and charge 9,99 lei per order. Cărturești is not added (Cloudflare challenge for everyone).
 - A shop's data file may declare that the shop sells only its own stock. Its live offers then count as sold by the shop (`direct`) toward its free-delivery threshold, with no per-page model read. Shops with marketplace sellers (eMAG, Amazon.de) stay `unknown` unless the page names the seller (Adrian, 30 Oct).
 
 ## Models and money
