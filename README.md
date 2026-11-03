@@ -3,8 +3,8 @@
 **One basket, every shop, lowest total.**
 
 Splits a basket of books across independent Romanian online bookshops for the lowest real total,
-including shipping and per-order fees. The pitch is a Romanian parent splitting a school reading
-list across local shops. The United States is parked: only Amazon.com loaded cleanly from this
+including shipping and per-order fees. It is for people who buy several books at once: Omnibasket
+works out which books to buy at which shop, and a school reading list is one such basket. The United States is parked: only Amazon.com loaded cleanly from this
 machine, and a Romanian egress distorts US prices.
 
 - **Live:** https://omnibasket.anottersolution.com (Romanian and English, no sign-in)
