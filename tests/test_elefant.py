@@ -272,16 +272,16 @@ def test_pasted_elefant_link_names_the_book_from_the_page(tmp_path):
 
 
 def test_a_printing_in_another_language_is_only_a_fallback(elefant_db, cache):
-    """A French Matilda-like printing first, the English one second: the English one is the offer."""
+    """A cheap French Matilda-like printing first, two English ones after: the cheaper English one is the offer."""
     pages = {
-        URL_PB: html(barcode="9782070000005", price="145,99&nbsp;lei", declared="145.99", language="Franceza"),
+        URL_PB: html(barcode="9782070000005", price="30,99&nbsp;lei", declared="30.99", language="Franceza"),
         URL_OTHER: html(barcode=OTHER_ISBN, price="61,99&nbsp;lei", declared="61.99"),
-        URL_HB: html(barcode="9781222222227"),
+        URL_HB: html(barcode="9781222222227", price="58,00&nbsp;lei", declared="58.00"),
     }
     with patch("api.offers.fetch", side_effect=lambda url: fetched(pages[url], url)) as f:
         offer = read(cache)
-    assert [c.args[0] for c in f.call_args_list] == [URL_PB, URL_OTHER]
-    assert offer.isbn13 == OTHER_ISBN and offer.price_cents == 6199 and offer.other_printing
+    assert [c.args[0] for c in f.call_args_list] == [URL_PB, URL_OTHER, URL_HB]
+    assert offer.isbn13 == "9781222222227" and offer.price_cents == 5800 and offer.other_printing
 
 
 def test_another_language_is_used_when_nothing_better_is_found(elefant_db, cache):
@@ -300,4 +300,130 @@ def test_a_ranked_page_is_preferred_to_an_unranked_one(elefant_db, cache):
     }
     with patch("api.offers.fetch", side_effect=lambda url: fetched(pages[url], url)) as f:
         offer = read(cache)
-    assert f.call_count == 2 and offer.status == "ok" and offer.isbn13 == OTHER_ISBN
+    # Same price on two ranked pages: the first one read stays the offer.
+    assert f.call_count == 3 and offer.status == "ok" and offer.isbn13 == OTHER_ISBN
+
+
+# ---------------------------------------------------------------- the cheapest printing (3 Nov)
+
+
+def _url(slug, n):
+    return f"https://www.elefant.ro/{slug}_{UUID[:-2]}{n:02d}"
+
+
+@pytest.fixture
+def many_db(tmp_path, monkeypatch):
+    """Owl-Babies-like: several printings under one title, a board book among them."""
+    import api.offers as offers
+    from functools import partial
+
+    rows = [
+        (_url("the-sample-book-paperback", 1), "the sample book"),
+        (_url("the-sample-book-board-book", 2), "the sample book"),
+        (_url("the-sample-book-hardcover", 3), "the sample book"),
+        (_url("the-sample-book-paperback", 4), "the sample book"),
+        (_url("sample-book-paperback", 5), "sample book"),
+        (_url("the-sample-book-hardcover", 6), "the sample book"),
+        (_url("the-sample-book-paperback", 7), "the sample book"),
+        (_url("the-sample-book-hardback", 8), "the sample book"),
+        (_url("the-sample-book-paperback", 9), "the sample book"),
+    ]
+    path = tmp_path / "many.sqlite3"
+    with sqlite3.connect(path) as db:
+        db.execute("CREATE TABLE books(shop TEXT NOT NULL,url TEXT NOT NULL,title TEXT,author_hint TEXT,isbn TEXT,last_seen TEXT NOT NULL,PRIMARY KEY(shop,url))")
+        db.executemany("INSERT INTO books VALUES('elefant',?,?,NULL,NULL,'2026-11-03')", rows)
+    monkeypatch.setattr(offers, "lookup_elefant_urls", partial(offers.lookup_elefant_urls, db_path=path))
+    monkeypatch.setattr(offers, "shop_is_indexed", partial(offers.shop_is_indexed, db_path=path))
+    return [u for u, _ in rows]
+
+
+def priced(lei, barcode, **kw):
+    return html(price=f"{lei:.2f}".replace(".", ",") + "&nbsp;lei", declared=f"{lei:.2f}", barcode=barcode, **kw)
+
+
+def test_board_books_are_not_candidates_unless_asked(many_db):
+    from api.offers import lookup_elefant_urls as lookup
+
+    found = lookup(TITLE)
+    assert many_db[1] not in found and len(found) == 8
+    # Paperbacks first, the exact title before the article variant, then hardcovers.
+    assert found[:5] == [many_db[0], many_db[3], many_db[6], many_db[8], many_db[4]]
+
+
+def test_the_cheapest_same_language_printing_wins(many_db, cache):
+    """A big-book-priced paperback first, the cheap paperback further down: the cheap one is the offer."""
+    pages = {
+        many_db[0]: priced(189.99, "9781000000009"),
+        many_db[3]: priced(64.99, "9781000000016"),
+        many_db[6]: priced(57.99, "9781000000023"),
+        many_db[8]: priced(39.99, "9782000000006", language="Franceza"),  # cheaper, but French
+        many_db[4]: priced(134.99, "9781000000030"),
+        many_db[7]: priced(99.00, "9781000000047"),  # the hardback, read sixth
+    }
+    with patch("api.offers.fetch", side_effect=lambda url: fetched(pages[url], url)) as f:
+        offer = read(cache, isbn="9780999999998")
+    assert f.call_count == 6
+    assert offer.status == "ok" and offer.price_cents == 5799 and offer.isbn13 == "9781000000023"
+    assert offer.listing_url == many_db[6] and offer.other_printing
+    with patch("api.offers.fetch", side_effect=AssertionError("read again")):
+        assert read(cache, isbn="9780999999998").price_cents == 5799
+
+
+def test_the_asked_isbn_still_ends_the_walk(many_db, cache):
+    pages = {
+        many_db[0]: priced(64.99, "9781000000009"),
+        many_db[3]: priced(89.99, ISBN),
+        many_db[6]: priced(19.99, "9781000000023"),
+    }
+    with patch("api.offers.fetch", side_effect=lambda url: fetched(pages[url], url)) as f:
+        offer = read(cache)
+    assert [c.args[0] for c in f.call_args_list] == [many_db[0], many_db[3]]
+    assert offer.isbn13 == ISBN and offer.price_cents == 8999 and not offer.other_printing
+
+
+def test_a_special_format_is_skipped_unless_it_is_the_asked_book(many_db, cache, tmp_path):
+    big = priced(19.99, "9781000000009", name="The Sample Book Big Book, Paperback")
+    plain = priced(49.99, "9781000000016")
+    pages = {many_db[0]: big, many_db[3]: plain}
+    stranger = html(author="Someone Else", barcode=OTHER_ISBN)
+    with patch("api.offers.fetch", side_effect=lambda url: fetched(pages.get(url, stranger), url)):
+        offer = read(cache, isbn="9780999999998")
+    assert offer.isbn13 == "9781000000016" and offer.price_cents == 4999
+    # Asked by its own ISBN, the big book is the book.
+    with patch("api.offers.fetch", side_effect=lambda url: fetched(pages.get(url, stranger), url)):
+        offer = read(PageCache(tmp_path / "c3.sqlite"), isbn="9781000000009")
+    assert offer.isbn13 == "9781000000009" and offer.price_cents == 1999 and not offer.other_printing
+
+
+def test_the_cap_holds_with_many_printings(many_db, cache):
+    from api.offers import ELEFANT_READS
+
+    with patch("api.offers.fetch", side_effect=lambda url: fetched(priced(50.0, "9781000000009"), url)) as f:
+        read(cache, isbn="9780999999998")
+    assert f.call_count == ELEFANT_READS == 6
+    assert many_db[1] not in [c.args[0] for c in f.call_args_list]
+
+
+def test_a_503_candidate_is_skipped_once_and_the_rest_still_compared(many_db, cache):
+    def answer(url):
+        if url == many_db[3]:
+            return fetched("<html>maintenance</html>", url, status=503)
+        return fetched(priced(70.0 if url == many_db[0] else 55.0, "9781000000009" if url == many_db[0] else "9781000000016"), url)
+
+    with patch("api.offers.fetch", side_effect=answer) as f:
+        offer = read(cache, isbn="9780999999998")
+    urls = [c.args[0] for c in f.call_args_list]
+    assert urls.count(many_db[3]) == 1 and len(urls) == 6
+    assert offer.status == "ok" and offer.price_cents == 5500
+
+
+def test_a_page_named_without_the_article_is_the_same_book(elefant_db, cache):
+    """Elefant names The Gruffalo 'Gruffalo': the cheaper page under that name is not passed over."""
+    pages = {
+        URL_PB: priced(57.99, OTHER_ISBN, name="Sample Book, Paperback"),
+        URL_OTHER: priced(64.99, "9781222222227", name="Sample Book, Paperback"),
+        URL_HB: priced(134.99, "9780333333334", name="The Sample Book, Hardcover"),
+    }
+    with patch("api.offers.fetch", side_effect=lambda url: fetched(pages[url], url)):
+        offer = read(cache, isbn="9780999999998")
+    assert offer.price_cents == 5799 and offer.isbn13 == OTHER_ISBN

@@ -136,7 +136,7 @@ A working app on a public URL. What is built:
   changes a total only when the shop's own rules page says so; today none does), a basket item with no offer named
   next to the orders.
 - **Romanian and English**, light, dark and system theme.
-- **Tests**: `pytest` 929 passed, 2 skipped; `ng test` 330; `ng build` green (3 Nov).
+- **Tests**: `pytest` 936 passed, 2 skipped; `ng test` 330; `ng build` green (3 Nov).
 
 Bookzone under 200 lei is delivery from **10.90 lei** plus **1.99 lei** processing (cart at bookzone.ro/cos/produse).
 
