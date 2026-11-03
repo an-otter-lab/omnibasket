@@ -34,8 +34,8 @@ class ShopProfile:
         seller_model = raw.get("seller_model", "mixed")
         if seller_model not in SELLER_MODELS:
             raise ValueError("seller_model must be one of: " + ", ".join(sorted(SELLER_MODELS)))
-        if not isinstance(raw["product_pages"], dict) or raw["product_pages"].get("strategy") != "schema.org-first":
-            raise ValueError("product pages must use schema.org-first")
+        if not isinstance(raw["product_pages"], dict) or raw["product_pages"].get("strategy") not in PAGE_STRATEGIES:
+            raise ValueError("product pages must use one of: " + ", ".join(sorted(PAGE_STRATEGIES)))
         rules = raw["shipping_rules"]
         if raw["status"] == "checked" and not isinstance(rules, list):
             raise ValueError("checked profiles require shipping rules list")
@@ -78,6 +78,11 @@ class ShopProfile:
             seller_model=seller_model,
         )
 
+
+# How a product page is read. Both are plain code; a model only fills gaps.
+#   schema.org-first  the page's schema.org JSON-LD (api/schema_org.py)
+#   elefant-html      Elefant's own markup (api/elefant_page.py): it has no JSON-LD
+PAGE_STRATEGIES = frozenset({"schema.org-first", "elefant-html"})
 
 # Who sells on the shop.
 #   mixed        the shop may host third-party sellers (default: seller unknown)
