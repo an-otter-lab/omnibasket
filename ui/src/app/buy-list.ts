@@ -44,6 +44,7 @@ export const BUY_SHOP_NAME: Record<string, string> = {
   bookzone: 'Bookzone',
   amazon_de: 'Amazon.de',
   books_express: 'Books-Express',
+  elefant: 'Elefant',
   carturesti: 'Cărturești',
 };
 
@@ -55,6 +56,7 @@ const SHOP_HOSTS: Record<string, string[]> = {
   emag: ['www.emag.ro', 'emag.ro'],
   amazon_de: ['www.amazon.de', 'amazon.de'],
   books_express: ['www.books-express.ro', 'books-express.ro'],
+  elefant: ['www.elefant.ro', 'elefant.ro'],
 };
 
 export function buyListFromOrders(orders: OrderLike[]): BuyShop[] {

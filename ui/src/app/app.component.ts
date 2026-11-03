@@ -252,6 +252,7 @@ const SHOP_NAME: Record<string, string> = {
   carturesti: 'Cărturești',
   books_express: 'Books-Express',
   'books-express': 'Books-Express',
+  elefant: 'Elefant',
 };
 
 const STATUS_KEY: Record<string, keyof Messages> = {

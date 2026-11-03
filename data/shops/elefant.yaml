@@ -1,0 +1,49 @@
+# Elefant, from the 3 Nov shop spike. Its product pages carry no schema.org
+# JSON-LD: api/elefant_page.py reads them in plain code (strategy
+# elefant-html), so an Elefant page never goes to a model.
+id: elefant
+name: Elefant
+domain: www.elefant.ro
+status: checked
+currency: RON
+# Elefant has marketplace sellers. Its product page names the seller
+# ("Vândut si livrat de: Elefant"). An offer is ranked only when that line
+# names Elefant (direct); a missing or other seller is not ranked.
+seller_model: mixed
+robots:
+  source_url: https://www.elefant.ro/robots.txt
+  read_date: 2026-11-03
+  allowed_paths: ["/"]
+  disallowed_paths: ["*/discount*", "*/pret*", "*_or_*", "*/filters/*", "*/AvailableFlag-0_or_1/*", "*/ViewSocialMediaUserAccount*", "*ETACall-GetArrivalTime*", "/cdn-cgi/", "*GroupSize", "*/ViewIsProductInWishlists-", "*/ViewProductReview-", "*?sort", "*?view=", "*?items_per_page=", "*login?TargetPipeline", "*ViewMiniCart-Status", "*/my-account*", "*/login", "*/mob/", "*/INTERSHOP/web/WFS/", "*SearchTerm="]
+  sitemaps: ["https://www.elefant.ro/sitemap-sitemapRO", "https://www.elefant.ro/feeds/elefant-sitemapRO-brands.xml"]
+  notes:
+    - The user-agent "*" group applies to Omnibasket. Named groups block "spider", "crawler" and the price comparator "shopit"; our agent name contains none of them.
+    - The delivery estimate for supplier-stock books is loaded through ETACall-GetArrivalTime, which robots disallows. It is not read.
+product_pages:
+  strategy: elefant-html
+  fields:
+    price: buy-box span.current-price inside .js-vendor-price (the sticky bar copy can read "N/A"; ignore it)
+    currency: data-price-currencymnemonic or dataLayer ecommerce.currencyCode
+    isbn13: details table "Cod de bare"
+    language: details table "Limba"
+    seller: .js-vendor-offer-name <b>
+shipping_rules:
+  - kind: free_threshold
+    amount: 199.00
+    currency: RON
+    source_url: https://www.elefant.ro/helpdesk/safety-security-privacy/terms-and-conditions
+    read_date: 2026-11-03
+  - kind: below_threshold_fee
+    amount: 16.99
+    currency: RON
+    source_url: https://www.elefant.ro/helpdesk/safety-security-privacy/terms-and-conditions
+    read_date: 2026-11-03
+  # Processing fee per order: 1.99 lei when every product is Elefant's own
+  # stock, 9.99 lei when any product is supplier stock (delivery over 4
+  # working days). Static pages for imported books do not show which, so
+  # every Elefant order carries 9.99 (T2, 3 Nov, Adrian).
+  - kind: per_order_fee
+    amount: 9.99
+    currency: RON
+    source_url: https://www.elefant.ro/helpdesk/safety-security-privacy/terms-and-conditions
+    read_date: 2026-11-03

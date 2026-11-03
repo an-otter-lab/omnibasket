@@ -115,7 +115,7 @@ export class ShopReadsComponent {
 
   warn(o: LiveOffer): boolean {
     const k = outcomeOf(o);
-    return k === 'refused' || k === 'no_price' || k === 'other';
+    return k === 'refused' || k === 'no_price' || k === 'other_seller' || k === 'other';
   }
 
   link(o: LiveOffer): string | null {
@@ -148,6 +148,8 @@ export class ShopReadsComponent {
         return m.readsNoPrice;
       case 'not_live':
         return o.store_id === 'amazon_de' ? fill(m.readsNotLive, { shop }) : fill(m.readsNotLive, { shop });
+      case 'other_seller':
+        return fill(m.readsOtherSeller, { shop });
       default:
         return m.readsOther;
     }

@@ -518,7 +518,7 @@ def _isbn_in_url(url: str) -> str | None:
 
 
 def _indexed_link(url: str, shop, db: Path, *, ip=None, limiter=None) -> dict:
-    """A link to one of the five shops: ISBN from our index, the URL, or the page; name and author from
+    """A link to one of the indexed shops: ISBN from our index, the URL, or the page; name and author from
     the page when it has them (S25b). Exactly one page read, never Amazon."""
     isbn = None
     named = (None, None)  # S25: the page's own schema.org name and author, when the page is read
@@ -545,7 +545,9 @@ def _indexed_link(url: str, shop, db: Path, *, ip=None, limiter=None) -> dict:
                 return _failure("link", "refused", "I couldn't open that link (" + exc.reason + ").")
             page = None  # the ISBN is known: name it from the index, as before
         if page is not None:
-            schema = extract_schema_org(page.text)
+            from api.offers import extract_page
+
+            schema = extract_page(shop, page.text)
             page_isbn = to_isbn13(schema.isbn13) if schema.isbn13 else None
             if isbn is None:
                 isbn = schema.isbn13

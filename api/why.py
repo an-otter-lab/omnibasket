@@ -44,7 +44,7 @@ Rules:
 - Use only facts from the JSON below: shop names, amounts, counts, shipping and fees.
 - Write every amount exactly as the JSON states it (cents divided by 100, in lei), copied, never computed. Do not add, subtract or round anything yourself.
 - Write amounts with a comma decimal and lei after the number, in both languages (515,16 lei). Never a dot decimal: 515.16 is wrong.
-- Write shop names as Libris, Amazon.de, eMAG, Bookzone, never as ids like amazon_de.
+- Write shop names as Libris, Elefant, Amazon.de, eMAG, Bookzone, never as ids like amazon_de.
 - Name only shops that appear in the JSON. Say "order" (RO: "comandă"), never "parcel".
 - Say why the cheapest split is cheapest for this basket and how it compares with buying everything in one order, if the JSON has that comparison. If one_order.status is "not_possible", say that no single shop has every book, and do not invent a one-order total.
 - No headings, no lists, no markdown, no advice to buy.

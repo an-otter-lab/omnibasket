@@ -9,9 +9,10 @@ ROOT = Path(__file__).resolve().parents[2]
 def test_profiles_load_and_have_shipping_evidence():
     profiles = load_all(ROOT / "data" / "shops")
     by_id = {profile.id: profile for profile in profiles}
-    assert set(by_id) == {"libris", "bookzone", "emag", "amazon_de", "books_express", "paste_only"}
+    assert set(by_id) == {"libris", "bookzone", "emag", "amazon_de", "books_express", "elefant", "paste_only"}
     for profile in profiles:
-        assert profile.product_pages["strategy"] == "schema.org-first"
+        want = "elefant-html" if profile.id == "elefant" else "schema.org-first"
+        assert profile.product_pages["strategy"] == want
     for shop_id in set(by_id) - {"paste_only"}:
         profile = by_id[shop_id]
         assert profile.status == "checked" and profile.shipping_rules
@@ -53,7 +54,7 @@ def test_shop_memberships_load_from_data():
     genius, = by_id["emag"].memberships
     assert genius["id"] == "emag_genius" and genius["effect"] == "unknown" and genius["read_status"] == "refused"
     assert genius["source_url"] == "https://www.emag.ro/genius" and str(genius["read_date"]) == "2026-10-30"
-    for shop_id in {"libris", "bookzone", "books_express", "paste_only"}:
+    for shop_id in {"libris", "bookzone", "books_express", "elefant", "paste_only"}:
         assert by_id[shop_id].memberships == ()
 
 @pytest.mark.parametrize("override", [
@@ -78,4 +79,17 @@ def test_non_live_profile_needs_manual_capture_memberships():
     raw = _with_membership()
     raw["live_reading"] = False
     with pytest.raises(ValueError, match="manual_capture"):
+        ShopProfile.from_mapping(raw)
+
+
+def test_elefant_profile_rules_and_strategy():
+    """Elefant (3 Nov): free above 199 lei, else 16.99, and 9.99 processing on every order."""
+    elefant = load_profile(ROOT / "data" / "shops" / "elefant.yaml")
+    assert elefant.seller_model == "mixed" and elefant.currency == "RON"
+    rules = {rule["kind"]: rule["amount"] for rule in elefant.shipping_rules}
+    assert rules == {"free_threshold": 199.00, "below_threshold_fee": 16.99, "per_order_fee": 9.99}
+
+def test_unknown_page_strategy_is_rejected():
+    raw = {"id":"x", "name":"X", "domain":"x.example", "status":"checked", "currency":"RON", "robots":None, "product_pages":{"strategy":"model-reads-everything"}, "shipping_rules":[]}
+    with pytest.raises(ValueError, match="product pages"):
         ShopProfile.from_mapping(raw)

@@ -34,8 +34,9 @@ per-store thresholds.
 
 1. **Read** — each shop's product page is read with plain code from its schema.org data: title, ISBN,
    price, currency and stock. Muse Spark fills in only a price or ISBN the page leaves out; Libris and
-   Books-Express always print both, so live reads have not needed it since 30 Oct. The saved pages of the
-   locked `ro-v1` basket each carry a Muse Spark read from the capture job.
+   Books-Express always print both, so live reads have not needed it since 30 Oct. Elefant pages have no
+   schema.org data: `api/elefant_page.py` reads them in plain code and they never go to Muse. The saved pages
+   of the locked `ro-v1` basket each carry a Muse Spark read from the capture job.
 2. **Match** — offers are matched by ISBN, with edition rules applied per book, and the app checks each
    Muse Spark read against the page it was read from. A read that disagrees is shown on the offer as a
    mismatch and never replaces the captured price. The edition pin lets you keep the same-story default
@@ -81,7 +82,7 @@ The responsive Angular UI shows the solve results as tabs: **1 order** (one shop
 | Solver | `solver/`: exhaustive assignment in integer cents. Tests in `solver/tests/`, including the Romanian basket. |
 | Storage | SQLite page cache, seeded from the locked Romanian basket. |
 | Front end | Angular and TypeScript in `ui/`, responsive. Declared memberships are one switch each under Options, shown only for a shop that can take a book. |
-| Stores | Five indexed shops: Libris, Bookzone, eMAG, Books-Express and Amazon.de (Amazon.de is never read live). Any other shop works only by pasting a link, in that shopper's basket. |
+| Stores | Six indexed shops: Libris, Bookzone, eMAG, Books-Express, Elefant (its imported books) and Amazon.de (Amazon.de is never read live). Any other shop works only by pasting a link, in that shopper's basket. |
 
 ## Run the demo
 
@@ -124,7 +125,7 @@ A working app on a public URL. What is built:
 
 - **One box**: type a title, author or ISBN (Romanian or English), paste a shop link, or photograph a reading list. Any
   book can go in the basket; the saved `ro-v1` basket is only the demo-mode sample and the test fixture.
-- **Search** on our own index of five shops, built from their sitemaps, plus Open Library for ISBNs and covers. No shop
+- **Search** on our own index of six shops, built from their sitemaps, plus Open Library for ISBNs and covers. No shop
   search page is ever fetched; each product page gets one live read, Amazon.de none.
 - **An exhaustive integer-cents solver** (`solver/`): one order, the cheapest split, or a set of shops you choose, with
   each shop's delivery fee, free-delivery threshold and per-order fee. Unknown fees are never priced as zero.
@@ -135,9 +136,13 @@ A working app on a public URL. What is built:
   changes a total only when the shop's own rules page says so; today none does), a basket item with no offer named
   next to the orders.
 - **Romanian and English**, light, dark and system theme.
-- **Tests**: `pytest` 844 passed, 3 skipped; `ng test` 298; `ng build` green (1 Nov).
+- **Tests**: `pytest` 931 passed, 2 skipped; `ng test` 330; `ng build` green (3 Nov).
 
 Bookzone under 200 lei is delivery from **10.90 lei** plus **1.99 lei** processing (cart at bookzone.ro/cos/produse).
+
+Elefant is free above **199 lei**, otherwise **16.99 lei**, plus **9.99 lei** processing on every order (its terms,
+read 3 Nov): the fee is 1.99 lei when every book is Elefant's own stock, which its pages do not show, so the higher
+one is used. An Elefant listing sold by a marketplace seller is shown, not compared.
 Amazon.de free delivery to Romania starts at **262.17 lei** (printed on its product pages, read 28 Oct 2026; the lei
 value moves with the exchange rate). The under-threshold Amazon.de amounts are unknown and are not priced.
 
