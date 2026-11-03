@@ -55,7 +55,7 @@ def test_barcode_page_is_not_attached(cache, ids):
 
 def test_old_confirmation_with_a_barcode_is_ignored(cache):
     from api.title_match import MATCHER_VERSION
-    key = "|".join(["printing", str(MATCHER_VERSION), "libris", CHOSEN_ISBN, TITLE.lower(), AUTHOR.lower()])
+    key = "|".join(["printing", str(MATCHER_VERSION), "lang1", "libris", CHOSEN_ISBN, TITLE.lower(), AUTHOR.lower()])
     cache.put_confirmation(key, {"matched": True, "url": URL, "isbn13": BARCODE, "price_cents": 1100,
                                  "currency": "RON", "availability": "InStock", "name": "x", "authors": []})
     with patch("api.offers.fetch", side_effect=AssertionError("no fetch")):
