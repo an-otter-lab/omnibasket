@@ -156,7 +156,13 @@ export class AskBoxComponent implements OnChanges {
         // "Showing 1 order" only when the page shows one order holding every book, whichever tab it landed on.
         const one = !plan ? '' : plan.orders > 1 ? fill(this.m.askOneTakesMore, { n: String(plan.orders) })
           : plan.missing.length ? fill(this.m.askOneLeavesOut, { books: plan.missing.join(', ') }) : '';
-        this.lines = replies.map((r) => one && r.reply_key === 'askDoneTab' && r.reply_args?.['tab'] === 'one' ? one : this.say(r.reply_key, r.reply_args));
+        // "Showing {tab}" names the tab the page landed on: in "one order, no Libris" the exclude moves it to Custom.
+        const landed = plan?.tab;
+        this.lines = replies.map((r) => {
+          if (r.reply_key !== 'askDoneTab') return this.say(r.reply_key, r.reply_args);
+          if (one && r.reply_args?.['tab'] === 'one') return one;
+          return this.say('askDoneTab', landed ? { tab: landed } : r.reply_args);
+        });
       }
       if (!ok) this.lines.push(this.m.askPinsNotPossible);
     } finally {
