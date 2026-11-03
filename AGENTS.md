@@ -10,10 +10,10 @@ The plan being built is the Tuesday-to-Wednesday push to the 4 Nov submission; w
 
 ## Push and deploy
 - `main` is pushed to `origin` only after a merge whose checks are green (`pytest`, `ng test`, `ng build`).
-- A feature branch may be pushed to `origin` only to open a PR for review (Grok Bot works this way). Nobody merges a PR on GitHub: merges happen locally into `main` after review.
+- A feature branch may be pushed to `origin` only to open a PR for review. Nobody merges a PR on GitHub: merges happen locally into `main` after review.
 - The public demo VM deploys `main` from git with `scripts/deploy-vm.sh`; its host comes from `VM` or `~/.config/omnibasket/vm.env`, never from the repo.
 - The VM gets the search index (`data/index/books.sqlite3`, gitignored) copied by `scripts/deploy-vm.sh`, and `META_API_KEY` from a root-only environment file the systemd unit reads; never from git (Adrian, 31 Oct).
-- Until go-live day the public URL shows only a static "Coming soon" page (Adrian, 30 Oct): `omnibasket-gate soon` on the VM. The app is never public before then. Testing uses the Mac's Tailscale URL and SSH tunnels. Only Adrian decides when to switch to `omnibasket-gate live`.
+- The public URL serves the app (`omnibasket-gate live` on the VM) until at least 16 Nov. Only Adrian switches the gate.
 - The repo is public from 4 Nov (Adrian). The earlier history and its PRs stay in the private `an-otter-lab/omnibasket-private`; never push that history or its branches here. Commits use the GitHub noreply address, never a personal email.
 
 ## Shops and live reads
@@ -28,7 +28,7 @@ The plan being built is the Tuesday-to-Wednesday push to the 4 Nov submission; w
 - A shop's data file may declare that the shop sells only its own stock. Its live offers then count as sold by the shop (`direct`) toward its free-delivery threshold, with no per-page model read. Shops with marketplace sellers (eMAG, Amazon.de) stay `unknown` unless the page names the seller (Adrian, 30 Oct).
 
 ## Models and money
-- Every model call goes through `tools/meta_budget.py`. Commit `data/meta-spend.jsonl` after any model run.
+- Every model call goes through `tools/meta_budget.py`. Commit `data/meta-spend.jsonl` after any model run. The VM's live ledger stays on the VM (`META_SPEND_PATH`); spend totals add both.
 - Never call a model API directly; scripts in `tmp/` included. `config/spend-windows.json` holds the caps that `meta_budget.py` enforces on every call. Spend caps (T2, 3 Nov, Adrian): no lifetime cap; Meta and Baseten are each capped at USD 10 per Bucharest day with no end date, go-live included. Each window (`"period": "day"`, `"gates": "own"`) stops only its own provider; when Baseten's is full, Ask and free text fall back to Muse Spark 1.3. Never edit a window or re-enable a disabled key; only Adrian lifts a cap.
 - Prices, ISBN checks, currency conversion and all money arithmetic are plain code, never a model.
 - Every number in a model's output is checked against captured data before it is shown.
@@ -46,6 +46,6 @@ The plan being built is the Tuesday-to-Wednesday push to the 4 Nov submission; w
 - The entry screen keeps its headline, subtitle, field, Find book, Photo of a list and footnote in every state; with books in the basket only How it works gives way to the basket chips (Adrian, 31 Oct).
 - A button that starts a request (Find book, Photo of a list) shows its loading state and is disabled until the answer comes back (Adrian, 31 Oct).
 - A book in the basket that is in none of the orders is named next to the orders, with why ("no shop we read has it"), and links to its row; the counts never leave it unexplained (Adrian, 31 Oct).
-- Search hides titles with strong profanity (it is a children's books demo) unless the shopper typed such a word or searched by ISBN; hidden, not ranked lower (Adrian, 1 Nov).
-- A priced printing in another language than the book the shopper picked carries its language on the book's chip in the order card, e.g. "Matilda · RO" (Adrian, 31 Oct).
+- Search hides titles with strong profanity unless the shopper typed such a word or searched by ISBN; hidden, not ranked lower (Adrian, 1 Nov).
+- A priced printing in another language than the book the shopper picked carries its language on the book's chip in the order card, e.g. "Matilda · RO" (Adrian, 31 Oct). The language the shop's page names wins over the ISBN group (3 Nov).
 - Ask exclusions (T2, 2026-11-03, Adrian): leaving a shop out gives the cheapest plan over the remaining shops, not the default Custom set.

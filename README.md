@@ -4,14 +4,15 @@
 
 Splits a basket of books across independent Romanian online bookshops for the lowest real total,
 including shipping and per-order fees. It is for people who buy several books at once: Omnibasket
-works out which books to buy at which shop, and a school reading list is one such basket. The United States is parked: only Amazon.com loaded cleanly from this
-machine, and a Romanian egress distorts US prices.
+works out which books to buy at which shop, and a school reading list is one such basket.
 
 - **Live:** https://omnibasket.anottersolution.com (Romanian and English, no sign-in)
 - **Architecture:** [one-page diagram](docs/submission/architecture.svg)
 - **Models:** Muse Spark 1.3 on Meta's Model API, and Muse Spark Open, Meta's open-weights model, on Baseten. See
   [Where Muse Spark runs](#where-muse-spark-runs).
-- **Built during the hackathon:** the first commit is from 26 Oct 2026, 23:29 UTC; there is none before it.
+- **Built during the hackathon:** the first commit is from 26 Oct 2026, 23:29 UTC; there is none before it. The history
+  was cleaned of internal notes and exploration files before release, with commit dates unchanged, so "PR" numbers in
+  commit messages refer to the private repo.
 
 ![Architecture](docs/submission/architecture.svg)
 
@@ -34,7 +35,7 @@ per-store thresholds.
 
 1. **Read** — each shop's product page is read with plain code from its schema.org data: title, ISBN,
    price, currency and stock. Muse Spark fills in only a price or ISBN the page leaves out; Libris always
-   prints both, so live reads have not needed it since 30 Oct. Elefant pages have no
+   prints both, so its reads do not need it. Elefant pages have no
    schema.org data: `api/elefant_page.py` reads them in plain code and they never go to Muse. The saved pages
    of the locked `ro-v1` basket each carry a Muse Spark read from the capture job.
 2. **Match** — offers are matched by ISBN, with edition rules applied per book, and the app checks each
@@ -92,13 +93,16 @@ dependencies in `requirements.txt`, builds the Angular UI, seeds the SQLite page
 
 You need [uv](https://docs.astral.sh/uv/) and Node.js (npm). No API key is required: the sample basket replays
 Muse Spark reads already stored in `data/cache/ro-v1-seed.json`, and with no key nothing calls a model (the Why text
-falls back to the plain template sentence; Ask Omnibasket and the photo reader need a key). Searching for or adding
-other books still reads Open Library and the shops live, in demo mode too.
+falls back to the plain template sentence; Ask Omnibasket and the photo reader need a key).
+
+The search index is not in the repo (about 550 MB, built from the shops' sitemaps by `index/pull.py`). In a fresh clone
+search finds nothing and the shops show as not checked, so the sample basket is what runs locally; the full app is at
+the live URL above.
 
 The stored reads can be re-checked against the captured basket at any time, without a key and without spending:
 
 ```bash
-python3 tools/muse_reads.py
+.venv/bin/python tools/muse_reads.py   # after the first start-demo run, which creates .venv
 ```
 
 Every model call goes through `tools/meta_budget.py`, which records it in the spend ledger and refuses one that
@@ -117,7 +121,7 @@ Demo mode is an explicit flag: `--demo` on `scripts/start-demo.sh`, which sets `
 
 - `GET /config` returns `{"demo": bool, "commit": "<short sha>"}`. `demo` is true only when the env var says so.
 - Demo only: `GET /sample` (the 'Try a sample basket' target), `POST /solve` with no basket body, and `GET /events?source=cache`. In normal mode all three return 404, so no captured data is served.
-- The Mac LaunchAgent (`ai.omnibasket.app`) and the VM unit never pass `--demo` or set `OMNIBASKET_DEMO`.
+- The public deployment never passes `--demo` or sets `OMNIBASKET_DEMO`.
 
 ## Status
 
@@ -137,7 +141,8 @@ A working app on a public URL. What is built:
   changes a total only when the shop's own rules page says so; today none does), a basket item with no offer named
   next to the orders.
 - **Romanian and English**, light, dark and system theme.
-- **Tests**: `pytest` 936 passed, 2 skipped; `ng test` 330; `ng build` green (3 Nov).
+- **Tests**: `pytest` 966 passed, 2 skipped; `ng test` 341; `ng build` green (4 Nov). In a fresh clone one more test
+  skips, because it needs the search index.
 
 Bookzone under 200 lei is delivery from **10.90 lei** plus **1.99 lei** processing (cart at bookzone.ro/cos/produse).
 
@@ -171,18 +176,17 @@ shopping, Google Universal Cart).
 
 ## Data note
 
-`docs/ground-truth.xlsx` is hand-verified store data used as the extraction accuracy test and as
-cached page fixtures for the recorded demo. It is **data collected for testing**, not application
-code; all application code here was written during the hackathon window.
+`docs/ground-truth.xlsx` is hand-verified store data, kept as a reference for checking reads by hand; no code reads it.
+It is **data collected for testing**, not application code; all application code here was written during the hackathon
+window.
 
 ## Risks
 
 - **Stores block agents.** Amazon blocked Meta Muse in September 2026 and its robots.txt names AI
-  agents. Mitigation: the recorded demo runs against cached fixtures, with live reads where they
-  succeed.
+  agents. Mitigation: Amazon.de is never read live, and a blocked read is reported as failed, never worked around.
 - **Membership badges hidden when logged out.** Mitigation: user-declared memberships plus each
   store's published rules.
-- **Location-dependent shipping.** Mitigation: delivery address is a required input.
+- **Location-dependent shipping.** The app prices delivery to Romania only, from each shop's published rules.
 
 ## Licence
 
