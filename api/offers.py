@@ -20,7 +20,7 @@ sys.path.insert(0, str(ROOT / "tools"))
 
 from api.cache import PageCache
 from api.fetch_guard import fetch, FetchRefused, USER_AGENT
-from api.schema_org import extract_schema_org, SchemaOrgData
+from api.schema_org import extract_schema_org, schema_from_facts, facts_from_extraction, SchemaOrgData
 from api.muse_integration import gap_fill_with_muse, MuseResult
 from matching.isbn import normalize_isbn13
 from shop_profiles.loader import load_profile, ShopProfile
@@ -369,12 +369,12 @@ async def _read_one_page(
     if isbn13:
         cached = cache.get(store_id, isbn13, item_id, day)
         if cached:
-            # Extract from cached page using schema.org first
-            page_text = cached.get("page_text", "")
+            # The row keeps the page's facts, not its text: build the same shape
+            # the live path gets from schema.org.
+            facts = cached.get("facts") or {}
             model_json = cached.get("model_json")
             
-            # Try schema.org extraction from cached HTML
-            schema_org = extract_schema_org(page_text)
+            schema_org = schema_from_facts(facts)
             # S3: the link and read time come from the first read of the day.
             provenance = cached.get("provenance") or {}
             cached_url = provenance.get("url") or (provenance.get("meta") or {}).get("final_url")
@@ -401,16 +401,18 @@ async def _read_one_page(
                 day=day,
             )
             
-            # Muse numbers from a previous read are checked against the saved page.
+            # Muse numbers from a previous read are checked against the facts the
+            # read stored, not against a page text the cache no longer holds.
             if model_json:
-                from api.muse_integration import adopt_muse_fields
+                from api.muse_integration import adopt_muse_fields_from_facts
 
-                adopted = adopt_muse_fields(model_json, page_text, schema_org)
+                adopted = adopt_muse_fields_from_facts(model_json, facts, schema_org)
                 checked = run_matching_checks(adopted, isbn13)
                 fields = checked["fields"]
                 if schema_org.price_cents is None and fields.get("price") is not None:
                     offer.price_cents = int(round(float(fields["price"]) * 100))
-                    offer.currency = fields.get("currency") or offer.currency
+                    # The row keeps the currency the live offer used.
+                    offer.currency = offer.currency or fields.get("currency")
                 if fields.get("isbn13"):
                     offer.isbn13 = fields["isbn13"]
                 offer.seller_certainty = fields.get("seller_certainty") or "unknown"
@@ -691,7 +693,12 @@ async def _fetch_and_extract(
             "isbn13": isbn,
             "item_id": item_id,
             "day": day,
-            "page_text": result.text,
+            "facts": facts_from_extraction(
+                schema_org,
+                result.text,
+                muse_result.fields if muse_result else None,
+                currency=offer.currency,
+            ),
             "screenshot_path": None,
             "model_json": muse_result.fields if muse_result else None,
             "provenance": {

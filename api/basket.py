@@ -26,7 +26,7 @@ class BasketError(ValueError):
 def load_locked() -> tuple[str, str, list[Store], list[Item], list[dict]]:
     """Return day, currency, stores, items, and the raw offer rows.
 
-    Offer rows keep the capture path and ISBN so the cache can be keyed
+    Offer rows keep the ISBN and the basket's day so the cache can be keyed
     without inventing a price.
     """
 
@@ -54,7 +54,7 @@ def load_locked() -> tuple[str, str, list[Store], list[Item], list[dict]]:
         isbn = book.get("isbn13") or ""
         solvable = {store.id for store in stores}
         for offer in book["offers"]:
-            # Page rows always record the capture. An excluded store is not solved.
+            # Page rows keep the ISBN the cache is keyed on. An excluded store is not solved.
             pages.append(
                 {
                     "item_id": book["id"],
@@ -62,7 +62,6 @@ def load_locked() -> tuple[str, str, list[Store], list[Item], list[dict]]:
                     "store_id": offer["store_id"],
                     "isbn13": isbn,
                     "day": day,
-                    "capture": offer["capture"],
                     "price_cents": int(offer["price_cents"]),
                     "seller_certainty": offer["seller_certainty"],
                     "currency": currency,

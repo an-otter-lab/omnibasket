@@ -35,13 +35,13 @@ def test_cache_key_includes_store_isbn_day(cache):
     isbn13 = "9786068996011"
     item_id = "ghici"
     
-    # Store a page (cache only stores page_text and model_json, not parsed fields)
+    # Store a page (the cache keeps the facts and the model read, not the text)
     cache.put({
         "store_id": store_id,
         "isbn13": isbn13,
         "item_id": item_id,
         "day": day,
-        "page_text": "Test page with price 57.00 Lei",
+        "facts": {"title": "Test Book", "isbn13": isbn13, "price_cents": 5700, "currency": "RON"},
         "screenshot_path": None,
         "model_json": {"price": 57.00, "currency": "RON"},
         "provenance": {},
@@ -53,7 +53,7 @@ def test_cache_key_includes_store_isbn_day(cache):
     assert result["store_id"] == store_id
     assert result["isbn13"] == isbn13
     assert result["day"] == day
-    assert "57.00" in result["page_text"]
+    assert result["facts"]["price_cents"] == 5700
     
     # Different day should miss
     result = cache.get(store_id, isbn13, item_id, "2026-10-31")
@@ -174,7 +174,7 @@ def test_cache_hit_skips_fetch(cache):
         "isbn13": isbn13,
         "item_id": item_id,
         "day": day,
-        "page_text": "Cached page with price 57.00 Lei",
+        "facts": {"title": "Cached Book", "isbn13": isbn13, "price_cents": 5700, "currency": "RON"},
         "screenshot_path": None,
         "model_json": {"price": 57.00, "currency": "RON"},
         "provenance": {},
@@ -188,7 +188,7 @@ def test_cache_hit_skips_fetch(cache):
         assert mock_fetch.call_count == 0
         assert len(result) == 1
         assert result[0].status == "ok"
-        # Price should be extracted from cached page_text or model_json
+        # Price comes from the cached facts, checked against the stored model read
         assert result[0].price_cents == 5700
         assert result[0].cache == "hit"
 
@@ -377,14 +377,16 @@ def test_seller_tri_state():
     assert verdict["accepted"] is True
 
 
-def test_ro_v1_totals_unchanged():
+def test_ro_v1_totals_unchanged(tmp_path):
     """Test that ro-v1 totals remain unchanged."""
     from fastapi.testclient import TestClient
     from api.app import create_app
+    from api.cache import PageCache, load_seed
     from pathlib import Path
-    
-    # Use the existing cache
-    cache_path = Path("~/Projects/omnibasket/data/cache/ro-v1.sqlite")
+
+    root = Path(__file__).resolve().parents[1]
+    cache_path = tmp_path / "ro-v1.sqlite"
+    load_seed(PageCache(cache_path), root / "data" / "cache" / "ro-v1-seed.json")
     
     app = create_app(cache_path)
     client = TestClient(app)

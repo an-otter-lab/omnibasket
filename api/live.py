@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from matching import match_offers, validate_extraction
-from spike.extract import detect_block
+from api.fetch_guard import detect_block
 
 
 class LiveError(RuntimeError):

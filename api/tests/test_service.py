@@ -30,8 +30,10 @@ def cache(tmp_path: Path) -> PageCache:
 def test_cache_hit_by_store_isbn_and_day(cache: PageCache) -> None:
     hit = cache.get("amazon_de", "9781529105100", "mole", "2026-10-28")
     assert hit is not None
-    assert "116,53" in hit["page_text"] or "116.53" in hit["page_text"]
-    assert hit["provenance"]["capture"].endswith("9781529105100/text.txt")
+    assert hit["facts"]["price_cents"] == 11653
+    assert hit["facts"]["currency"] == "RON"
+    assert hit["provenance"]["captured"] == "2026-10-28"
+    assert "page_text" not in hit
     assert cache.get("amazon_de", "9781529105100", "mole", "2026-10-27") is None
 
 

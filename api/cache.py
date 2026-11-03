@@ -8,6 +8,15 @@ Each call opens its own connection and closes it before returning. A connection
 is never stored on the cache and never shared across threads. WAL plus a busy
 timeout let a solve run while another request is reading. Callers must finish
 every read before they start yielding a stream.
+
+A row holds the facts a read produced (title, authors, ISBN, price in cents,
+currency, availability; a live read adds the numbers the page printed, see
+``api.schema_org.page_evidence``) and the stored Muse read. It never holds the
+shop's page text or HTML.
+
+``data/cache/ro-v1-seed.json`` is the source of the demo pages, not a build
+output: the page text and captures it was read from are not in this repository,
+so it is edited in place or regenerated from captures kept outside the repo.
 """
 
 from __future__ import annotations
@@ -24,7 +33,7 @@ CREATE TABLE IF NOT EXISTS pages (
     isbn13 TEXT NOT NULL,
     item_id TEXT NOT NULL,
     day TEXT NOT NULL,
-    page_text TEXT NOT NULL,
+    facts_json TEXT NOT NULL,
     screenshot_path TEXT,
     model_json TEXT,
     provenance_json TEXT NOT NULL,
@@ -50,6 +59,11 @@ class PageCache:
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self._connect() as db:
+            # A cache built by an older schema keeps page text. It is regenerable,
+            # so it is dropped and reseeded rather than migrated column by column.
+            columns = {row[1] for row in db.execute("PRAGMA table_info(pages)")}
+            if columns and "facts_json" not in columns:
+                db.execute("DROP TABLE pages")
             db.executescript(_SCHEMA)
             db.executescript(_CONFIRMATIONS)
         # Purge stale negatives from older matcher versions on startup
@@ -71,7 +85,7 @@ class PageCache:
             db.execute(
                 """
                 INSERT OR REPLACE INTO pages (
-                    store_id, isbn13, item_id, day, page_text,
+                    store_id, isbn13, item_id, day, facts_json,
                     screenshot_path, model_json, provenance_json
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
@@ -80,7 +94,7 @@ class PageCache:
                     row.get("isbn13") or "",
                     row["item_id"],
                     row["day"],
-                    row["page_text"],
+                    _dump(row.get("facts") or {}),
                     row.get("screenshot_path"),
                     _dump(row.get("model_json")),
                     _dump(row.get("provenance") or {}),
@@ -178,12 +192,13 @@ def _dump(value) -> str | None:
 def _row(found: sqlite3.Row) -> dict:
     model = found["model_json"]
     provenance = found["provenance_json"]
+    facts = found["facts_json"]
     return {
         "store_id": found["store_id"],
         "isbn13": found["isbn13"],
         "item_id": found["item_id"],
         "day": found["day"],
-        "page_text": found["page_text"],
+        "facts": json.loads(facts) if facts else {},
         "screenshot_path": found["screenshot_path"],
         "model_json": json.loads(model) if model else None,
         "provenance": json.loads(provenance) if provenance else {},

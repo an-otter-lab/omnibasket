@@ -186,13 +186,29 @@ class EditionTests(unittest.TestCase):
 
 class PromptTests(unittest.TestCase):
     def test_prompt_states_the_three_rules(self):
-        from spike.extract import PROMPT
+        from api.extraction_prompt import PROMPT
 
         self.assertIn("tri-state", PROMPT)
         self.assertIn("false only when", PROMPT)
         self.assertIn("selected format", PROMPT)
         self.assertIn("Puncte Express", PROMPT)
         self.assertIn("check digit", PROMPT.lower())
+
+    def test_the_live_gap_fill_sends_this_prompt(self):
+        from unittest.mock import patch
+
+        from api import muse_integration
+        from api.extraction_prompt import PROMPT
+
+        sent = []
+
+        def post(body, estimate, note, provider="meta", timeout=120):
+            sent.append(body["input"][0]["content"][0]["text"])
+            return {"output_text": "{}"}, {}
+
+        with patch.object(muse_integration.meta_budget, "guarded_post", post):
+            muse_integration._call_muse("page")
+        self.assertEqual(sent, [PROMPT + "\n\nPAGE TEXT:\npage"])
 
 
 if __name__ == "__main__":

@@ -7,7 +7,17 @@
       "isbn13": "9786068996011",
       "item_id": "ghici",
       "day": "2026-10-28",
-      "screenshot_path": "spike/out/bookzone-ghici/screenshot_top.png",
+      "facts": {
+        "title": "Ghici cat de mult te iubesc",
+        "authors": [
+          "Sam McBratney"
+        ],
+        "isbn13": "9786068996011",
+        "price_cents": 4650,
+        "currency": "RON",
+        "availability": "https://schema.org/InStock"
+      },
+      "screenshot_path": null,
       "model_json": {
         "model": "muse-spark-1.3",
         "variant": "b_text",
@@ -50,21 +60,15 @@
         "raw": "{\"title\": \"Ghici cat de mult te iubesc\", \"author\": \"Sam McBratney\", \"format\": null, \"isbn13\": \"9786068996011\", \"publisher\": \"Cartea Copiilor\", \"price\": 46.5, \"currency\": \"Lei\", \"in_stock\": true, \"sold_by\": null, \"ships_from\": null, \"sold_and_shipped_by_store\": null, \"shipping_note\": \"Livrare în 1-5 zile lucrătoare\", \"membership_note\": null, \"confidence\": \"high\", \"notes\": null}"
       },
       "provenance": {
-        "capture": "spike/out/bookzone-ghici/text.txt",
-        "resolved_from": "omnibasket-libris/spike/out/bookzone-ghici/text.txt",
+        "source": "seed",
+        "captured": "2026-10-28",
+        "url": "https://bookzone.ro/carte/ghici-cat-de-mult-te-iubesc",
+        "read_at": "2026-10-29T19:01:11+02:00",
         "meta": {
-          "store": "bookzone-ghici",
-          "requested_url": "https://bookzone.ro/carte/ghici-cat-de-mult-te-iubesc",
-          "final_url": "https://bookzone.ro/carte/ghici-cat-de-mult-te-iubesc",
-          "http_status": 200,
-          "load_ms": 556,
-          "headless": true,
-          "challenge_overlay": false,
           "status": "LOADED",
-          "reason": null,
-          "text_chars": 10396
-        },
-        "seeded_from": "spike/out"
+          "http_status": 200,
+          "challenge_overlay": false
+        }
       }
     },
     {
@@ -72,7 +76,17 @@
       "isbn13": "9786068996011",
       "item_id": "ghici",
       "day": "2026-10-28",
-      "screenshot_path": "spike/out/headful/emag-ghici/screenshot_top.png",
+      "facts": {
+        "title": "Ghici cat de mult - Carte cartonata integral - Sam McBratney",
+        "authors": [
+          "Sam McBratney"
+        ],
+        "isbn13": "9786068996011",
+        "price_cents": 5600,
+        "currency": "RON",
+        "availability": "https://schema.org/InStock"
+      },
+      "screenshot_path": null,
       "model_json": {
         "model": "muse-spark-1.3",
         "variant": "b_text",
@@ -115,21 +129,15 @@
         "raw": "{\"title\": \"Ghici cat de mult - Carte cartonata integral - Sam McBratney\", \"author\": \"Sam McBratney\", \"format\": \"Carte cartonata integral\", \"isbn13\": null, \"publisher\": \"Cartea Copiilor\", \"price\": 56, \"currency\": \"Lei\", \"in_stock\": true, \"sold_by\": \"CARTEA COPIILOR\", \"ships_from\": \"CARTEA COPIILOR\", \"sold_and_shipped_by_store\": false, \"shipping_note\": null, \"membership_note\": null, \"confidence\": \"high\", \"notes\": \"Cod produs CCO978-606-8996-01-1 is labeled as product code, not as ISBN, so isbn13 is null per rules.\"}"
       },
       "provenance": {
-        "capture": "spike/out/headful/emag-ghici/text.txt",
-        "resolved_from": "omnibasket-libris/spike/out/headful/emag-ghici/text.txt",
+        "source": "seed",
+        "captured": "2026-10-28",
+        "url": "https://www.emag.ro/ghici-cat-de-mult-carte-cartonata-integral-sam-mcbratney-cco978-606-8996-01-1/pd/DGJW95BBM/",
+        "read_at": "2026-10-29T19:01:19+02:00",
         "meta": {
-          "store": "emag-ghici",
-          "requested_url": "https://www.emag.ro/ghici-cat-de-mult-te-iubesc-sam-mcbratney-9786068996011/pd/DGJW95BBM/",
-          "final_url": "https://www.emag.ro/ghici-cat-de-mult-carte-cartonata-integral-sam-mcbratney-cco978-606-8996-01-1/pd/DGJW95BBM/",
-          "http_status": 200,
-          "load_ms": 958,
-          "headless": false,
-          "challenge_overlay": false,
           "status": "LOADED",
-          "reason": null,
-          "text_chars": 7941
-        },
-        "seeded_from": "spike/out"
+          "http_status": 200,
+          "challenge_overlay": false
+        }
       }
     },
     {
@@ -137,7 +145,17 @@
       "isbn13": "9786068996011",
       "item_id": "ghici",
       "day": "2026-10-28",
-      "screenshot_path": "spike/out/libris-ghici/screenshot_top.png",
+      "facts": {
+        "title": "Ghici cât de mult te iubesc",
+        "authors": [
+          "Sam Mcbratney"
+        ],
+        "isbn13": "9786068996011",
+        "price_cents": 5700,
+        "currency": "RON",
+        "availability": "https://schema.org/InStock"
+      },
+      "screenshot_path": null,
       "model_json": {
         "model": "muse-spark-1.3",
         "variant": "b_text",
@@ -180,21 +198,15 @@
         "raw": "{\"title\": \"Ghici cât de mult te iubesc\", \"author\": \"Sam Mcbratney\", \"format\": null, \"isbn13\": null, \"publisher\": \"CARTEA COPIILOR\", \"price\": 57, \"currency\": \"Lei\", \"in_stock\": true, \"sold_by\": null, \"ships_from\": null, \"sold_and_shipped_by_store\": null, \"shipping_note\": \"Estimare livrare mâine, 29 octombrie\", \"membership_note\": null, \"confidence\": \"high\", \"notes\": null}"
       },
       "provenance": {
-        "capture": "spike/out/libris-ghici/text.txt",
-        "resolved_from": "omnibasket-libris/spike/out/libris-ghici/text.txt",
+        "source": "seed",
+        "captured": "2026-10-28",
+        "url": "https://www.libris.ro/carte/ghici-cat-de-mult-te-iubesc-sam-mcbratney/21197307",
+        "read_at": "2026-10-29T19:01:27+02:00",
         "meta": {
-          "store": "libris-ghici",
-          "requested_url": "https://www.libris.ro/carte/ghici-cat-de-mult-te-iubesc-sam-mcbratney/21197307",
-          "final_url": "https://www.libris.ro/carte/ghici-cat-de-mult-te-iubesc-sam-mcbratney/21197307",
-          "http_status": 200,
-          "load_ms": 437,
-          "headless": true,
-          "challenge_overlay": false,
           "status": "LOADED",
-          "reason": null,
-          "text_chars": 5249
-        },
-        "seeded_from": "spike/out"
+          "http_status": 200,
+          "challenge_overlay": false
+        }
       }
     },
     {
@@ -202,7 +214,17 @@
       "isbn13": "",
       "item_id": "vhc",
       "day": "2026-10-28",
-      "screenshot_path": "spike/out/headful/emag-vhc/screenshot_top.png",
+      "facts": {
+        "title": "The Very Hungry Caterpillar",
+        "authors": [
+          "Eric Carle"
+        ],
+        "isbn13": null,
+        "price_cents": 5753,
+        "currency": "RON",
+        "availability": "https://schema.org/InStock"
+      },
+      "screenshot_path": null,
       "model_json": {
         "model": "muse-spark-1.3",
         "variant": "b_text",
@@ -245,21 +267,15 @@
         "raw": "{\"title\": \"The Very Hungry Caterpillar\", \"author\": \"Eric Carle\", \"format\": \"Fizic\", \"isbn13\": null, \"publisher\": \"Penguin Random House\", \"price\": 57.53, \"currency\": \"Lei\", \"in_stock\": true, \"sold_by\": \"Libris English SRL\", \"ships_from\": \"Libris English SRL\", \"sold_and_shipped_by_store\": false, \"shipping_note\": null, \"membership_note\": null, \"confidence\": \"high\", \"notes\": \"Cod produs: BRT9780241003008 is a product code, not labeled as ISBN, so isbn13 is null.\"}"
       },
       "provenance": {
-        "capture": "spike/out/headful/emag-vhc/text.txt",
-        "resolved_from": "omnibasket-libris/spike/out/headful/emag-vhc/text.txt",
+        "source": "seed",
+        "captured": "2026-10-28",
+        "url": "https://www.emag.ro/the-very-hungry-caterpillar-eric-carle-author-brt9780241003008/pd/DF4KXHBBM/",
+        "read_at": "2026-10-29T19:01:36+02:00",
         "meta": {
-          "store": "emag-vhc",
-          "requested_url": "https://www.emag.ro/the-very-hungry-caterpillar-eric-carle-author-9780399226908/pd/DF4KXHBBM/",
-          "final_url": "https://www.emag.ro/the-very-hungry-caterpillar-eric-carle-author-brt9780241003008/pd/DF4KXHBBM/",
-          "http_status": 200,
-          "load_ms": 1122,
-          "headless": false,
-          "challenge_overlay": false,
           "status": "LOADED",
-          "reason": null,
-          "text_chars": 5595
-        },
-        "seeded_from": "spike/out"
+          "http_status": 200,
+          "challenge_overlay": false
+        }
       }
     },
     {
@@ -267,7 +283,17 @@
       "isbn13": "",
       "item_id": "vhc",
       "day": "2026-10-28",
-      "screenshot_path": "spike/out/libris-vhc/screenshot_top.png",
+      "facts": {
+        "title": "The Very Hungry Caterpillar",
+        "authors": [
+          "Eric Carle"
+        ],
+        "isbn13": null,
+        "price_cents": 6133,
+        "currency": "RON",
+        "availability": "https://schema.org/InStock"
+      },
+      "screenshot_path": null,
       "model_json": {
         "model": "muse-spark-1.3",
         "variant": "b_text",
@@ -310,21 +336,15 @@
         "raw": "{\"title\": \"The Very Hungry Caterpillar\", \"author\": \"Eric Carle\", \"format\": \"board book\", \"isbn13\": null, \"publisher\": \"Philomel Books\", \"price\": 61.33, \"currency\": \"Lei\", \"in_stock\": true, \"sold_by\": null, \"ships_from\": null, \"sold_and_shipped_by_store\": null, \"shipping_note\": \"Livrare in 2-4 saptamani\", \"membership_note\": null, \"confidence\": \"high\", \"notes\": \"List price 68.14 Lei shown alongside discounted price; Primești 61 puncte is loyalty points and excluded from membership_note.\"}"
       },
       "provenance": {
-        "capture": "spike/out/libris-vhc/text.txt",
-        "resolved_from": "omnibasket-libris/spike/out/libris-vhc/text.txt",
+        "source": "seed",
+        "captured": "2026-10-28",
+        "url": "https://www.libris.ro/carte-engleza/the-very-hungry-caterpillar-eric-carle/15743846",
+        "read_at": "2026-10-29T19:01:46+02:00",
         "meta": {
-          "store": "libris-vhc",
-          "requested_url": "https://www.libris.ro/carte-engleza/the-very-hungry-caterpillar-eric-carle/15743846",
-          "final_url": "https://www.libris.ro/carte-engleza/the-very-hungry-caterpillar-eric-carle/15743846",
-          "http_status": 200,
-          "load_ms": 441,
-          "headless": true,
-          "challenge_overlay": false,
           "status": "LOADED",
-          "reason": null,
-          "text_chars": 2959
-        },
-        "seeded_from": "spike/out"
+          "http_status": 200,
+          "challenge_overlay": false
+        }
       }
     },
     {
@@ -332,7 +352,17 @@
       "isbn13": "",
       "item_id": "owl",
       "day": "2026-10-28",
-      "screenshot_path": "spike/out/libris-owl/screenshot_top.png",
+      "facts": {
+        "title": "Owl Babies",
+        "authors": [
+          "Martin Waddell"
+        ],
+        "isbn13": null,
+        "price_cents": 5178,
+        "currency": "RON",
+        "availability": "https://schema.org/InStock"
+      },
+      "screenshot_path": null,
       "model_json": {
         "model": "muse-spark-1.3",
         "variant": "b_text",
@@ -375,21 +405,15 @@
         "raw": "{\"title\":\"Owl Babies\",\"author\":\"Martin Waddell\",\"format\":null,\"isbn13\":null,\"publisher\":\"WALKER BOOKS\",\"price\":51.78,\"currency\":\"Lei\",\"in_stock\":true,\"sold_by\":null,\"ships_from\":null,\"sold_and_shipped_by_store\":null,\"shipping_note\":\"Livrare in 2-4 saptamani\",\"membership_note\":null,\"confidence\":\"high\",\"notes\":\"Discount shown as 51.78 Lei vs 57.53 Lei; 'Primești 51 puncte' excluded from membership_note per rules; no ISBN label, seller, or format label visible.\"}"
       },
       "provenance": {
-        "capture": "spike/out/libris-owl/text.txt",
-        "resolved_from": "omnibasket-libris/spike/out/libris-owl/text.txt",
+        "source": "seed",
+        "captured": "2026-10-28",
+        "url": "https://www.libris.ro/carte-engleza/owl-babies/10852618",
+        "read_at": "2026-10-29T19:01:54+02:00",
         "meta": {
-          "store": "libris-owl",
-          "requested_url": "https://www.libris.ro/carte-engleza/owl-babies/10852618",
-          "final_url": "https://www.libris.ro/carte-engleza/owl-babies/10852618",
-          "http_status": 200,
-          "load_ms": 517,
-          "headless": true,
-          "challenge_overlay": false,
           "status": "LOADED",
-          "reason": null,
-          "text_chars": 7905
-        },
-        "seeded_from": "spike/out"
+          "http_status": 200,
+          "challenge_overlay": false
+        }
       }
     },
     {
@@ -397,7 +421,17 @@
       "isbn13": "",
       "item_id": "owl",
       "day": "2026-10-28",
-      "screenshot_path": "spike/out/headful/emag-owl/screenshot_top.png",
+      "facts": {
+        "title": "Owl Babies",
+        "authors": [
+          "Martin Waddell"
+        ],
+        "isbn13": null,
+        "price_cents": 15700,
+        "currency": "RON",
+        "availability": "https://schema.org/OutOfStock"
+      },
+      "screenshot_path": null,
       "model_json": {
         "model": "muse-spark-1.3",
         "variant": "b_text",
@@ -440,21 +474,15 @@
         "raw": "{\"title\":\"Owl Babies\",\"author\":\"Martin Waddell\",\"format\":\"Fizic\",\"isbn13\":null,\"publisher\":\"CANDLEWICK BOOKS\",\"price\":157,\"currency\":\"Lei\",\"in_stock\":false,\"sold_by\":\"Karte\",\"ships_from\":\"Karte\",\"sold_and_shipped_by_store\":false,\"shipping_note\":\"Deschiderea coletului la livrare\",\"membership_note\":null,\"confidence\":\"medium\",\"notes\":\"Cod produs 9780763695194 not used as isbn13 because labeled Cod produs, not ISBN; stock status shows 'la comandă'.\"}"
       },
       "provenance": {
-        "capture": "spike/out/headful/emag-owl/text.txt",
-        "resolved_from": "omnibasket-libris/spike/out/headful/emag-owl/text.txt",
+        "source": "seed",
+        "captured": "2026-10-28",
+        "url": "https://www.emag.ro/owl-babies-martin-waddell-9780763695194/pd/DZ65L02BM/",
+        "read_at": "2026-10-29T19:02:04+02:00",
         "meta": {
-          "store": "emag-owl",
-          "requested_url": "https://www.emag.ro/owl-babies-martin-waddell-9780763695194/pd/DZ65L02BM/",
-          "final_url": "https://www.emag.ro/owl-babies-martin-waddell-9780763695194/pd/DZ65L02BM/",
-          "http_status": 200,
-          "load_ms": 991,
-          "headless": false,
-          "challenge_overlay": false,
           "status": "LOADED",
-          "reason": null,
-          "text_chars": 5423
-        },
-        "seeded_from": "spike/out"
+          "http_status": 200,
+          "challenge_overlay": false
+        }
       }
     },
     {
@@ -462,6 +490,16 @@
       "isbn13": "9781529105100",
       "item_id": "mole",
       "day": "2026-10-28",
+      "facts": {
+        "title": "The Boy, The Mole, The Fox and The Horse: Barnes & Noble Book of the Year 2019",
+        "authors": [
+          "Charlie Mackesy"
+        ],
+        "isbn13": "9781529105100",
+        "price_cents": 11653,
+        "currency": "RON",
+        "availability": "https://schema.org/InStock"
+      },
       "screenshot_path": null,
       "model_json": {
         "model": "muse-spark-1.3",
@@ -505,15 +543,15 @@
         "raw": "{\"title\": \"The Boy, The Mole, The Fox and The Horse: Barnes & Noble Book of the Year 2019\", \"author\": \"Charlie Mackesy\", \"format\": \"Gebundene Ausgabe\", \"isbn13\": \"978-1529105100\", \"publisher\": \"Ebury Press\", \"price\": 116.53, \"currency\": \"RON\", \"in_stock\": true, \"sold_by\": \"Amazon\", \"ships_from\": \"Amazon\", \"sold_and_shipped_by_store\": true, \"shipping_note\": \"GRATIS Lieferung 4. - 6. November für von Amazon versandte Bestellungen über 262,17 RON\", \"membership_note\": null, \"confidence\": \"high\", \"notes\": null}"
       },
       "provenance": {
-        "capture": "spike/out/amz-isbn/9781529105100/text.txt",
-        "resolved_from": "omnibasket-point3/spike/out/amz-isbn/9781529105100/text.txt",
+        "source": "seed",
+        "captured": "2026-10-28",
+        "url": "https://www.amazon.de/dp/1529105102",
+        "read_at": "2026-10-29T19:02:11+02:00",
         "meta": {
-          "isbn": "9781529105100",
-          "search_status": 200,
-          "product_url": "https://www.amazon.de/Boy-Mole-Fox-Horse/dp/1529105102/ref=sr_1_1?dib=eyJ2IjoiMSJ9.V8w70Vg16X3qBmtZD2m81zrG9W2M7LoC6vpL76Wy4NTGjHj071QN20LucGBJIEps.E0DHDPstHaNLVZDVoq6Rfc_K47h7JVOqc-bj31F127E&dib_tag=se&keywords=9781529105100&qid=1793141842&s=books&sr=1-1",
-          "status": 200
-        },
-        "seeded_from": "spike/out"
+          "status": 200,
+          "http_status": null,
+          "challenge_overlay": null
+        }
       }
     },
     {
@@ -521,6 +559,16 @@
       "isbn13": "9781529105100",
       "item_id": "mole",
       "day": "2026-10-28",
+      "facts": {
+        "title": "Boy, The Mole, The Fox and The Horse",
+        "authors": [
+          "Charlie Mackesy"
+        ],
+        "isbn13": "9781529105100",
+        "price_cents": 14256,
+        "currency": "RON",
+        "availability": "https://schema.org/InStock"
+      },
       "screenshot_path": null,
       "model_json": {
         "model": "muse-spark-1.3",
@@ -564,14 +612,15 @@
         "raw": "{\"title\":\"Boy, The Mole, The Fox and The Horse\",\"author\":\"Charlie Mackesy\",\"format\":null,\"isbn13\":null,\"publisher\":\"Ebury Publishing\",\"price\":142.56,\"currency\":\"Lei\",\"in_stock\":true,\"sold_by\":null,\"ships_from\":null,\"sold_and_shipped_by_store\":null,\"shipping_note\":\"TRANSPORT GRATUIT; Livrare in 2-4 saptamani\",\"membership_note\":null,\"confidence\":\"high\",\"notes\":null}"
       },
       "provenance": {
-        "capture": "spike/out/candidates/libris-mole-a/text.txt",
-        "resolved_from": "omnibasket-point3/spike/out/candidates/libris-mole-a/text.txt",
+        "source": "seed",
+        "captured": "2026-10-28",
+        "url": "https://www.libris.ro/carte-engleza/boy-the-mole-the-fox-and-the-horse-charlie-mackesy/11893594",
+        "read_at": "2026-10-29T19:02:19+02:00",
         "meta": {
-          "url": "https://www.libris.ro/carte-engleza/boy-the-mole-the-fox-and-the-horse-charlie-mackesy/11893594",
           "status": 200,
-          "title": "Boy, The Mole, The Fox and The Horse - Charlie Mackesy | Libris.ro"
-        },
-        "seeded_from": "spike/out"
+          "http_status": null,
+          "challenge_overlay": null
+        }
       }
     },
     {
@@ -579,6 +628,16 @@
       "isbn13": "9780064431781",
       "item_id": "wild",
       "day": "2026-10-28",
+      "facts": {
+        "title": "Where the Wild Things Are: A Caldecott Medal Award Winner―A Beloved Classic of Childhood Wonder, Mischief, and the Heartfelt Return Home (Caldecott Collection)",
+        "authors": [
+          "Maurice Sendak"
+        ],
+        "isbn13": "9780064431781",
+        "price_cents": 3986,
+        "currency": "RON",
+        "availability": "https://schema.org/InStock"
+      },
       "screenshot_path": null,
       "model_json": {
         "model": "muse-spark-1.3",
@@ -622,15 +681,15 @@
         "raw": "{\"title\":\"Where the Wild Things Are: A Caldecott Medal Award Winner―A Beloved Classic of Childhood Wonder, Mischief, and the Heartfelt Return Home (Caldecott Collection)\",\"author\":\"Maurice Sendak\",\"format\":\"Taschenbuch\",\"isbn13\":\"978-0064431781\",\"publisher\":\"HarperCollins\",\"price\":39.86,\"currency\":\"RON\",\"in_stock\":true,\"sold_by\":\"Amazon\",\"ships_from\":\"Amazon\",\"sold_and_shipped_by_store\":true,\"shipping_note\":\"GRATIS Lieferung 4. - 6. November für von Amazon versandte Bestellungen über 262,17 RON\",\"membership_note\":null,\"confidence\":\"high\",\"notes\":null}"
       },
       "provenance": {
-        "capture": "spike/out/amz-isbn/9780064431781/text.txt",
-        "resolved_from": "omnibasket-point3/spike/out/amz-isbn/9780064431781/text.txt",
+        "source": "seed",
+        "captured": "2026-10-28",
+        "url": "https://www.amazon.de/dp/0064431789",
+        "read_at": "2026-10-29T19:02:25+02:00",
         "meta": {
-          "isbn": "9780064431781",
-          "search_status": 200,
-          "product_url": "https://www.amazon.de/Where-Wild-Things-Caldecott-Collection/dp/0064431789/ref=sr_1_1?dib=eyJ2IjoiMSJ9.m5qUI1M43u54y3bXkMyo-EbaATDXr8Xlj7M9gCuIQkc.dVIAJrFore_VvWGK55XQ_7RUNv-kZhAQ733R6eDJ1iM&dib_tag=se&keywords=9780064431781&qid=1793141876&s=books&sr=1-1",
-          "status": 200
-        },
-        "seeded_from": "spike/out"
+          "status": 200,
+          "http_status": null,
+          "challenge_overlay": null
+        }
       }
     },
     {
@@ -638,6 +697,16 @@
       "isbn13": "9780064431781",
       "item_id": "wild",
       "day": "2026-10-28",
+      "facts": {
+        "title": "Where the Wild Things Are",
+        "authors": [
+          "Maurice Sendak"
+        ],
+        "isbn13": "9780064431781",
+        "price_cents": 7770,
+        "currency": "RON",
+        "availability": "https://schema.org/InStock"
+      },
       "screenshot_path": null,
       "model_json": {
         "model": "muse-spark-1.3",
@@ -681,14 +750,15 @@
         "raw": "{\"title\": \"Where the Wild Things Are\", \"author\": \"Maurice Sendak\", \"format\": null, \"isbn13\": null, \"publisher\": \"Harpercollins\", \"price\": 77.70, \"currency\": \"Lei\", \"in_stock\": true, \"sold_by\": null, \"ships_from\": null, \"sold_and_shipped_by_store\": null, \"shipping_note\": \"Livrare in 2-4 saptamani\", \"membership_note\": null, \"confidence\": \"high\", \"notes\": \"No ISBN labeled on page; no format labeled; 'Primesti 77 puncte' is loyalty points and excluded from membership_note; discounted price 77.70Lei shown vs 86.33 Lei.\"}"
       },
       "provenance": {
-        "capture": "spike/out/candidates/libris-wild-b/text.txt",
-        "resolved_from": "omnibasket-point3/spike/out/candidates/libris-wild-b/text.txt",
+        "source": "seed",
+        "captured": "2026-10-28",
+        "url": "https://www.libris.ro/carte-engleza/where-the-wild-things-are-maurice-sendak/16027753",
+        "read_at": "2026-10-29T19:02:33+02:00",
         "meta": {
-          "url": "https://www.libris.ro/carte-engleza/where-the-wild-things-are-maurice-sendak/16027753",
           "status": 200,
-          "title": "Where the Wild Things Are - Maurice Sendak | Libris.ro"
-        },
-        "seeded_from": "spike/out"
+          "http_status": null,
+          "challenge_overlay": null
+        }
       }
     },
     {
@@ -696,6 +766,16 @@
       "isbn13": "9780141369365",
       "item_id": "matilda",
       "day": "2026-10-28",
+      "facts": {
+        "title": "Matilda (Colour Edition)",
+        "authors": [
+          "Roald Dahl"
+        ],
+        "isbn13": "9780141369365",
+        "price_cents": 9433,
+        "currency": "RON",
+        "availability": "https://schema.org/InStock"
+      },
       "screenshot_path": null,
       "model_json": {
         "model": "muse-spark-1.3",
@@ -739,15 +819,15 @@
         "raw": "{\"title\": \"Matilda (Colour Edition)\", \"author\": \"Roald Dahl\", \"format\": \"Taschenbuch\", \"isbn13\": \"978-0141369365\", \"publisher\": \"Puffin\", \"price\": 94.33, \"currency\": \"RON\", \"in_stock\": true, \"sold_by\": \"Amazon\", \"ships_from\": \"Amazon\", \"sold_and_shipped_by_store\": true, \"shipping_note\": \"GRATIS Lieferung 4. - 13. November für von Amazon versandte Bestellungen über 262,17 RON\", \"membership_note\": null, \"confidence\": \"high\", \"notes\": \"Selected format Taschenbuch at 94,33 RON; Illustrator Quentin Blake; Nur noch 3 auf Lager; Versender / Verkäufer Amazon.\"}"
       },
       "provenance": {
-        "capture": "spike/out/amz-isbn/9780141369365/text.txt",
-        "resolved_from": "omnibasket-point3/spike/out/amz-isbn/9780141369365/text.txt",
+        "source": "seed",
+        "captured": "2026-10-28",
+        "url": "https://www.amazon.de/dp/0141369361",
+        "read_at": "2026-10-29T19:02:40+02:00",
         "meta": {
-          "isbn": "9780141369365",
-          "search_status": 200,
-          "product_url": "https://www.amazon.de/Matilda-Colour-Roald-Dahl/dp/0141369361/ref=sr_1_1?dib=eyJ2IjoiMSJ9.YNlxgDiykrjaVX4Kd9CjAQ.bANLjxRwbN4EWDrHxCBnvTyPbnJTgqW6mYQnwYwHkUc&dib_tag=se&keywords=9780141369365&qid=1793141898&s=books&sr=1-1",
-          "status": 200
-        },
-        "seeded_from": "spike/out"
+          "status": 200,
+          "http_status": null,
+          "challenge_overlay": null
+        }
       }
     },
     {
@@ -755,6 +835,16 @@
       "isbn13": "9780141369365",
       "item_id": "matilda",
       "day": "2026-10-28",
+      "facts": {
+        "title": "Matilda (Colour Edition)",
+        "authors": [
+          "Roald Dahl"
+        ],
+        "isbn13": "9780141369365",
+        "price_cents": 8418,
+        "currency": "RON",
+        "availability": "https://schema.org/InStock"
+      },
       "screenshot_path": null,
       "model_json": {
         "model": "muse-spark-1.3",
@@ -798,14 +888,15 @@
         "raw": "{\"title\": \"Matilda (Colour Edition)\", \"author\": \"Roald Dahl\", \"format\": null, \"isbn13\": null, \"publisher\": \"PUFFIN\", \"price\": 84.18, \"currency\": \"Lei\", \"in_stock\": true, \"sold_by\": null, \"ships_from\": null, \"sold_and_shipped_by_store\": null, \"shipping_note\": \"Livrare in 2-4 saptamani\", \"membership_note\": null, \"confidence\": \"high\", \"notes\": \"Discount shown from 93.53 Lei; loyalty points offer excluded from membership_note; description mentions large paperback format but no labelled format field; no labelled ISBN-13; no seller or fulfiller named.\"}"
       },
       "provenance": {
-        "capture": "spike/out/candidates/libris-matilda-colour/text.txt",
-        "resolved_from": "omnibasket-point3/spike/out/candidates/libris-matilda-colour/text.txt",
+        "source": "seed",
+        "captured": "2026-10-28",
+        "url": "https://www.libris.ro/carte-engleza/matilda-colour-edition-roald-dahl/11022035",
+        "read_at": "2026-10-29T19:02:50+02:00",
         "meta": {
-          "url": "https://www.libris.ro/carte-engleza/matilda-colour-edition-roald-dahl/11022035",
           "status": 200,
-          "title": "Matilda (Colour Edition) - Roald Dahl | Libris.ro"
-        },
-        "seeded_from": "spike/out"
+          "http_status": null,
+          "challenge_overlay": null
+        }
       }
     },
     {
@@ -813,6 +904,16 @@
       "isbn13": "9780141369372",
       "item_id": "charlie",
       "day": "2026-10-28",
+      "facts": {
+        "title": "Charlie and the Chocolate Factory (Colour Edition)",
+        "authors": [
+          "Roald Dahl"
+        ],
+        "isbn13": "9780141369372",
+        "price_cents": 9433,
+        "currency": "RON",
+        "availability": "https://schema.org/InStock"
+      },
       "screenshot_path": null,
       "model_json": {
         "model": "muse-spark-1.3",
@@ -856,15 +957,15 @@
         "raw": "{\"title\": \"Charlie and the Chocolate Factory (Colour Edition)\", \"author\": \"Roald Dahl\", \"format\": \"Taschenbuch\", \"isbn13\": \"978-0141369372\", \"publisher\": \"Puffin\", \"price\": 94.33, \"currency\": \"RON\", \"in_stock\": true, \"sold_by\": \"Amazon\", \"ships_from\": \"Amazon\", \"sold_and_shipped_by_store\": true, \"shipping_note\": \"GRATIS Lieferung 4. - 6. November für von Amazon versandte Bestellungen über 262,17 RON\", \"membership_note\": null, \"confidence\": \"high\", \"notes\": \"Selected format is Taschenbuch; Kindle price listed separately not used.\"}"
       },
       "provenance": {
-        "capture": "spike/out/amz-isbn/9780141369372/text.txt",
-        "resolved_from": "omnibasket-point3/spike/out/amz-isbn/9780141369372/text.txt",
+        "source": "seed",
+        "captured": "2026-10-28",
+        "url": "https://www.amazon.de/dp/014136937X",
+        "read_at": "2026-10-29T19:02:56+02:00",
         "meta": {
-          "isbn": "9780141369372",
-          "search_status": 200,
-          "product_url": "https://www.amazon.de/Charlie-Chocolate-Factory-Colour-Roald/dp/014136937X/ref=sr_1_1?dib=eyJ2IjoiMSJ9.WJPciai5NA0TkW2j1at6nA.Q-API9FZJBwipzy1lbLFm7uNpxHsdUHUV5VqBI-XQcQ&dib_tag=se&keywords=9780141369372&qid=1793141921&s=books&sr=1-1",
-          "status": 200
-        },
-        "seeded_from": "spike/out"
+          "status": 200,
+          "http_status": null,
+          "challenge_overlay": null
+        }
       }
     },
     {
@@ -872,6 +973,16 @@
       "isbn13": "9780141369372",
       "item_id": "charlie",
       "day": "2026-10-28",
+      "facts": {
+        "title": "Charlie and the Chocolate Factory (Colour Edition)",
+        "authors": [
+          "Roald Dahl"
+        ],
+        "isbn13": "9780141369372",
+        "price_cents": 8418,
+        "currency": "RON",
+        "availability": "https://schema.org/InStock"
+      },
       "screenshot_path": null,
       "model_json": {
         "model": "muse-spark-1.3",
@@ -915,14 +1026,15 @@
         "raw": "{\"title\": \"Charlie and the Chocolate Factory (Colour Edition)\", \"author\": \"Roald Dahl\", \"format\": null, \"isbn13\": null, \"publisher\": \"PUFFIN\", \"price\": 84.18, \"currency\": \"Lei\", \"in_stock\": true, \"sold_by\": null, \"ships_from\": null, \"sold_and_shipped_by_store\": null, \"shipping_note\": \"Livrare in 2-4 saptamani\", \"membership_note\": null, \"confidence\": \"high\", \"notes\": \"Discounted from 93.53 Lei; Primești 84 puncte excluded from membership_note as loyalty points\"}"
       },
       "provenance": {
-        "capture": "spike/out/candidates/libris-charlie-colour/text.txt",
-        "resolved_from": "omnibasket-point3/spike/out/candidates/libris-charlie-colour/text.txt",
+        "source": "seed",
+        "captured": "2026-10-28",
+        "url": "https://www.libris.ro/carte-engleza/charlie-and-the-chocolate-factory-colour-edition-roald-dahl/11030485",
+        "read_at": "2026-10-29T19:03:01+02:00",
         "meta": {
-          "url": "https://www.libris.ro/carte-engleza/charlie-and-the-chocolate-factory-colour-edition-roald-dahl/11030485",
           "status": 200,
-          "title": "Charlie and the Chocolate Factory (Colour Edition) - Roald Dahl | Libris.ro"
-        },
-        "seeded_from": "spike/out"
+          "http_status": null,
+          "challenge_overlay": null
+        }
       }
     }
   ]

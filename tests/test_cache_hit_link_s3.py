@@ -54,11 +54,21 @@ def test_second_read_same_day_keeps_link_and_read_time(cache, indexed_shops_db):
     assert second.price_cents == first.price_cents == 5700
 
 
+def _facts(price_cents=5700, availability="https://schema.org/InStock"):
+    return {
+        "title": "Ghici",
+        "isbn13": ISBN,
+        "price_cents": price_cents,
+        "currency": "RON",
+        "availability": availability,
+    }
+
+
 def test_seed_row_link_comes_from_final_url(cache):
     """Seed rows keep the link under provenance.meta.final_url."""
     cache.put({
         "store_id": "libris", "isbn13": ISBN, "item_id": "ghici", "day": _today(),
-        "page_text": PAGE, "screenshot_path": None, "model_json": None,
+        "facts": _facts(), "screenshot_path": None, "model_json": None,
         "provenance": {"source": "seed", "read_at": "2026-10-31T09:00:00+02:00", "meta": {"final_url": URL}},
     })
     with patch("api.offers.fetch", side_effect=AssertionError("no fetch on a hit")):
@@ -70,13 +80,103 @@ def test_seed_row_link_comes_from_final_url(cache):
 
 
 def test_out_of_stock_page_reads_false_on_a_hit(cache):
-    page = PAGE.replace("InStock", "OutOfStock")
     cache.put({
         "store_id": "libris", "isbn13": ISBN, "item_id": "ghici", "day": _today(),
-        "page_text": page, "screenshot_path": None, "model_json": None,
+        "facts": _facts(availability="https://schema.org/OutOfStock"),
+        "screenshot_path": None, "model_json": None,
         "provenance": {"source": "live_read", "url": URL, "read_at": "2026-10-31T10:00:00+02:00"},
     })
     with patch("api.offers.fetch", side_effect=AssertionError("no fetch on a hit")):
         hit = read_offers_sync(["libris"], ISBN, "ghici", cache, index_lookup=_index)[0]
     assert hit.in_stock is False
     assert hit.listing_url == URL
+
+
+PAGE_NO_SCHEMA = (
+    "<html><head><title>Ghici</title></head><body><h1>Ghici cat de mult te iubesc</h1>"
+    "<p>Pret 57.00 lei</p><p>ISBN " + ISBN + "</p></body></html>"
+)
+
+
+def test_price_muse_filled_survives_a_cache_hit(cache, indexed_shops_db):
+    """A page with no structured price is priced by Muse; the second read keeps that price.
+
+    The cache row keeps facts, not page text: the numbers the page printed are
+    kept as evidence, and the stored Muse price is checked against them.
+    """
+    from api.muse_integration import MuseResult
+
+    def _fetch(url):
+        return GuardedFetch(url, 200, "text/html", PAGE_NO_SCHEMA.encode(), PAGE_NO_SCHEMA, 0)
+
+    muse = MuseResult(
+        fields={
+            "title": "Ghici cat de mult te iubesc",
+            "price": 57.0,
+            "currency": "RON",
+            "isbn13": ISBN,
+            "in_stock": True,
+            "format": "board_book",
+            "seller_certainty": "direct",
+        },
+        accepted=True,
+        cross_check_passed=True,
+    )
+    with patch("api.offers.fetch", side_effect=_fetch), patch("api.offers.gap_fill_with_muse", return_value=muse):
+        first = read_offers_sync(["libris"], ISBN, "ghici", cache, index_lookup=_index)[0]
+        second = read_offers_sync(["libris"], ISBN, "ghici", cache, index_lookup=_index)[0]
+
+    assert first.cache == "live" and first.status == "ok" and first.price_cents == 5700
+    assert second.cache == "hit"
+    assert second.status == "ok", second.reason
+    assert second.price_cents == 5700
+    assert second.currency == "RON"
+    stored = cache.get("libris", ISBN, "ghici", _today())["facts"]
+    assert stored["price_cents"] is None  # never a value Muse supplied
+    assert 5700 in stored["page_evidence"]["price_cents"]
+
+
+def _muse_row(model_json, evidence):
+    facts = dict(_facts(price_cents=None), page_evidence=evidence)
+    return {
+        "store_id": "libris", "isbn13": ISBN, "item_id": "ghici", "day": _today(),
+        "facts": facts, "screenshot_path": None, "model_json": model_json,
+        "provenance": {"source": "live_read", "url": URL, "read_at": "2026-11-03T10:00:00+02:00"},
+    }
+
+
+def test_a_stored_muse_price_the_page_never_printed_is_dropped_on_a_hit(cache):
+    cache.put(_muse_row({"price": 99.0, "currency": "RON"}, {"price_cents": [5700], "isbn13": [ISBN]}))
+    with patch("api.offers.fetch", side_effect=AssertionError("no fetch on a hit")):
+        hit = read_offers_sync(["libris"], ISBN, "ghici", cache, index_lookup=_index)[0]
+    assert hit.price_cents is None
+    assert hit.status == "failed" and hit.reason == "muse_price_dropped"
+
+
+def test_a_stored_muse_price_the_page_printed_is_kept_on_a_hit(cache):
+    cache.put(_muse_row({"price": 57.0, "currency": "RON"}, {"price_cents": [5700], "isbn13": [ISBN]}))
+    with patch("api.offers.fetch", side_effect=AssertionError("no fetch on a hit")):
+        hit = read_offers_sync(["libris"], ISBN, "ghici", cache, index_lookup=_index)[0]
+    assert hit.status == "ok" and hit.price_cents == 5700
+
+
+def test_a_cache_row_whose_read_is_not_an_object_does_not_crash_the_hit(cache):
+    cache.put(_muse_row(["not", "an", "object"], {"price_cents": [5700], "isbn13": [ISBN]}))
+    with patch("api.offers.fetch", side_effect=AssertionError("no fetch on a hit")):
+        hit = read_offers_sync(["libris"], ISBN, "ghici", cache, index_lookup=_index)[0]
+    assert hit.cache == "hit" and hit.price_cents is None
+
+
+PAGE_NO_CURRENCY = PAGE.replace(',"priceCurrency":"RON"', "")
+
+
+def test_a_page_with_no_currency_keeps_the_shop_currency_on_a_hit(cache, indexed_shops_db):
+    def _fetch(url):
+        return GuardedFetch(url, 200, "text/html", PAGE_NO_CURRENCY.encode(), PAGE_NO_CURRENCY, 0)
+
+    with patch("api.offers.fetch", side_effect=_fetch), \
+            patch("api.offers.gap_fill_with_muse", side_effect=AssertionError("price and ISBN are on the page")):
+        first = read_offers_sync(["libris"], ISBN, "ghici", cache, index_lookup=_index)[0]
+        second = read_offers_sync(["libris"], ISBN, "ghici", cache, index_lookup=_index)[0]
+    assert first.currency == "RON"
+    assert second.cache == "hit" and second.currency == first.currency

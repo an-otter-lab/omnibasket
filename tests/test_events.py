@@ -231,7 +231,8 @@ def test_cache_hit_label(tmp_path):
     cache = PageCache(tmp_path / "h.sqlite")
     day = datetime.now(ZoneInfo("Europe/Bucharest")).strftime("%Y-%m-%d")
     cache.put({"store_id": "libris", "isbn13": HARRY, "item_id": "hp", "day": day,
-               "page_text": _html(HARRY, "40.00"), "model_json": None, "provenance": {}})
+               "facts": {"title": "Harry", "isbn13": HARRY, "price_cents": 4000, "currency": "RON"},
+               "model_json": None, "provenance": {}})
     import asyncio
     from api.offers import read_offers_parallel
 

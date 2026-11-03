@@ -10,6 +10,9 @@ node_modules/
 dist/
 .angular/
 
+# Scratch space for one-off diagnostics: never committed
+/tmp/
+
 # Data and caches
 *.db
 *.sqlite
@@ -21,9 +24,32 @@ runs/
 .idea/
 .vscode/
 
-
-# Spike output: ignored except representative screenshots named in spike/RESULTS.md
-spike/out/*
-!spike/out/.gitkeep
-!spike/samples/
 data/index/
+
+# Local only: never on the public repo (Adrian, 2-3 Nov). These stay on disk in the main checkout.
+# Plans, handoffs, working notes and walk reports
+docs/ops/
+HANDOFF.md
+IMPLEMENTATION.md
+docs/basket-lock.md
+docs/findings-*.md
+docs/title-shortlist.md
+docs/submission/*
+!docs/submission/architecture.svg
+# Superseded design exploration and design reviews (the shipped design is docs/design/ui-ux/)
+docs/design/*
+!docs/design/ui-ux/
+docs/design/ui-ux/*-review-*.md
+ui-ux-design/
+# Research and strategy documents
+docs/prior-work.xlsx
+docs/basket-optimizer-plan.pdf
+# Evidence screenshots and the removed exploration folder
+ui/evidence/
+spike/
+# Secrets and local tool state
+.env.*
+!.env.example
+*.pem
+.pytest_cache/
+hySplitTemplatep
