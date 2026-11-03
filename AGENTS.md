@@ -11,10 +11,10 @@ The plan being built is the Tuesday-to-Wednesday push to the 4 Nov submission; w
 ## Push and deploy
 - `main` is pushed to `origin` only after a merge whose checks are green (`pytest`, `ng test`, `ng build`).
 - A feature branch may be pushed to `origin` only to open a PR for review (Grok Bot works this way). Nobody merges a PR on GitHub: merges happen locally into `main` after review.
-- The public demo VM deploys `main` from git with `scripts/deploy-vm.sh`.
+- The public demo VM deploys `main` from git with `scripts/deploy-vm.sh`; its host comes from `VM` or `~/.config/omnibasket/vm.env`, never from the repo.
 - The VM gets the search index (`data/index/books.sqlite3`, gitignored) copied by `scripts/deploy-vm.sh`, and `META_API_KEY` from a root-only environment file the systemd unit reads; never from git (Adrian, 31 Oct).
 - Until go-live day the public URL shows only a static "Coming soon" page (Adrian, 30 Oct): `omnibasket-gate soon` on the VM. The app is never public before then. Testing uses the Mac's Tailscale URL and SSH tunnels. Only Adrian decides when to switch to `omnibasket-gate live`.
-- The repo stays private. Never change its visibility.
+- The repo is public from 4 Nov (Adrian). The earlier history and its PRs stay in the private `an-otter-lab/omnibasket-private`; never push that history or its branches here. Commits use the GitHub noreply address, never a personal email.
 
 ## Shops and live reads
 - Respect robots.txt and shop terms. Never fetch shop search pages.
