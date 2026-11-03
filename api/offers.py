@@ -281,15 +281,26 @@ def lookup_title_url(store_id: str, title: str | None, author: str | None, db_pa
 
 
 # Elefant (3 Nov): its index rows are imported books with a title from the URL slug and no ISBN or
-# author, often several printings under one title. A book reads at most ELEFANT_READS of them, the
-# paperback first, and stops at the first page whose ISBN or title and author match.
-ELEFANT_READS = 3
+# author, often several printings under one title (5 for The Gruffalo or Owl Babies, 11 for Matilda).
+# A book reads at most ELEFANT_READS of them, paperbacks first, and takes the cheapest ranked printing
+# in the asked book's language; a page with the asked ISBN ends the walk. Six covers every printing of
+# all but the Matilda-sized titles, and a page is read at most once a day (CONFIRMATION_TTL).
+ELEFANT_READS = 6
+# Part of the per-book answer key, so an answer kept under an older rule is not served after a deploy.
+_ELEFANT_RULE = "cheapest-v1"
 _ELEFANT_BINDING_ORDER = ("paperback", "hardback", "hardcover", "board-book", "board-books")
+# Formats a shopper asking for the plain book does not want priced in its place, unless the asked
+# title names one: from the slug before a read (board-book), from the page name after it.
+_ELEFANT_SPECIAL_FORMATS = (
+    "board book", "big book", "pop-up", "pop up", "box set", "boxed set", "slipcase", "deluxe",
+    "gift edition", "sound book", "sticker book", "colouring", "coloring", "activity book", "mini edition",
+)
 
 
 def lookup_elefant_urls(title: str | None, db_path: Path | None = None, limit: int = 40) -> list[str]:
     """Elefant product pages whose slug title is the book's title (with or without a leading
-    article), paperbacks first, then the exact title before an article variant. Candidates only: the page itself decides. Never a search URL."""
+    article), paperbacks first, then the exact title before an article variant. A board book is
+    left out unless the title asks for one. Candidates only: the page itself decides. Never a search URL."""
     import sqlite3
 
     from api.title_match import core_title
@@ -320,7 +331,17 @@ def lookup_elefant_urls(title: str | None, db_path: Path | None = None, limit: i
         binding = next((i for i, b in enumerate(_ELEFANT_BINDING_ORDER) if slug.endswith("-" + b)), 9)
         return (binding, titles.index(row_title))
 
-    return [url for url, _ in sorted(rows, key=order) if url and not _searchish(url)]
+    board_ok = _elefant_special_format(title) == "board book"
+    return [
+        url for url, _ in sorted(rows, key=order)
+        if url and not _searchish(url) and (board_ok or not re.search(r"-board-books?_", url.lower()))
+    ]
+
+
+def _elefant_special_format(text: str | None) -> str | None:
+    """The special format a title or page name names ('big book', 'pop-up' ...), else None."""
+    folded = " " + " ".join(re.sub(r"[^\w-]+", " ", (text or "").lower()).split()) + " "
+    return next((f for f in _ELEFANT_SPECIAL_FORMATS if f" {f} " in folded), None)
 
 
 def captured_amazon() -> dict[str, str]:
@@ -868,37 +889,52 @@ async def _read_elefant(
     """An Elefant offer, read in plain code (api/elefant_page.py). Never a model call.
 
     The index gives candidates by title (lookup_elefant_urls); at most ELEFANT_READS pages are
-    read, one attempt each. A page that carries the asked ISBN, or the same title and author in a
-    printing of the same language group (EN 978-0/978-1/979-8, RO 978-973/978-606) with a rankable
-    price, ends the search; a match in another language or one that cannot be ranked is kept only
-    as a fallback while the other candidates are tried (other_printing when its ISBN differs). What each page said is kept for
-    CONFIRMATION_TTL under its URL, so a page is not read again that day and a page known to be
-    another book is skipped. The answer for this book is kept under the same key the other-printing
-    path uses.
+    read, one attempt each (a 503 counts as a read and is not tried again). A page that carries
+    the asked ISBN with a rankable price is the asked book and ends the search. Otherwise the offer
+    is the cheapest rankable page with the same title and author in a printing of the same language
+    group (EN 978-0/978-1/979-8, RO 978-973/978-606); a match in another language or one that cannot
+    be ranked is kept only as a fallback (other_printing when its ISBN differs). A special format
+    (big book, pop-up, box set ...) is not taken for a book whose title does not name it. What each
+    page said is kept for CONFIRMATION_TTL under its URL, so a page is not read again that day and a
+    page known to be another book is skipped. The answer for this book is kept under the same key
+    the other-printing path uses.
     """
     from api import elefant_page
     from api.title_match import MATCHER_VERSION, strong_match
 
-    key = "|".join(["printing", str(MATCHER_VERSION), store_id, isbn13 or "", (title or "").strip().lower(), (author or "").strip().lower(), forced_url or ""])
+    key = "|".join(["printing", str(MATCHER_VERSION), _ELEFANT_RULE, store_id, isbn13 or "", (title or "").strip().lower(), (author or "").strip().lower(), forced_url or ""])
     kept = cache.get_confirmation(key) if cache is not None else None
     if kept is not None:
         return _elefant_offer(kept, store_id, isbn13, item_id, profile, day, cache_state="hit")
 
+    asked_format = _elefant_special_format(title)
+
     def same_book(facts: dict) -> bool:
         if isbn13 and facts.get("isbn13") == isbn13:
             return True
-        return bool(title and author and strong_match(title, author, facts.get("name"), facts.get("authors") or []))
+        if not (title and author):
+            return False
+        if forced_url is None and _elefant_special_format(facts.get("name")) not in (None, asked_format):
+            return False
+        # Elefant names a book with or without its leading article ("Gruffalo" for The Gruffalo).
+        return any(strong_match(t, author, n, facts.get("authors") or [])
+                   for t, n in ((title, facts.get("name")), (_bare_title(title), _bare_title(facts.get("name")))))
 
-    def preference(facts: dict) -> tuple[int, int]:
-        """(0, 0) is the best an Elefant page can be for this book; lower is better."""
+    def exact(facts: dict) -> bool:
+        return bool(isbn13) and facts.get("isbn13") == isbn13 and not facts.get("not_ranked_reason")
+
+    def preference(facts: dict) -> tuple[int, int, int, int]:
+        """Lower is better: the asked ISBN, then the same language, then a rankable price, then the cheaper."""
         page_isbn = facts.get("isbn13") or ""
         same_language = page_isbn == isbn13 or _isbn_group(page_isbn) == _isbn_group(isbn13)
-        return (0 if same_language else 1, 0 if not facts.get("not_ranked_reason") else 1)
+        ranked = not facts.get("not_ranked_reason")
+        return (0 if exact(facts) else 1, 0 if same_language else 1, 0 if ranked else 1,
+                (facts.get("price_cents") or 0) if ranked else 0)
 
     candidates = [forced_url] if forced_url else lookup_elefant_urls(title)
     known = {url: cache.get_confirmation("elefant-page|" + url) if cache is not None else None for url in candidates}
     # A page already read today and found to be this book goes first; one found to be another book is skipped.
-    candidates = sorted(candidates, key=lambda u: preference(known[u]) if known[u] and same_book(known[u]) else (2, 2))
+    candidates = sorted(candidates, key=lambda u: preference(known[u]) if known[u] and same_book(known[u]) else (2, 2, 2, 0))
     candidates = [u for u in candidates if forced_url or not known[u] or same_book(known[u])]
     refused: str | None = None
     read_any = False
@@ -936,7 +972,7 @@ async def _read_elefant(
             continue
         if best is None or preference(facts) < preference(best):
             best = facts
-        if preference(best) == (0, 0):
+        if exact(best):
             break
     if best is not None:
         answer = {"matched": True, **best}
@@ -957,6 +993,11 @@ async def _read_elefant(
         cache.put_confirmation(key, {"matched": False})
     return OfferRead(store_id=store_id, isbn13=isbn13, item_id=item_id, status="skipped",
                      reason="no_match_in_index", cache="miss", day=day)
+
+
+def _bare_title(text: str | None) -> str | None:
+    """The title without a leading English article: 'The Gruffalo' -> 'Gruffalo'."""
+    return re.sub(r"^\s*(?:the|a|an)\s+", "", text, flags=re.I) if text else text
 
 
 def _isbn_group(isbn: str | None) -> str | None:
