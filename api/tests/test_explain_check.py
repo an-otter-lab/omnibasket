@@ -64,6 +64,13 @@ def test_invented_shop_fails(payload: dict) -> None:
     assert _spans(dotted, payload) == ["books-express.ro"]
 
 
+def test_elefant_is_a_known_shop(payload: dict) -> None:
+    """Elefant (3 Nov) is named, so a paragraph that invents it fails instead of slipping through."""
+    text = "Elefant and Libris split this basket for 515,16 lei in 2 orders."
+    assert _spans(text, payload) == ["Elefant"]
+    assert _spans("The same books are at elefant.ro for 515,16 lei.", payload) == ["elefant.ro"]
+
+
 def test_invented_saving_fails(payload: dict) -> None:
     text = "The cheapest split is 515,16 lei, and you save 80,00 lei in 2 orders at Libris."
     result = check_explanation(text, payload)

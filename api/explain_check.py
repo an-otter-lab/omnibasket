@@ -14,7 +14,7 @@ from decimal import Decimal
 
 # Shop names the paragraph may use, including a shop that is not in this basket.
 # A mention still fails unless that shop is in the payload.
-_KNOWN_SHOPS = ("libris", "bookzone", "emag", "amazon_de", "books_express")
+_KNOWN_SHOPS = ("libris", "bookzone", "emag", "amazon_de", "books_express", "elefant")
 
 _DISPLAY = {
     "libris": "Libris",
@@ -22,6 +22,7 @@ _DISPLAY = {
     "emag": "eMAG",
     "amazon_de": "Amazon.de",
     "books_express": "Books-Express",
+    "elefant": "Elefant",
 }
 
 # Spellings that do not fall out of the store id, including the shop's own domain.
@@ -31,6 +32,7 @@ _EXTRA_ALIASES = {
     "emag": ("eMAG", "e-mag", "emag.ro"),
     "libris": ("libris.ro",),
     "bookzone": ("bookzone.ro",),
+    "elefant": ("elefant.ro",),
 }
 
 # amazon.de is the shop. amazon.com and any other host is a different shop.

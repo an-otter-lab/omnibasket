@@ -52,7 +52,7 @@ export interface LiveOffer {
   not_ranked_reason?: string;
 }
 
-export type Outcome = 'ranked' | 'not_compared' | 'refused' | 'no_offer' | 'no_price' | 'not_live' | 'other';
+export type Outcome = 'ranked' | 'not_compared' | 'refused' | 'no_offer' | 'no_price' | 'not_live' | 'other_seller' | 'other';
 
 export const SHOP_LABEL: Record<string, string> = {
   libris: 'Libris',
@@ -62,6 +62,7 @@ export const SHOP_LABEL: Record<string, string> = {
   carturesti: 'Cărturești',
   books_express: 'Books-Express',
   'books-express': 'Books-Express',
+  elefant: 'Elefant',
 };
 
 export function shopLabel(id: string | null | undefined): string {
@@ -196,6 +197,8 @@ export function outcomeOf(o: LiveOffer): Outcome {
       return 'no_price';
     case 'not_read_live':
       return 'not_live';
+    case 'not_sold_by_shop':
+      return 'other_seller';
     default:
       return 'other';
   }

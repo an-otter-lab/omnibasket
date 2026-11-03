@@ -99,6 +99,7 @@ export interface Messages {
   readsNoLink: string;
   readsNoOfferAnywhere: string;
   readsOther: string;
+  readsOtherSeller: string;
   /** {shop} {isbn} */
   readsOtherPrinting: string;
   sampleTitle: string;
@@ -554,6 +555,7 @@ export const MESSAGES: Record<Lang, Messages> = {
     readsNoLink: 'no link',
     readsNoOfferAnywhere: 'No shop lists this ISBN.',
     readsOther: 'Not read',
+    readsOtherSeller: 'Sold by another seller on {shop}, so it is left out of the comparison.',
     readsOtherPrinting: '{shop}: other printing, ISBN {isbn}',
     sampleTitle: 'Your sample basket',
     basketTitle: 'Your basket',
@@ -919,6 +921,7 @@ export const MESSAGES: Record<Lang, Messages> = {
     readsNoLink: 'fără link',
     readsNoOfferAnywhere: 'Niciun magazin nu are acest ISBN.',
     readsOther: 'Necitit',
+    readsOtherSeller: 'Vândut de alt vânzător pe {shop}, deci nu intră în comparație.',
     readsOtherPrinting: '{shop}: altă tipărire, ISBN {isbn}',
     sampleTitle: 'Coșul demo',
     basketTitle: 'Coșul tău',
