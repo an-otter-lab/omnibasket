@@ -2,8 +2,6 @@
 
 Chosen by Adrian on 2026-10-29: direction B, "Parcels", with his changes. This replaces the earlier three-directions exploration.
 
-Live canvas (private until shared): https://claude.ai/artifact/HANFj5GL4XTKvUvZGzntPw
-
 The `.dc.html` files are canvas source. They load the canvas runtime (`support.js`) and the shared stylesheet from the canvas's asset store, so they don't render on their own. `omni.css` is a local copy of that stylesheet. On the canvas, press Play on any screen or open a size's flow map (`M00`, `T00`, `D00`) to walk the flow.
 
 ## Files

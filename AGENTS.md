@@ -6,7 +6,7 @@ The plan being built is the Tuesday-to-Wednesday push to the 4 Nov submission; w
 - The main checkout stays on `main` and is used only for merging. Don't work in it directly.
 - Each task gets a `feat/<topic>` branch in its own short-lived worktree off `main`, one task per branch.
 - A branch merges into `main` once its acceptance checks pass. Remove its worktree in the same step.
-- Commit only your own task's files. Never commit `tmp/`, `ui-ux-design/` or `docs/ops/omnibasket-v1-plan.md`.
+- Commit only your own task's files. Never commit a path `.gitignore` lists under "Local only" (`tmp/`, `docs/ops/`, plans, handoffs, evidence screenshots). Those stay on disk in the main checkout; a new kind of internal file gets a line there before its first commit (Adrian, 3 Nov).
 
 ## Push and deploy
 - `main` is pushed to `origin` only after a merge whose checks are green (`pytest`, `ng test`, `ng build`).

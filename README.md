@@ -153,7 +153,7 @@ Future work; none of it is built.
 No consumer tool found combines independent retailers with per-store free-shipping thresholds on one basket. The closest neighbours are single-marketplace cart
 optimisers (Cardmarket, TCGplayer, Brick Owl), US-only extensions with no fee modelling (CartHappy),
 single-store basket comparison (BasketWise, Australia), and single-item comparison (Meta Muse
-shopping, Google Universal Cart). Full survey with sources: `docs/prior-work.xlsx`.
+shopping, Google Universal Cart).
 
 ## Data note
 
