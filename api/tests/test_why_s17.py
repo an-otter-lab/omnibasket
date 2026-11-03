@@ -229,3 +229,26 @@ def test_why_endpoint_keeps_the_muse_paragraph_for_a_posted_live_payload(posted_
     body = res.json()
     assert (body["source"], body["text"]) == ("muse", text)
     assert len(calls) == 1
+
+
+def _one_order_ties(payload, order_count):
+    p = copy.deepcopy(payload)
+    p["cheapest"]["order_count"] = order_count
+    for key in ("one_order", "one_parcel"):
+        if isinstance(p.get(key), dict) and isinstance(p[key].get("answer"), dict):
+            p[key]["answer"]["delta_vs_cheapest_cents"] = 0
+    return p
+
+
+def test_one_order_that_is_the_cheapest_sends_no_comparison(payload):
+    """3 Nov: a one-order cheapest answer read "…so it is 0,00 lei more than the cheapest". No 0,00 fact is sent."""
+    facts = why.facts_of(_one_order_ties(payload, 1))
+    assert facts["one_order"] == {"status": "is_the_cheapest", "shop": "Libris"}
+    assert "0,00" not in why.build_prompt(_one_order_ties(payload, 1), "en").split("JSON:")[1]
+    assert "is_the_cheapest" in why.PROMPT
+
+
+def test_a_split_that_ties_one_order_says_same_total(payload):
+    facts = why.facts_of(_one_order_ties(payload, 2))
+    assert facts["one_order"]["same_total_as_cheapest"] is True
+    assert "more_than_cheapest_cents" not in facts["one_order"]

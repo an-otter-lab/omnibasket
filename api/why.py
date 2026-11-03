@@ -46,7 +46,7 @@ Rules:
 - Write amounts with a comma decimal and lei after the number, in both languages (515,16 lei). Never a dot decimal: 515.16 is wrong.
 - Write shop names as Libris, Elefant, Amazon.de, eMAG, Bookzone, never as ids like amazon_de.
 - Name only shops that appear in the JSON. Say "order" (RO: "comandă"), never "parcel".
-- Say why the cheapest split is cheapest for this basket and how it compares with buying everything in one order, if the JSON has that comparison. If one_order.status is "not_possible", say that no single shop has every book, and do not invent a one-order total.
+- Say why the cheapest split is cheapest for this basket and how it compares with buying everything in one order, if the JSON has that comparison. If one_order.status is "not_possible", say that no single shop has every book, and do not invent a one-order total. If one_order.status is "is_the_cheapest", the cheapest answer already is one order: make no comparison with it and write no 0,00 amount. If one_order.same_total_as_cheapest is true, say one order costs the same, with no difference amount.
 - No headings, no lists, no markdown, no advice to buy.
 - Output only the paragraph.
 
@@ -267,8 +267,17 @@ def facts_of(payload: dict) -> dict:
         answer = one.get("answer") if isinstance(one.get("answer"), dict) else {}
         one_facts: dict = {"status": one.get("status"), "shop": _shop(one.get("best_store_id"))}
         if answer:
-            one_facts["total_cents"] = answer.get("total_cents")
-            one_facts["more_than_cheapest_cents"] = answer.get("delta_vs_cheapest_cents")
+            delta = answer.get("delta_vs_cheapest_cents")
+            if delta == 0 and facts["cheapest"]["order_count"] == 1:
+                # The cheapest answer already is that one order: no comparison to make ("0,00 lei more
+                # than the cheapest" read oddly on 3 Nov). Same rule as fallback_sentences.
+                one_facts = {"status": "is_the_cheapest", "shop": one_facts["shop"]}
+            elif delta == 0:
+                one_facts["total_cents"] = answer.get("total_cents")
+                one_facts["same_total_as_cheapest"] = True
+            else:
+                one_facts["total_cents"] = answer.get("total_cents")
+                one_facts["more_than_cheapest_cents"] = delta
         if one.get("status") == "not_possible" and one.get("reason"):
             one_facts["reason"] = one.get("reason")
         facts["one_order"] = one_facts
