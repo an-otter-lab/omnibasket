@@ -81,3 +81,21 @@ def test_amazon_is_still_never_read(index_db):
     with patch(MUSE, _no_muse), patch.object(iu, "fetch", _no_muse):
         out = iu.understand("https://www.amazon.de/Matilda/dp/0141365463/ref=x", index_db=index_db)
     assert out["isbn13"] == ISBN and out["shop_context"]["shop_id"] == "amazon_de"
+
+
+@pytest.mark.parametrize("book,want", [
+    # Libris names its pages "Title - Authors" and lists the illustrator as author (3 Nov walk:
+    # the chip read "Gruffalo - Julia Donalson, Axel Scheffler · Axel Scheffler").
+    ({"name": "Gruffalo - Julia Donalson, Axel Scheffler", "author": [{"@type": "Person", "name": "Axel Scheffler"}]},
+     ("Gruffalo", "Axel Scheffler")),
+    ({"name": "Matilda - Roald Dahl", "author": {"@type": "Person", "name": "Roald Dahl"}}, ("Matilda", "Roald Dahl")),
+    # A subtitle after a dash is not an author: it stays.
+    ({"name": "Matilda - The Musical", "author": "Roald Dahl"}, ("Matilda - The Musical", "Roald Dahl")),
+    # No author on the page: the name is left as it is.
+    ({"name": "Matilda - Roald Dahl"}, ("Matilda - Roald Dahl", None)),
+])
+def test_pasted_title_drops_a_trailing_author(index_db, book, want):
+    seen = []
+    with patch(MUSE, _no_muse), patch.object(iu, "fetch", _reader(seen, book)):
+        out = iu.understand(EMAG_URL, index_db=index_db)
+    assert (out["structured_query"]["title"], out["structured_query"]["author"]) == want

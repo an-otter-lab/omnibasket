@@ -290,18 +290,19 @@ def is_book_on_sale(schema: SchemaOrgData) -> bool:
 
 
 def _schema_title_author(schema: SchemaOrgData) -> tuple[str | None, str | None]:
+    from api.title_match import _strip_author_suffix
+
     raw = schema.raw or {}
     name = raw.get("name")
-    author = raw.get("author")
-    if isinstance(author, dict):
-        author = author.get("name")
-    elif isinstance(author, list) and author:
-        first = author[0]
-        author = first.get("name") if isinstance(first, dict) else first
-    return (
-        name.strip() if isinstance(name, str) and name.strip() else None,
-        author.strip() if isinstance(author, str) and author.strip() else None,
-    )
+    people = raw.get("author")
+    people = people if isinstance(people, list) else [people]
+    names = [p.get("name") if isinstance(p, dict) else p for p in people]
+    names = [n.strip() for n in names if isinstance(n, str) and n.strip()]
+    title = name.strip() if isinstance(name, str) and name.strip() else None
+    if title and names:
+        # Shops name pages "Title - Author"; the chip shows the author already ("Gruffalo · Axel Scheffler").
+        title = _strip_author_suffix(title, names).strip() or title
+    return title, names[0] if names else None
 
 
 # ---------------------------------------------------------------- BNR rates and the paste-only offer
