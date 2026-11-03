@@ -203,14 +203,17 @@ def call_muse_json(instructions: str, user_text: str, note: str, strict: bool = 
     }
     tokens_in = max(1, (len(instructions) + len(user_text)) // 3)
     estimate = muse_integration.meta_budget.compute_cost(tokens_in, MUSE_MAX_OUTPUT_TOKENS)
-    payload, _row = muse_integration.meta_budget.guarded_post(body, estimate, note=note)
+    def parse(text):
+        return _strict_json(text) if strict else muse_integration._extract_muse_json(text)
+
+    # accept: a Muse Spark Open reply that does not parse goes to Muse Spark 1.3 instead.
+    payload, _row = muse_integration.meta_budget.guarded_post(
+        body, estimate, note=note, accept=lambda text: isinstance(parse(text), dict)
+    )
     text = _text_of(payload)
     if not text:
         raise ParseFailed("empty model output")
-    if strict:
-        parsed = _strict_json(text)
-    else:
-        parsed = muse_integration._extract_muse_json(text)
+    parsed = parse(text)
     if not isinstance(parsed, dict):
         raise ParseFailed("model output was not JSON")
     return parsed

@@ -50,8 +50,8 @@ Two Meta models, both called from the server; the browser never holds a key:
 
 - **Muse Spark 1.3 on Meta's Model API** (`muse-spark-1.3`) writes the Why paragraph, reads photos and fills page gaps.
 - **Muse Spark Open on Baseten** (`meta-models/muse-spark-open-1026`), Meta's open-weights model, maps Ask Omnibasket
-  sentences and free text onto closed outputs. If a call to it fails or comes back empty, the same call goes to Muse
-  Spark 1.3, and the ledger row says so.
+  sentences and free text onto closed outputs. If a call to it fails, comes back empty or does not parse, the same call
+  goes to Muse Spark 1.3, and the ledger row says so.
 
 Every call goes through `tools/meta_budget.py`, which picks the model, prices the call, records it in the spend ledger
 with its provider, and stops at the day cap. Plain code, never a model, does prices, ISBN checks, currency and all money

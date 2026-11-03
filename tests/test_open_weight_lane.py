@@ -117,6 +117,22 @@ def test_an_empty_open_reply_is_recorded_then_falls_back(lane, tmp_path):
     assert [r["provider"] for r in rows(tmp_path)] == ["baseten", "meta"]
 
 
+def test_a_reply_that_fails_accept_is_recorded_then_falls_back(lane, tmp_path):
+    lane.replies = {**lane.replies, "baseten": {"choices": [{"message": {"content": "Sure! Here you go."}}],
+                                                "usage": {"prompt_tokens": 90, "completion_tokens": 40}}}
+    payload, row = mb.guarded_post(responses_body(), 0.01, note="ask-map", accept=lambda text: text.startswith("{"))
+    assert [c["provider"] for c in lane.calls] == ["baseten", "meta"]
+    assert payload["output_text"] == '{"actions": []}'
+    assert row["provider"] == "meta" and row["fallback_reason"] == "unusable reply"
+    assert [r["provider"] for r in rows(tmp_path)] == ["baseten", "meta"]
+
+
+def test_a_reply_that_passes_accept_stays_on_baseten(lane):
+    _payload, row = mb.guarded_post(responses_body(), 0.01, note="ask-map", accept=lambda text: text.startswith("{"))
+    assert [c["provider"] for c in lane.calls] == ["baseten"]
+    assert row["provider"] == "baseten"
+
+
 def test_a_cap_refusal_is_not_retried_on_meta(lane, tmp_path, monkeypatch):
     windows = tmp_path / "windows.json"
     windows.write_text(json.dumps({"windows": [
@@ -138,6 +154,19 @@ def test_no_baseten_key_means_meta_only(lane, monkeypatch):
 @pytest.mark.parametrize("value", ["0", "false", "off", "no"])
 def test_the_switch_turns_the_lane_off(lane, monkeypatch, value):
     monkeypatch.setenv("OMNIBASKET_OPEN_WEIGHT", value)
+    mb.guarded_post(responses_body(), 0.01, note="ask-map")
+    assert [c["provider"] for c in lane.calls] == ["meta"]
+
+
+def test_a_switch_in_dotenv_holds_from_the_first_call(lane, monkeypatch):
+    """Key and switch both only in .env: the first routed call must already see the switch."""
+    monkeypatch.delenv("BASETEN_API_KEY")
+
+    def dotenv():
+        monkeypatch.setenv("BASETEN_API_KEY", "fake-baseten")
+        monkeypatch.setenv("OMNIBASKET_OPEN_WEIGHT", "0")
+
+    monkeypatch.setattr(mb, "load_dotenv", dotenv)
     mb.guarded_post(responses_body(), 0.01, note="ask-map")
     assert [c["provider"] for c in lane.calls] == ["meta"]
 
@@ -200,3 +229,32 @@ def test_ask_answers_through_the_open_lane(monkeypatch, tmp_path):
     assert seen == ["baseten"]
     assert parsed == {"actions": [{"action": "set_tab", "tab": "one"}]}
     assert rows(tmp_path)[0]["note"] == "ask-map"
+
+
+def test_ask_falls_back_when_muse_spark_open_answers_in_prose(monkeypatch, tmp_path):
+    """Ask is strict JSON: prose from Baseten must reach Meta, not end as 'unsupported'."""
+    from api import ask
+    from api import input_understanding as iu
+    from api import muse_integration
+
+    budget = muse_integration.meta_budget
+    monkeypatch.setenv("META_SPEND_PATH", str(tmp_path / "spend.jsonl"))
+    monkeypatch.setenv("META_SPEND_WINDOWS", str(tmp_path / "no-windows.json"))
+    monkeypatch.setenv("BASETEN_API_KEY", "fake-baseten")
+    monkeypatch.delenv("OMNIBASKET_OPEN_WEIGHT", raising=False)
+    monkeypatch.setattr(budget, "load_dotenv", lambda: None)
+    seen = []
+    good = '{"actions": [{"action": "set_tab", "tab": "one"}]}'
+
+    def post(path, body, provider="meta", timeout=120):
+        seen.append(provider)
+        if provider == "baseten":
+            return {"choices": [{"message": {"content": "Sure! " + good}}],
+                    "usage": {"prompt_tokens": 400, "completion_tokens": 30}}
+        return {"output_text": good, "usage": {"input_tokens": 300, "output_tokens": 30}}
+
+    monkeypatch.setattr(budget, "_post", post)
+    parsed = iu.call_muse_json(ask.MAP_PROMPT, "SHOPPER: show me one order", "ask-map", strict=True)
+    assert seen == ["baseten", "meta"]
+    assert parsed == {"actions": [{"action": "set_tab", "tab": "one"}]}
+    assert [r.get("fallback_reason") for r in rows(tmp_path)] == [None, "unusable reply"]

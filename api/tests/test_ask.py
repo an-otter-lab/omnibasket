@@ -34,7 +34,7 @@ def model(monkeypatch):
     fake = Fake()
     fake.calls = []
 
-    def post(body, estimate, note, provider="meta", timeout=120):
+    def post(body, estimate, note, provider="meta", timeout=120, accept=None):
         fake.calls.append({"body": body, "note": note})
         if fake.error:
             raise fake.error

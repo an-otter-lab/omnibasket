@@ -504,29 +504,32 @@ def open_weight_lane(note):
     """True when a call with this note goes to Muse Spark Open first."""
     if note not in OPEN_WEIGHT_NOTES:
         return False
-    if os.environ.get("OMNIBASKET_OPEN_WEIGHT", "").strip().lower() in ("0", "false", "off", "no"):
-        return False
     key_env = provider_config(OPEN_WEIGHT_PROVIDER)["key_env"]
     if not os.environ.get(key_env):
+        # Load .env before reading the switch, so a switch set there holds from the first call.
         load_dotenv()
+    if os.environ.get("OMNIBASKET_OPEN_WEIGHT", "").strip().lower() in ("0", "false", "off", "no"):
+        return False
     return bool(os.environ.get(key_env))
 
 
-def guarded_post(body, estimate_usd, note, provider="meta", timeout=120):
+def guarded_post(body, estimate_usd, note, provider="meta", timeout=120, accept=None):
     """Check the cap, send one model call, record tokens and computed cost.
 
     A default-provider call whose note is in the open-weight lane goes to Baseten
-    first. If that fails or comes back empty, the same call goes to Meta and its
-    row names the fallback. A cap refusal is never retried: caps cover every provider.
+    first. If that fails, comes back empty, or its text fails ``accept`` (the
+    caller's own parse check), the same call goes to Meta and its row names the
+    fallback. A cap refusal is never retried: caps cover every provider.
     """
     if provider == "meta" and open_weight_lane(note):
         try:
             payload, row = _guarded_once(
                 body, estimate_usd, note, OPEN_WEIGHT_PROVIDER, min(timeout, OPEN_WEIGHT_TIMEOUT_S)
             )
-            if _reply_text(payload).strip():
+            text = _reply_text(payload).strip()
+            if text and (accept is None or accept(text)):
                 return payload, row
-            reason = "empty reply"
+            reason = "unusable reply" if text else "empty reply"
         except CapExceeded:
             raise
         except Exception as e:
