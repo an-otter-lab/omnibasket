@@ -267,3 +267,53 @@ def test_cross_check_schema_org_fallback():
     # Should pass because it matches schema.org
     assert passed is True
     assert mismatches == []
+
+
+def test_muse_page_input_collapses_whitespace_and_caps():
+    """Muse gets collapsed whitespace and at most MAX_MUSE_PAGE_CHARS (the 3 Nov 526k-token call)."""
+    from api.muse_integration import MAX_MUSE_PAGE_CHARS, muse_page_input
+
+    page = "<html><title>Book</title>" + " \n\t" * 1000 + "Price 57,00 lei " * 20000
+    text = muse_page_input(page)
+    assert "  " not in text and "\n" not in text
+    assert len(text) == MAX_MUSE_PAGE_CHARS
+    assert text.startswith("<html><title>Book</title> Price 57,00 lei")
+
+
+def test_muse_page_input_none_for_blank_page():
+    """A page that is only whitespace (Books-Express's answer to the VM) is not worth a call."""
+    from api.muse_integration import muse_page_input
+
+    assert muse_page_input(" " * 3_000_000) is None
+    assert muse_page_input(None) is None
+
+
+def test_muse_page_input_none_for_binary_noise():
+    """An undecoded gzip body read as text (what the VM got on 3 Nov) is not sent to Muse."""
+    import gzip
+    import os
+
+    from api.muse_integration import muse_page_input
+
+    noise = gzip.compress(b" " * 5_000_000 + os.urandom(20_000)).decode("utf-8", errors="replace")
+    assert muse_page_input(noise) is None
+    assert muse_page_input("Pre\u021b: 57,00 lei \u2014 \u00een stoc") is not None
+
+
+def test_gap_fill_skips_muse_for_blank_page():
+    """No Muse call, and no spend, when the page has nothing to read."""
+    with patch("api.muse_integration._call_muse") as call:
+        result = gap_fill_with_muse(" \n" * 1_500_000, SchemaOrgData())
+    call.assert_not_called()
+    assert result.cost_usd == 0.0 and result.fields is None
+
+
+def test_gap_fill_sends_capped_text_to_muse():
+    """The text Muse is sent is the capped one, not the raw page."""
+    from api.muse_integration import MAX_MUSE_PAGE_CHARS
+
+    page = "<p>Price 57,00 lei</p>" + " " * 2_000_000 + "x" * (MAX_MUSE_PAGE_CHARS * 2)
+    with patch("api.muse_integration._call_muse", return_value=(None, 0, 0, 0.0, 0, "test")) as call:
+        gap_fill_with_muse(page, SchemaOrgData())
+    sent = call.call_args.args[0]
+    assert len(sent) == MAX_MUSE_PAGE_CHARS and sent.startswith("<p>Price 57,00 lei</p> x")
