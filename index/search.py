@@ -6,9 +6,14 @@ page's schema.org JSON-LD (cached), Bookzone and eMAG as a link plus an honest "
 Elefant rows carry no ISBN, so Elefant is found by the live read, not here. Books-Express is no longer a
 live shop (3 Nov), so its index rows are title evidence only, never a "found at" chip. Shop rows are never shown as books and shop images never
 used as covers. The local index keeps FTS only for the photo reader (api/photo_read.py).
+
+When Open Library does not answer in time and nothing is cached, /search answers from the shop index
+instead (titles and ISBNs as the shops list them, marked "source": "shop_listings"). Network waits run on
+a small shared pool behind one deadline; an answer that comes later is still cached for the next search.
 """
 from __future__ import annotations
 
+import http.client
 import json
 import logging
 import re
@@ -18,7 +23,8 @@ import time
 import unicodedata
 import urllib.parse
 import urllib.request
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import Future, ThreadPoolExecutor
+from contextlib import closing
 from pathlib import Path
 
 from matching import ranking
@@ -30,7 +36,13 @@ MATCH_ERRORS: list[dict] = []
 ROOT = Path(__file__).resolve().parents[1]
 DB = ROOT / "data" / "index" / "books.sqlite3"
 UA = "Omnibasket/1.0 (+https://omnibasket.anottersolution.com/contact)"
-TIMEOUT = 5
+TIMEOUT = 5  # one socket operation; the waits below bound the whole search
+OL_HOST = "openlibrary.org"
+OL_SEARCH_SECONDS = 3.0  # search.json gets this long, then a stale cached answer or the shop index answers
+SEARCH_SECONDS = 3.0  # editions and Libris reads are waited for until this long after the search began
+OL_WORKERS = 3  # Open Library requests in flight at once, every search together (still one start per second)
+SHOP_WORKERS = 6  # Libris page reads in flight at once, every search together
+OL_MAX_BYTES = 2_000_000
 OL_CACHE_TTL = 86400  # 24 h for Open Library answers and confirmed Libris reads
 ERROR_TTL = 600  # a failed Libris read is not retried for 10 min
 MIN_REQUEST_INTERVAL = 1.0  # polite: at most one Open Library request per second, process-wide
@@ -45,6 +57,14 @@ BOOST = 1.5  # a result with a known shop offer moves up one place; Open Library
 
 _rate_lock = threading.Lock()
 _last_request_time = 0.0
+
+# Network waits run here, not on the request thread, so a search can stop waiting at its deadline while
+# the request finishes and caches its answer. Two searches asking for the same thing share one request.
+# Two pools: Open Library requests queue on the rate limit and must not hold up the shop reads.
+_OL_POOL = ThreadPoolExecutor(max_workers=OL_WORKERS, thread_name_prefix="search-ol")
+_SHOP_POOL = ThreadPoolExecutor(max_workers=SHOP_WORKERS, thread_name_prefix="search-shop")
+_inflight: dict[tuple, Future] = {}
+_inflight_lock = threading.RLock()
 
 STOP_WORDS = {
     "si", "și", "de", "din", "la", "cu", "pe", "in", "un", "o", "le", "lui",
@@ -131,39 +151,211 @@ def _rate_limit() -> None:
         _last_request_time = time.monotonic()
 
 
-def _ol_get(db: sqlite3.Connection, key: str, url: str, opener, required: bool = True) -> dict | None:
-    """Cached JSON GET. A hit costs no request. A failure raises SearchUnavailable (required) or
-    returns None, and is never cached, so the next search tries again."""
-    row = db.execute("SELECT response_json, cached_at FROM ol_search_cache WHERE cache_key=?", (key,)).fetchone()
-    if row and time.time() - row[1] < OL_CACHE_TTL:
-        return json.loads(row[0])
-    _rate_limit()
-    try:
-        req = urllib.request.Request(url, headers={"User-Agent": UA, "Accept": "application/json"})
-        with opener(req, timeout=TIMEOUT) as response:
-            payload = json.loads(response.read(2_000_000).decode("utf-8"))
-        if not isinstance(payload, dict):
-            raise ValueError("unexpected Open Library payload")
-    except Exception as exc:
-        log.warning("open library request failed (%s): %s", key.split(":", 1)[0], exc)
-        if required:
-            raise SearchUnavailable(str(exc)) from exc
+def _shared(pool: ThreadPoolExecutor, key: tuple, fn, *args) -> Future:
+    """fn(*args) on the pool, or the run already in flight for the same key."""
+    with _inflight_lock:
+        fut = _inflight.get(key)
+        if fut is None:
+            fut = pool.submit(fn, *args)
+            _inflight[key] = fut
+            fut.add_done_callback(lambda done: _forget(key, done))
+        return fut
+
+
+def _forget(key: tuple, fut: Future) -> None:
+    with _inflight_lock:
+        if _inflight.get(key) is fut:
+            del _inflight[key]
+
+
+def _store(db_path, sql: str, args: tuple) -> None:
+    """One cache write from a pool thread, on its own connection."""
+    with closing(sqlite3.connect(str(db_path), timeout=10)) as db:
+        db.execute(sql, args)
+        db.commit()
+
+
+class _Body:
+    def __init__(self, body: bytes):
+        self._body = body
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
         return None
-    db.execute("INSERT OR REPLACE INTO ol_search_cache(cache_key, response_json, cached_at) VALUES (?,?,?)",
-               (key, json.dumps(payload), int(time.time())))
+
+    def read(self, n: int = -1) -> bytes:
+        return self._body if n < 0 else self._body[:n]
+
+
+_idle: list[http.client.HTTPSConnection] = []
+_idle_lock = threading.Lock()
+
+
+def _ol_open(req: urllib.request.Request, timeout: float = TIMEOUT) -> _Body:
+    """GET from openlibrary.org on a kept-alive connection: a new TLS handshake costs 1.5-2 s of a
+    2-5 s request, a reused connection answers in about 0.4 s. Follows same-host redirects
+    (/isbn/ answers 302) and raises on anything but 200, as urlopen does."""
+    url = req.full_url
+    headers = dict(req.header_items())
+    for _ in range(4):
+        parts = urllib.parse.urlsplit(url)
+        if parts.scheme != "https" or parts.hostname != OL_HOST:
+            raise OSError(f"not an Open Library address: {parts.hostname}")
+        status, location, body = _ol_request(parts.path + ("?" + parts.query if parts.query else ""), headers, timeout)
+        if status in (301, 302, 303, 307, 308) and location:
+            url = urllib.parse.urljoin(url, location)
+            continue
+        if status != 200:
+            raise OSError(f"open library answered {status}")
+        return _Body(body)
+    raise OSError("open library redirected too often")
+
+
+def _ol_request(path: str, headers: dict, timeout: float) -> tuple[int, str | None, bytes]:
+    with _idle_lock:
+        conn = _idle.pop() if _idle else None
+    reused = conn is not None
+    while True:
+        if conn is None:
+            conn = http.client.HTTPSConnection(OL_HOST, timeout=timeout)
+        elif conn.sock is not None:
+            conn.sock.settimeout(timeout)
+        try:
+            conn.request("GET", path, headers=headers)
+            res = conn.getresponse()
+            body = res.read(OL_MAX_BYTES + 1)
+        except (http.client.RemoteDisconnected, ConnectionResetError, BrokenPipeError):
+            conn.close()
+            conn = None
+            if reused:  # the kept connection had been closed by the server: once more on a new one
+                reused = False
+                continue
+            raise
+        except BaseException:
+            conn.close()
+            raise
+        if len(body) > OL_MAX_BYTES or res.will_close:
+            conn.close()
+        else:
+            with _idle_lock:
+                if len(_idle) < OL_WORKERS:
+                    _idle.append(conn)
+                    conn = None
+            if conn is not None:
+                conn.close()
+        return res.status, res.getheader("Location"), body[:OL_MAX_BYTES]
+
+
+def _ol_fetch(db_path, key: str, url: str, opener) -> dict:
+    """ONE Open Library request (rate-limited); a good answer is cached even when nobody waits for it."""
+    _rate_limit()
+    req = urllib.request.Request(url, headers={"User-Agent": UA, "Accept": "application/json"})
+    with opener(req, timeout=TIMEOUT) as response:
+        payload = json.loads(response.read(OL_MAX_BYTES).decode("utf-8"))
+    if not isinstance(payload, dict):
+        raise ValueError("unexpected Open Library payload")
+    _store(db_path, "INSERT OR REPLACE INTO ol_search_cache(cache_key, response_json, cached_at) VALUES (?,?,?)",
+           (key, json.dumps(payload), int(time.time())))
     return payload
 
 
-def _ol_search(db: sqlite3.Connection, query: str, opener) -> list[dict]:
+def _ol_cached(db: sqlite3.Connection, key: str) -> tuple[dict, bool] | None:
+    """The cached answer for a key and whether it is still fresh."""
+    row = db.execute("SELECT response_json, cached_at FROM ol_search_cache WHERE cache_key=?", (key,)).fetchone()
+    if not row:
+        return None
+    return json.loads(row[0]), time.time() - row[1] < OL_CACHE_TTL
+
+
+def _ol_get(db: sqlite3.Connection, db_path, key: str, url: str, opener, wait: float,
+            required: bool = True) -> dict | None:
+    """Cached JSON GET. A fresh hit costs no request. Otherwise the request runs on the pool and is
+    waited for `wait` seconds; a failure or a late answer falls back to a stale cached answer, then
+    raises SearchUnavailable (required) or returns None. Failures are never cached."""
+    cached = _ol_cached(db, key)
+    if cached and cached[1]:
+        return cached[0]
+    fut = _shared(_OL_POOL, (str(db_path), key, opener), _ol_fetch, db_path, key, url, opener)
+    try:
+        return fut.result(timeout=max(0.0, wait))
+    except Exception as exc:
+        reason = str(exc) or ("no answer in %.1f s" % wait)
+        log.warning("open library request failed (%s): %s", key.split(":", 1)[0], reason)
+        if cached:
+            return cached[0]  # yesterday's answer beats none
+        if required:
+            raise SearchUnavailable(reason) from exc
+        return None
+
+
+def _ol_search(db: sqlite3.Connection, db_path, query: str, opener) -> list[dict]:
     params = urllib.parse.urlencode({"q": query, "limit": 10, "fields": OL_FIELDS})
     key = "search:" + " ".join(normalize(query).split())
-    payload = _ol_get(db, key, "https://openlibrary.org/search.json?" + params, opener)
+    payload = _ol_get(db, db_path, key, "https://openlibrary.org/search.json?" + params, opener, OL_SEARCH_SECONDS)
     return [d for d in payload.get("docs", []) if isinstance(d, dict) and d.get("title")]
 
 
-def _edition(db: sqlite3.Connection, isbn: str, opener) -> dict | None:
-    """The edition record for one ISBN (its own title and cover). Best effort, never fatal."""
-    return _ol_get(db, "isbn:" + isbn, f"https://openlibrary.org/isbn/{isbn}.json", opener, required=False)
+CACHED_ANSWERS = 200  # cached Open Library answers looked at when it does not answer
+
+
+def _cached_docs(db: sqlite3.Connection, query: str, asked: str | None) -> list[dict]:
+    """Open Library did not answer: the works its earlier answers to OTHER queries named that fit
+    this one (every word of the query in the title or author, or the asked ISBN), newest first."""
+    words = list(dict.fromkeys(_words(query)))
+    probe = asked or max(words, key=len, default="")
+    if not probe:
+        return []
+    found: dict[tuple, dict] = {}
+    for (raw,) in db.execute(
+        """SELECT response_json FROM ol_search_cache WHERE cache_key LIKE 'search:%' AND response_json LIKE ?
+           ORDER BY cached_at DESC LIMIT ?""", (f"%{probe}%", CACHED_ANSWERS)):
+        try:
+            docs = json.loads(raw).get("docs") or []
+        except (ValueError, AttributeError):
+            continue
+        for doc in docs:
+            if not isinstance(doc, dict) or not doc.get("title"):
+                continue
+            if asked:
+                if asked not in _doc_isbns(doc):
+                    continue
+            else:
+                have = set(_words(" ".join([doc["title"], *[a for a in doc.get("author_name") or [] if isinstance(a, str)]])))
+                if not set(words) <= have:
+                    continue
+            authors = doc.get("author_name") or [""]
+            found.setdefault(doc.get("key") or (ranking.fold(doc["title"]), ranking.fold(str(authors[0]))), doc)
+    return list(found.values())[:10]
+
+
+def _editions(db: sqlite3.Connection, db_path, isbns: list[str], opener, by: float,
+              network: bool = True) -> dict[str, dict]:
+    """isbn -> its edition record (own title and cover), asked for together and waited for until `by`.
+    Best effort, never fatal: a late edition is cached for the next search and skipped in this one.
+    Without `network` (Open Library just failed) only cached editions are used."""
+    found: dict[str, dict] = {}
+    pending: dict[str, Future] = {}
+    for isbn in dict.fromkeys(isbns):
+        cached = _ol_cached(db, "isbn:" + isbn)
+        if cached and (cached[1] or not network):
+            found[isbn] = cached[0]
+            continue
+        if not network:
+            continue
+        key = "isbn:" + isbn
+        pending[isbn] = _shared(_OL_POOL, (str(db_path), key, opener), _ol_fetch, db_path, key,
+                                f"https://openlibrary.org/isbn/{isbn}.json", opener)
+    for isbn, fut in pending.items():
+        try:
+            found[isbn] = fut.result(timeout=max(0.0, by - time.monotonic()))
+        except Exception as exc:
+            log.warning("open library request failed (isbn): %s", str(exc) or "no answer by the deadline")
+            cached = _ol_cached(db, "isbn:" + isbn)
+            if cached:
+                found[isbn] = cached[0]
+    return found
 
 
 def cover_url(cover_i: int | None, isbn: str | None) -> str | None:
@@ -298,6 +490,14 @@ def _libris_read(url: str, fetcher) -> tuple[str | None, str]:
     return (isbn, "ok") if isbn else (None, "no_isbn")
 
 
+def _libris_task(db_path, url: str, fetcher) -> tuple[str | None, str]:
+    """The one read of a Libris page, cached (an error for ERROR_TTL) even when nobody waits for it."""
+    isbn, status = _libris_read(url, fetcher)
+    _store(db_path, "INSERT OR REPLACE INTO libris_page_cache(url, isbn, status, cached_at) VALUES (?,?,?,?)",
+           (url, isbn, status, int(time.time())))
+    return isbn, status
+
+
 _LD_RE = re.compile(r'<script[^>]+type=["\']application/ld\+json["\'][^>]*>(.*?)</script>', re.I | re.S)
 
 
@@ -353,14 +553,93 @@ def _profane(text: object) -> bool:
     return isinstance(text, str) and bool(_PROFANE.search(text))
 
 
-def search(query: str, limit: int = 10, db_path: Path | str = DB, opener=None, fetcher=None) -> list[dict]:
+FALLBACK_SECONDS = 1.0  # the most the shop-index match may take
+FALLBACK_ROWS = 300  # best full-text matches looked at
+# A shop slug drops the star and the apostrophe: "the subtle art of not giving a f ck".
+_PROFANE_SLUG = re.compile(r"\b(?:f ck\w*|(?:bull)?sh t(?:s|ty)?)\b")
+
+
+def _listing_title(title: str) -> str:
+    """A shop's slug title as a title: sentence case, "philosopher s stone" -> "philosopher's stone"."""
+    title = re.sub(r"(?<=[a-z])\s+s\b", "'s", title.strip())
+    return title[:1].upper() + title[1:]
+
+
+def _index_fallback(db: sqlite3.Connection, query: str, asked: str | None) -> list[dict]:
+    """Open Library did not answer and nothing is cached: books from the shop index instead, as the
+    shops list them (an ISBN and a title, no cover id, no shop chip: Books-Express rows are title
+    evidence only). Ranked by the same score as catalogue works. Raises SearchUnavailable when the
+    index has nothing either; an ISBN query it does not hold is an empty list (the ISBN still names
+    a book the shops can be asked about)."""
+    if asked:
+        rows = db.execute("SELECT title, author_hint, isbn FROM books WHERE isbn = ? AND title != ''",
+                          (asked,)).fetchall()
+        if not rows:
+            return []
+    else:
+        words = list(dict.fromkeys(_words(query)))[:8]
+        if not words:
+            raise SearchUnavailable("open library did not answer and the query has no words to match")
+        deadline = time.monotonic() + FALLBACK_SECONDS
+        db.set_progress_handler(lambda: time.monotonic() > deadline, LIBRIS_MATCH_CHECK_EVERY)
+        try:
+            rows = db.execute(
+                """SELECT b.title, b.author_hint, b.isbn FROM books_search s CROSS JOIN books b ON b.rowid = s.rowid
+                   WHERE books_search MATCH ? AND b.isbn IS NOT NULL AND b.isbn != '' AND b.title != ''
+                   ORDER BY s.rank LIMIT ?""",
+                ("{title author} : (" + " AND ".join(f'"{w}"' for w in words) + ")", FALLBACK_ROWS),
+            ).fetchall()
+        except sqlite3.OperationalError as exc:
+            raise SearchUnavailable(f"open library did not answer and the index match failed: {exc}") from exc
+        finally:
+            db.set_progress_handler(None, 0)
+    best: dict[str, tuple] = {}
+    printings: dict[str, int] = {}
+    for pos, (title, author, isbn) in enumerate(rows):
+        isbn = to_isbn13(isbn)
+        if not isbn or not ranking.is_allowed_isbn(isbn):
+            continue
+        if not asked and not _profane(query) and (_profane(title) or _PROFANE_SLUG.search(title)):
+            continue
+        doc = {"title": title, "author_name": [author] if author else [], "isbn": [isbn]}
+        score = ranking.rank_score(query, doc)
+        key = ranking.fold(title)
+        printings[key] = printings.get(key, 0) + 1
+        if key not in best or (-score, pos) < best[key][0]:
+            best[key] = ((-score, pos), title, author, isbn)  # one row per title: the best-scored printing
+    if not best and not asked:
+        raise SearchUnavailable("open library did not answer and the index holds no match")
+    # A title the shops list in several printings is the book people buy ("sapiens a brief history
+    # of humankind" over "sapiens reinvented"): one point per extra printing, two at most.
+    order = sorted(best, key=lambda k: (best[k][0][0] - min(2, printings[k] - 1), best[k][0][1]))
+    results = []
+    for _rank, title, author, isbn in (best[k] for k in order):
+        shown_title = _listing_title(title)
+        results.append({
+            "title": shown_title,
+            "author": author or None,
+            "isbn": isbn,
+            "cover_url": cover_url(None, isbn),
+            "shops": [],
+            "other_shops": _other_shops(isbn, shown_title),
+            "source": "shop_listings",
+        })
+    return results
+
+
+def search(query: str, limit: int = 10, db_path: Path | str = DB, opener=None, fetcher=None,
+           fallback: bool = False) -> list[dict]:
     """Books for a title, author or ISBN (RO or EN, diacritics ignored), ranked by Open Library
     relevance and boosted when a shop is known to carry the ISBN. Raises SearchUnavailable when
-    Open Library cannot be reached and nothing fresh is cached."""
+    Open Library cannot be reached and nothing is cached; with `fallback` (the /search route) the works
+    its earlier answers named, then the shop index, answer instead, and SearchUnavailable means neither
+    had anything. Edition lookups and Libris reads are waited for until SEARCH_SECONDS after the start;
+    later answers are cached."""
+    started = time.monotonic()
     query = (query or "").strip()
     if not query or not Path(db_path).is_file():
         return []
-    opener = opener or urllib.request.urlopen
+    opener = opener or _ol_open
     if fetcher is None:
         from api import fetch_guard
 
@@ -369,14 +648,26 @@ def search(query: str, limit: int = 10, db_path: Path | str = DB, opener=None, f
 
     limit = max(1, min(int(limit), 100))
     asked = to_isbn13(query) if re.fullmatch(r"[\d\-\sXx]{10,17}", query) else None
+    by = started + SEARCH_SECONDS
 
     with sqlite3.connect(str(db_path)) as db:
         db.row_factory = sqlite3.Row
         _cache_init(db)
         ensure_books_search(db)
+        db.commit()  # pool threads write the caches on their own connections
         # S7: rank every doc Open Library returned (it is asked for 10), and cut to `limit`
         # only at the end, so a smaller limit is always a prefix of a larger one.
-        docs = _ol_search(db, asked or query, opener)
+        online = True
+        try:
+            docs = _ol_search(db, db_path, asked or query, opener)
+        except SearchUnavailable:
+            if not fallback:
+                raise
+            # Open Library is down or slow: the works it named for earlier searches, else the shop index.
+            docs = _cached_docs(db, query, asked)
+            if not docs:
+                return _index_fallback(db, query, asked)[:limit]
+            online = False
 
         # The catalogue's order is for its whole corpus: rank it for this shopper first,
         # then choose the ISBN of each work (never a dialect or foreign printing).
@@ -403,34 +694,35 @@ def search(query: str, limit: int = 10, db_path: Path | str = DB, opener=None, f
             it["ro_isbn"] = asked or ranking.pick_isbn(usable, index_titles, "ro")
             it["en_isbn"] = asked or ranking.pick_isbn(usable, index_titles, "en")
             it["isbn"] = asked or it["ro_isbn"] or it["en_isbn"] or (usable[0] if usable else None)
-            # Romanian edition: its own title and cover when Open Library has them.
             it["edition_title"] = None
             it["cover_i"] = it["doc"].get("cover_i")
-            if it["isbn"] and ranking.is_ro_isbn(it["isbn"]) and it["pos"] < 3:
-                ed = _edition(db, it["isbn"], opener) or {}
-                if ed.get("title"):
-                    it["edition_title"] = ed["title"]
-                if ed.get("covers"):
-                    it["cover_i"] = next((c for c in ed["covers"] if isinstance(c, int) and c > 0), it["cover_i"])
             items.append(it)
+
+        # Romanian edition: its own title and cover when Open Library has them (the top three, together).
+        romanian = [it for it in items if it["isbn"] and ranking.is_ro_isbn(it["isbn"]) and it["pos"] < 3]
+        editions = _editions(db, db_path, [it["isbn"] for it in romanian], opener, by, network=online)
+        for it in romanian:
+            ed = editions.get(it["isbn"]) or {}
+            if ed.get("title"):
+                it["edition_title"] = ed["title"]
+            if ed.get("covers"):
+                it["cover_i"] = next((c for c in ed["covers"] if isinstance(c, int) and c > 0), it["cover_i"])
 
         rows = _rows(items)
 
         # Libris: index title match, then ONE product-page read (cached) confirmed from schema.org.
-        pending = {}
+        reads: dict[str, Future] = {}
         for row in rows[:LIBRIS_READS]:
             url = _libris_candidate(db, [row["title"]])
             row["libris_url"] = url
-            if url and _libris_cached(db, url) is None:
-                pending[url] = None
-        if pending:
-            with ThreadPoolExecutor(max_workers=len(pending)) as pool:
-                futures = {u: pool.submit(_libris_read, u, fetcher) for u in pending}
-                for u, fut in futures.items():
-                    isbn, status = fut.result()
-                    db.execute("INSERT OR REPLACE INTO libris_page_cache(url, isbn, status, cached_at) VALUES (?,?,?,?)",
-                               (u, isbn, status, int(time.time())))
-        db.commit()
+            if url and url not in reads and _libris_cached(db, url) is None:
+                reads[url] = _shared(_SHOP_POOL, (str(db_path), "libris:" + url), _libris_task, db_path, url, fetcher)
+        read: dict[str, tuple[str | None, str]] = {}
+        for u, fut in reads.items():
+            try:
+                read[u] = fut.result(timeout=max(0.0, by - time.monotonic()))
+            except Exception:
+                pass  # not back by the deadline: cached when it is, shown by the next search
 
         results = []
         for row in rows:
@@ -439,7 +731,7 @@ def search(query: str, limit: int = 10, db_path: Path | str = DB, opener=None, f
             url = row.get("libris_url")
             libris_isbn = None
             if url:
-                hit = _libris_cached(db, url)
+                hit = read.get(url) or _libris_cached(db, url)
                 if hit and hit[1] == "ok" and hit[0] in it["isbns"]:
                     libris_isbn = hit[0]
                     if not (asked and asked == isbn):
@@ -461,6 +753,8 @@ def search(query: str, limit: int = 10, db_path: Path | str = DB, opener=None, f
         results.sort(key=lambda r: r["_rank"])
         for r in results:
             del r["_rank"]
+        if not results and not online:
+            return _index_fallback(db, query, asked)[:limit]  # the earlier answers' works were all filtered out
         return results[:limit]
 
 

@@ -126,7 +126,8 @@ A working app on a public URL. What is built:
 - **One box**: type a title, author or ISBN (Romanian or English), paste a shop link, or photograph a reading list. Any
   book can go in the basket; the saved `ro-v1` basket is only the demo-mode sample and the test fixture.
 - **Search** on our own index of five shops, built from their sitemaps, plus Open Library for ISBNs and covers. No shop
-  search page is ever fetched; each product page gets one live read, Amazon.de none.
+  search page is ever fetched; each product page gets one live read, Amazon.de none. When Open Library does not answer
+  within 3 s, its earlier answers or the shop index answer instead, marked as shop listings.
 - **An exhaustive integer-cents solver** (`solver/`): one order, the cheapest split, or a set of shops you choose, with
   each shop's delivery fee, free-delivery threshold and per-order fee. Unknown fees are never priced as zero.
 - **Read layer** (`matching/`): ISBN check digits, sold-by tri-state, and edition matching that does not average
