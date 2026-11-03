@@ -133,12 +133,12 @@ def test_indexed_shop_link_resolves_to_its_product_page_from_index(index_db):
 
 
 def test_indexed_shop_link_with_isbn_in_url_reads_the_page_once(index_db):
-    url = "https://www.books-express.ro/carte/z/p/q," + HUNGRY + "?x=1"
+    url = "https://www.emag.ro/carte-z-" + HUNGRY + "/pd/ABC/?x=1"
     seen = []
     with patch(MUSE, _no_muse), patch.object(iu, "fetch", _one_plain_read(seen)):
         out = iu.understand(url, index_db=index_db)
     assert seen == [url]
-    assert out["shop_context"]["shop_id"] == "books_express"
+    assert out["shop_context"]["shop_id"] == "emag"
     assert out["isbn13"] == HUNGRY
 
 

@@ -113,24 +113,36 @@ def test_every_cover_is_open_library_or_none(db_path):
     assert "books-express.ro/" not in json.dumps([r["cover_url"] for r in res])
 
 
-def test_isbn_query_is_exact_and_books_express_offer_found(db_path):
+def test_isbn_query_is_exact_and_retired_books_express_rows_are_no_offer(db_path):
     ol = FakeOL({"9780198606932": [GENES]})
     res = run(db_path, "978-0-19-860693-2", ol)
     assert res[0]["isbn"] == "9780198606932" and res[0]["title"] == "Genes, girls and gamow"
-    assert res[0]["shops"] == [{"shop": "books-express", "url": "https://www.books-express.ro/-/p/9780198606932"}]
+    # Books-Express is retired (3 Nov): its index rows never show as a "found at" shop.
+    assert res[0]["shops"] == []
 
 
 def test_known_shop_offer_boosts_but_does_not_override_relevance(db_path):
+    # Libris carries GENES: its index title matches and its page confirms the ISBN (one read, cached).
+    genes_url = "https://www.libris.ro/carte/genes-girls-and-gamow/1"
+    with sqlite3.connect(db_path) as db:
+        db.execute("INSERT INTO books VALUES('libris',?,'genes girls and gamow',NULL,NULL,'2026-10-30')", (genes_url,))
+    page = '<script type="application/ld+json">{"@type": "Book", "isbn": "9780198606932"}</script>'
+
+    def libris(url, timeout=None):
+        assert url == genes_url
+        return fetch_guard.GuardedFetch(url, 200, "text/html", page.encode(), page, 0)
+
     other = {"title": "Another", "author_name": ["B"], "isbn": ["9781111111113"], "cover_i": 1}
     nb = [{"title": f"Filler {i}", "author_name": ["F"], "isbn": [], "cover_i": 2} for i in range(6)]
     ol = FakeOL({"q": [other, nb[0], GENES, *nb[1:]]})
-    res = run(db_path, "q", ol)
-    # GENES (Open Library #3, carried by Books-Express) moves up one place; #1 stays #1.
+    res = run(db_path, "q", ol, fetcher=libris)
+    # GENES (Open Library #3, carried by Libris) moves up one place; #1 stays #1.
     assert [r["title"] for r in res][:3] == ["Another", "Genes, girls and gamow", "Filler 0"]
+    assert res[1]["shops"] == [{"shop": "libris", "url": genes_url}]
     assert res[-1]["title"] == "Filler 5"  # far results stay in Open Library order
-    top_carried = run(db_path, "genes girls and gamow", FakeOL({"genes girls and gamow": [GENES, other]}))
+    top_carried = run(db_path, "genes girls and gamow", FakeOL({"genes girls and gamow": [GENES, other]}), fetcher=libris)
     assert top_carried[0]["title"] == "Genes, girls and gamow"
-    not_displaced = run(db_path, "another", FakeOL({"another": [other, GENES]}))
+    not_displaced = run(db_path, "another", FakeOL({"another": [other, GENES]}), fetcher=libris)
     assert not_displaced[0]["title"] == "Another"  # a shop never displaces the top result
 
 

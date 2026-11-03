@@ -31,7 +31,7 @@ def test_non_indexed_shops_return_not_checked(tmp_path, indexed_shops_db):
     
     with patch('api.offers.fetch', side_effect=mock_fetch):
         offers = asyncio.run(read_offers_parallel(
-            ['bookzone', 'emag', 'books_express'],
+            ['bookzone', 'emag', 'libris'],
             isbn,
             f"book-{isbn}",
             cache,
@@ -42,7 +42,7 @@ def test_non_indexed_shops_return_not_checked(tmp_path, indexed_shops_db):
     # Find offers by store_id
     bookzone_offer = next((o for o in offers if o.store_id == 'bookzone'), None)
     emag_offer = next((o for o in offers if o.store_id == 'emag'), None)
-    books_express_offer = next((o for o in offers if o.store_id == 'books_express'), None)
+    libris_offer = next((o for o in offers if o.store_id == 'libris'), None)
     
     # Non-indexed shops must return not_checked
     assert bookzone_offer is not None
@@ -54,8 +54,8 @@ def test_non_indexed_shops_return_not_checked(tmp_path, indexed_shops_db):
     assert emag_offer.reason == "not_indexed"
     
     # Indexed shop was actually read (even if no offer found)
-    assert books_express_offer is not None
-    assert books_express_offer.status != "not_checked"
+    assert libris_offer is not None
+    assert libris_offer.status != "not_checked"
     # It should be skipped (no match) or failed, but not not_checked
 
 
@@ -73,14 +73,14 @@ def test_indexed_shop_with_no_match_returns_skipped(tmp_path, indexed_shops_db):
     
     with patch('api.offers.fetch', side_effect=mock_fetch):
         offers = asyncio.run(read_offers_parallel(
-            ['books_express'],  # Indexed shop
+            ['libris'],  # Indexed shop
             isbn,
             f"book-{isbn}",
             cache
         ))
     
-    books_express_offer = next((o for o in offers if o.store_id == 'books_express'), None)
-    assert books_express_offer is not None
+    libris_offer = next((o for o in offers if o.store_id == 'libris'), None)
+    assert libris_offer is not None
     # Should be skipped (was read, no match), not not_checked
-    assert books_express_offer.status == "skipped"
-    assert books_express_offer.reason == "no_match_in_index"
+    assert libris_offer.status == "skipped"
+    assert libris_offer.reason == "no_match_in_index"

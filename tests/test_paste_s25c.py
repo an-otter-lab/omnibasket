@@ -1,5 +1,5 @@
-"""S25c (Adrian, 1 Nov): a pasted page is read only for the shops we read (Books-Express, eMAG,
-Bookzone, Libris), exactly once. A link to any other site, foreign ones included, uses the ISBN in
+"""S25c (Adrian, 1 Nov): a pasted page is read only for the shops we read (eMAG, Bookzone, Libris,
+and Elefant since 3 Nov), exactly once. A link to any other site, foreign ones included, uses the ISBN in
 its address and is never fetched. Amazon is never read. Fixture pages only; no sockets."""
 
 import json
@@ -70,17 +70,25 @@ def test_other_site_link_without_isbn_is_not_read(index_db):
 
 
 @pytest.mark.parametrize("url", [
-    "https://www.books-express.ro/matilda/p/x," + ISBN,
     "https://www.emag.ro/carte-matilda-" + ISBN + "/pd/ABC/",
     "https://bookzone.ro/produs/matilda",
     "https://www.libris.ro/matilda",
 ])
-def test_the_four_shops_we_read_are_read_exactly_once(url, index_db):
+def test_the_shops_we_read_are_read_exactly_once(url, index_db):
     reads = Reads()
     with patch(MUSE, _no_muse), patch.object(iu, "fetch", reads):
         out = iu.understand(url, index_db=index_db)
     assert reads.urls == [url]
     assert out["status"] == "resolved" and out["isbn13"] == ISBN
+
+
+def test_retired_books_express_link_is_an_other_site_link(index_db):
+    """Books-Express is retired (3 Nov): its link is never fetched and, like any other site's, leaves
+    the UI to search the ISBN in its address."""
+    reads = Reads()
+    with patch(MUSE, _no_muse), patch.object(iu, "fetch", reads):
+        out = iu.understand("https://www.books-express.ro/matilda/p/x," + ISBN, index_db=index_db)
+    assert reads.urls == [] and out["status"] == "not_found" and out["isbn13"] is None
 
 
 def test_amazon_de_is_never_read(index_db):

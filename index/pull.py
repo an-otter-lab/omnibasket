@@ -14,7 +14,10 @@ from pathlib import Path
 from urllib.parse import unquote, urlparse
 ROOT=Path(__file__).resolve().parent.parent
 DB=ROOT/'data/index/books.sqlite3'
-SOURCES={'libris':'https://www.libris.ro/sitemap-new-url-index.xml?nofilename=on','bookzone':'https://bookzone.ro/sitemaps-g/SitemapProduse.aspx','emag':None,'books-express':'https://www.books-express.ro/sitemap_index.xml.gz','elefant':'https://www.elefant.ro/sitemap-sitemapRO'}
+SOURCES={'libris':'https://www.libris.ro/sitemap-new-url-index.xml?nofilename=on','bookzone':'https://bookzone.ro/sitemaps-g/SitemapProduse.aspx','emag':None,'elefant':'https://www.elefant.ro/sitemap-sitemapRO'}
+# Books-Express is no longer pulled (T2, 3 Nov, Adrian: Elefant replaces it); rows already in an index
+# stay as title evidence for the photo reader and the search's edition picks.
+RETIRED={'books-express':'https://www.books-express.ro/sitemap_index.xml.gz'}
 # Amazon.de is never pulled: its slice is the captured books already in the repo.
 LOCAL_SHOPS=('amazon_de',)
 # eMAG: robots.txt and every /sitemap* path answered HTTP 511 on 2026-10-30.

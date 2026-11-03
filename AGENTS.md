@@ -24,6 +24,7 @@ The plan being built is the Tuesday-to-Wednesday push to the 4 Nov submission; w
 - Tests never touch the network: use fixtures and mocks.
 - Book covers come from Open Library only, never from shop images.
 - Elefant (T2, 3 Nov, Adrian): index its imported books only (slugs ending in a binding), read its pages with `api/elefant_page.py` (plain code, never Muse), rank an offer only when the page names Elefant as seller, and charge 9,99 lei per order. Cărturești is not added (Cloudflare challenge for everyone).
+- Shops (T2, 2026-11-03, Adrian): Elefant replaces Books-Express on the public app; Books-Express (gzip bomb to the VM) is out of the indexed and live shop set (`data/shops/retired/`), and Cărturești stays out. No proxy, new IP or Mac relay for either.
 - A shop's data file may declare that the shop sells only its own stock. Its live offers then count as sold by the shop (`direct`) toward its free-delivery threshold, with no per-page model read. Shops with marketplace sellers (eMAG, Amazon.de) stay `unknown` unless the page names the seller (Adrian, 30 Oct).
 
 ## Models and money

@@ -1,3 +1,7 @@
+# Retired from the indexed and live shop set (T2, 3 Nov, Adrian): since 3 Nov
+# Books-Express answers the public app's server with a gzip bomb, and Elefant
+# replaces it. Kept as the record of what was read; the loader reads only
+# data/shops/*.yaml, not this folder.
 id: books_express
 name: Books-Express
 domain: www.books-express.ro
