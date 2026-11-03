@@ -1,8 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <!-- Omnibasket mark: a kraft box on the chosen-answer green (docs/design/ui-ux/omni.css). -->
+  <!-- Omnibasket mark: three books in a kraft basket on the chosen-answer green (docs/design/ui-ux/omni.css). -->
   <rect width="64" height="64" rx="15" fill="#14532d"/>
-  <rect x="14" y="25" width="36" height="25" rx="4" fill="#f4efe6"/>
-  <rect x="11" y="16" width="42" height="11" rx="4" fill="#f4efe6"/>
-  <rect x="29" y="16" width="6" height="34" fill="#c9b591"/>
-  <rect x="14" y="27" width="36" height="2" fill="#14532d" opacity=".18"/>
+  <rect x="17" y="13" width="9" height="26" rx="1.5" fill="#f4efe6"/>
+  <rect x="27.5" y="18" width="9" height="21" rx="1.5" fill="#d1e7d8"/>
+  <rect x="38" y="10" width="9" height="29" rx="1.5" fill="#c9b591" transform="rotate(8 42 39)"/>
+  <path d="M11 33 H53 L48.5 53 Q48 54 47 54 H17 Q16 54 15.5 53 Z" fill="#f4efe6"/>
+  <rect x="11" y="33" width="42" height="5" rx="1.5" fill="#c9b591"/>
+  <rect x="25" y="41" width="2" height="10" fill="#14532d" opacity=".18"/>
+  <rect x="37" y="41" width="2" height="10" fill="#14532d" opacity=".18"/>
 </svg>
