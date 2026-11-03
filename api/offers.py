@@ -7,6 +7,7 @@ validation, and caching. Streams read_progress events over /events.
 from __future__ import annotations
 
 import asyncio
+import re
 import sys
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -109,6 +110,7 @@ SHOP_LABEL = {
     "bookzone": "Bookzone",
     "emag": "eMAG",
     "books_express": "Books-Express",
+    "elefant": "Elefant",
     "amazon_de": "Amazon.de",
 }
 
@@ -129,6 +131,15 @@ def default_live_stores() -> list[str]:
 
 def valid_live_stores() -> set[str]:
     return set(default_live_stores())
+
+
+def extract_page(profile: ShopProfile | None, html: str) -> SchemaOrgData:
+    """A product page's facts by the shop file's strategy: Elefant's own markup, else schema.org."""
+    if profile is not None and profile.product_pages.get("strategy") == "elefant-html":
+        from api import elefant_page
+
+        return elefant_page.parse(html).as_schema()
+    return extract_schema_org(html)
 
 
 def shop_label(store_id: str) -> str:
@@ -267,6 +278,49 @@ def lookup_title_url(store_id: str, title: str | None, author: str | None, db_pa
             best, best_score = url, score
     
     return best if best_score > 0 else None
+
+
+# Elefant (3 Nov): its index rows are imported books with a title from the URL slug and no ISBN or
+# author, often several printings under one title. A book reads at most ELEFANT_READS of them, the
+# paperback first, and stops at the first page whose ISBN or title and author match.
+ELEFANT_READS = 3
+_ELEFANT_BINDING_ORDER = ("paperback", "hardback", "hardcover", "board-book", "board-books")
+
+
+def lookup_elefant_urls(title: str | None, db_path: Path | None = None, limit: int = 40) -> list[str]:
+    """Elefant product pages whose slug title is the book's title (with or without a leading
+    article), paperbacks first, then the exact title before an article variant. Candidates only: the page itself decides. Never a search URL."""
+    import sqlite3
+
+    from api.title_match import core_title
+
+    want = core_title(title)
+    if not want:
+        return []
+    bare = re.sub(r"^(?:the|a|an) ", "", want)
+    titles = list(dict.fromkeys([want, bare, "the " + bare]))
+    path = db_path or (ROOT / "data" / "index" / "books.sqlite3")
+    if not path.is_file():
+        return []
+    con = sqlite3.connect(path)
+    try:
+        marks = ",".join("?" * len(titles))
+        rows = con.execute(
+            f"SELECT url, title FROM books WHERE shop = 'elefant' AND title IN ({marks}) ORDER BY rowid LIMIT ?",
+            (*titles, limit),
+        ).fetchall()
+    except sqlite3.Error:
+        return []
+    finally:
+        con.close()
+
+    def order(row):
+        url, row_title = row
+        slug = url.rsplit("_", 1)[0].lower()
+        binding = next((i for i, b in enumerate(_ELEFANT_BINDING_ORDER) if slug.endswith("-" + b)), 9)
+        return (binding, titles.index(row_title))
+
+    return [url for url, _ in sorted(rows, key=order) if url and not _searchish(url)]
 
 
 def captured_amazon() -> dict[str, str]:
@@ -584,6 +638,8 @@ async def _fetch_and_extract(
     forced_url: str | None = None,
 ) -> OfferRead:
     """Fetch one indexed product page and extract offer data."""
+    if profile.product_pages.get("strategy") == "elefant-html":
+        return await _read_elefant(store_id, isbn13, item_id, profile, cache, day, title, author, forced_url)
     # A pasted shop page is the listing to read: the shop plainly has the book there.
     url = forced_url or _get_product_url(store_id, isbn13, index_lookup)
     if not url and title and author and store_id != "amazon_de":
@@ -798,6 +854,153 @@ async def _read_other_printing(
     )
 
 
+async def _read_elefant(
+    store_id: str,
+    isbn13: str | None,
+    item_id: str,
+    profile: ShopProfile,
+    cache: PageCache,
+    day: str,
+    title: str | None,
+    author: str | None,
+    forced_url: str | None = None,
+) -> OfferRead:
+    """An Elefant offer, read in plain code (api/elefant_page.py). Never a model call.
+
+    The index gives candidates by title (lookup_elefant_urls); at most ELEFANT_READS pages are
+    read, one attempt each. A page that carries the asked ISBN, or the same title and author in a
+    printing of the same language group (EN 978-0/978-1/979-8, RO 978-973/978-606) with a rankable
+    price, ends the search; a match in another language or one that cannot be ranked is kept only
+    as a fallback while the other candidates are tried (other_printing when its ISBN differs). What each page said is kept for
+    CONFIRMATION_TTL under its URL, so a page is not read again that day and a page known to be
+    another book is skipped. The answer for this book is kept under the same key the other-printing
+    path uses.
+    """
+    from api import elefant_page
+    from api.title_match import MATCHER_VERSION, strong_match
+
+    key = "|".join(["printing", str(MATCHER_VERSION), store_id, isbn13 or "", (title or "").strip().lower(), (author or "").strip().lower(), forced_url or ""])
+    kept = cache.get_confirmation(key) if cache is not None else None
+    if kept is not None:
+        return _elefant_offer(kept, store_id, isbn13, item_id, profile, day, cache_state="hit")
+
+    def same_book(facts: dict) -> bool:
+        if isbn13 and facts.get("isbn13") == isbn13:
+            return True
+        return bool(title and author and strong_match(title, author, facts.get("name"), facts.get("authors") or []))
+
+    def preference(facts: dict) -> tuple[int, int]:
+        """(0, 0) is the best an Elefant page can be for this book; lower is better."""
+        page_isbn = facts.get("isbn13") or ""
+        same_language = page_isbn == isbn13 or _isbn_group(page_isbn) == _isbn_group(isbn13)
+        return (0 if same_language else 1, 0 if not facts.get("not_ranked_reason") else 1)
+
+    candidates = [forced_url] if forced_url else lookup_elefant_urls(title)
+    known = {url: cache.get_confirmation("elefant-page|" + url) if cache is not None else None for url in candidates}
+    # A page already read today and found to be this book goes first; one found to be another book is skipped.
+    candidates = sorted(candidates, key=lambda u: preference(known[u]) if known[u] and same_book(known[u]) else (2, 2))
+    candidates = [u for u in candidates if forced_url or not known[u] or same_book(known[u])]
+    refused: str | None = None
+    read_any = False
+    best: dict | None = None
+    for url in candidates[:ELEFANT_READS]:
+        facts = known.get(url)
+        if facts is None:
+            try:
+                result = await asyncio.to_thread(fetch, url)
+            except FetchRefused as e:
+                refused = f"fetch_refused: {e.reason}"
+                continue
+            if result.status != 200:
+                # Elefant answers some product URLs with a 503 maintenance page: a failed load, not tried again.
+                refused = f"fetch_refused: http_{result.status}"
+                continue
+            page = elefant_page.parse(result.text)
+            facts = {
+                "url": url,
+                "isbn13": page.isbn13,
+                "name": page.name,
+                "authors": page.authors,
+                "binding": page.binding,
+                "language": page.language,
+                "price_cents": page.price_cents,
+                "currency": page.currency,
+                "seller_certainty": page.seller_certainty,
+                "not_ranked_reason": page.not_ranked_reason,
+                "read_at": datetime.now(TZ).isoformat(timespec="seconds"),
+            }
+            if cache is not None:
+                cache.put_confirmation("elefant-page|" + url, facts)
+        read_any = True
+        if not same_book(facts) or not _book_isbn(facts.get("isbn13")):
+            continue
+        if best is None or preference(facts) < preference(best):
+            best = facts
+        if preference(best) == (0, 0):
+            break
+    if best is not None:
+        answer = {"matched": True, **best}
+        if cache is not None:
+            cache.put_confirmation(key, answer)
+        return _elefant_offer(answer, store_id, isbn13, item_id, profile, day, cache_state="live")
+    if refused and not read_any:
+        return OfferRead(
+            store_id=store_id, isbn13=isbn13, item_id=item_id, listing_url=candidates[0] if candidates else None,
+            status="failed", reason=refused, cache="miss", day=day,
+        )
+    if not candidates:
+        if not shop_is_indexed(store_id):
+            return OfferRead(store_id=store_id, isbn13=isbn13, item_id=item_id, status="not_checked",
+                             reason="not_indexed", cache="miss", day=day)
+    elif not refused and cache is not None:
+        # Every candidate was read and none is this book: remembered, so they are not read again today.
+        cache.put_confirmation(key, {"matched": False})
+    return OfferRead(store_id=store_id, isbn13=isbn13, item_id=item_id, status="skipped",
+                     reason="no_match_in_index", cache="miss", day=day)
+
+
+def _isbn_group(isbn: str | None) -> str | None:
+    """'en' or 'ro' for the printings this basket sells (matching.ranking), else the ISBN's own
+    first five digits, so two French printings still count as one group."""
+    from matching.ranking import EN_PREFIXES, RO_PREFIXES
+
+    if not isbn:
+        return None
+    if isbn.startswith(EN_PREFIXES):
+        return "en"
+    if isbn.startswith(RO_PREFIXES):
+        return "ro"
+    return isbn[:5]
+
+
+def _elefant_offer(kept: dict, store_id, isbn13, item_id, profile, day, cache_state: str) -> OfferRead:
+    if not kept.get("matched") or not _book_isbn(kept.get("isbn13")):
+        return OfferRead(store_id=store_id, isbn13=isbn13, item_id=item_id, status="skipped",
+                         reason="no_match_in_index", cache="miss", day=day)
+    reason = kept.get("not_ranked_reason")
+    data = SchemaOrgData(
+        price_cents=None if reason else kept.get("price_cents"), currency=kept.get("currency"),
+        isbn13=kept["isbn13"], name=kept.get("name"), authors=kept.get("authors") or None, source="elefant_html",
+    )
+    return OfferRead(
+        store_id=store_id,
+        isbn13=kept["isbn13"],
+        item_id=item_id,
+        price_cents=data.price_cents,
+        currency=kept.get("currency") or profile.currency,
+        edition=kept.get("binding"),
+        seller_certainty=shop_seller_certainty(profile, kept.get("seller_certainty") or "unknown"),
+        listing_url=kept.get("url"),
+        read_at=kept.get("read_at") or datetime.now(TZ).isoformat(timespec="seconds"),
+        schema_org=data,
+        status="failed" if reason else "ok",
+        reason=reason,
+        cache=cache_state,
+        day=day,
+        other_printing=kept["isbn13"] != isbn13,
+    )
+
+
 def _book_isbn(value) -> str | None:
     """A valid ISBN-13 that is a book number (978/979), else None. S4: 642... is a shop barcode."""
     digits = normalize_isbn13(value)
@@ -886,7 +1089,7 @@ def not_ranked_reason(offer: OfferRead, priced: set[str], unranked_fees: set[str
         return "no_offer"
     if reason.startswith("fetch_refused"):
         return "fetch_refused"
-    if reason == "no_price_extracted":
+    if reason in ("no_price_extracted", "price_unconfirmed", "currency_unknown"):
         return "no_price_extracted"
     return reason or "no_offer"
 

@@ -515,6 +515,8 @@ def ensure_books_search(db: sqlite3.Connection) -> None:
                 SELECT rowid, COALESCE(title, ''), COALESCE(author_hint, ''), COALESCE(isbn, '')
                 FROM books""")
     db.execute("CREATE INDEX IF NOT EXISTS idx_books_isbn ON books(isbn)")
+    # Elefant rows have no ISBN: a book finds them by exact slug title (api.offers.lookup_elefant_urls).
+    db.execute("CREATE INDEX IF NOT EXISTS idx_books_shop_title ON books(shop, title)")
     current = db.execute(
         "SELECT sql FROM sqlite_master WHERE type='trigger' AND name IN ('books_fts_ai','books_fts_ad','books_fts_au')"
     ).fetchall()
