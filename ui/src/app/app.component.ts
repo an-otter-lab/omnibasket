@@ -927,6 +927,13 @@ export class AppComponent implements OnDestroy {
     return got && picked && got !== picked ? got : '';
   }
 
+  /** One order against the cheapest: what delivery and order fees add beyond the books' price gaps. */
+  deliveryDelta(a: { delta_vs_cheapest_cents?: number | null }): number {
+    const books = this.data?.one_order?.per_book_delta || [];
+    if (a.delta_vs_cheapest_cents == null || books.some((d) => d.delta_cents == null)) return 0;
+    return a.delta_vs_cheapest_cents - books.reduce((sum, d) => sum + (d.delta_cents || 0), 0);
+  }
+
   get unplacedItems(): BasketItem[] {
     return this.sampleMode ? [] : this.basketSvc.unplaced();
   }
