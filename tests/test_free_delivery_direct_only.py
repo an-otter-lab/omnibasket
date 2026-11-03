@@ -71,11 +71,11 @@ def _solve(client: TestClient, stores: list[dict], items: list[dict]) -> dict:
 # ------------------------------------------------------------ the shop files
 
 
-def test_free_delivery_policy_is_declared_in_the_three_shop_files() -> None:
-    for shop_id in ("libris", "books_express", "bookzone"):
+def test_free_delivery_policy_is_declared_in_the_shop_files() -> None:
+    for shop_id in ("libris", "bookzone"):
         assert _profile(shop_id).seller_model == "direct_only"
-    # eMAG and Amazon.de may host third-party sellers: no policy line.
-    for shop_id in ("emag", "amazon_de"):
+    # eMAG, Elefant and Amazon.de may host third-party sellers: no policy line.
+    for shop_id in ("emag", "elefant", "amazon_de"):
         assert _profile(shop_id).seller_model == "mixed"
 
 
@@ -201,7 +201,6 @@ PAGE = (
     "shop_id,url",
     [
         ("libris", "https://www.libris.ro/carte/ghici/21197307"),
-        ("books_express", "https://www.books-express.ro/ghici/p/x,9786068996011"),
         ("bookzone", "https://bookzone.ro/carte/ghici-cat-de-mult-te-iubesc"),
     ],
 )

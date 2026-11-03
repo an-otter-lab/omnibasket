@@ -9,7 +9,8 @@ ROOT = Path(__file__).resolve().parents[2]
 def test_profiles_load_and_have_shipping_evidence():
     profiles = load_all(ROOT / "data" / "shops")
     by_id = {profile.id: profile for profile in profiles}
-    assert set(by_id) == {"libris", "bookzone", "emag", "amazon_de", "books_express", "elefant", "paste_only"}
+    # Books-Express is retired (3 Nov): its file is kept under data/shops/retired/, which is not loaded.
+    assert set(by_id) == {"libris", "bookzone", "emag", "amazon_de", "elefant", "paste_only"}
     for profile in profiles:
         want = "elefant-html" if profile.id == "elefant" else "schema.org-first"
         assert profile.product_pages["strategy"] == want
@@ -54,7 +55,7 @@ def test_shop_memberships_load_from_data():
     genius, = by_id["emag"].memberships
     assert genius["id"] == "emag_genius" and genius["effect"] == "unknown" and genius["read_status"] == "refused"
     assert genius["source_url"] == "https://www.emag.ro/genius" and str(genius["read_date"]) == "2026-10-30"
-    for shop_id in {"libris", "bookzone", "books_express", "elefant", "paste_only"}:
+    for shop_id in {"libris", "bookzone", "elefant", "paste_only"}:
         assert by_id[shop_id].memberships == ()
 
 @pytest.mark.parametrize("override", [

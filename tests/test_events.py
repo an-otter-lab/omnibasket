@@ -27,6 +27,21 @@ def _html(isbn, price):
     )
 
 
+ELEFANT_URL = "https://www.elefant.ro/harry-potter-paperback_0f0f0f0f-1111-4222-8333-444455556666"
+
+
+def _page(url, isbn, price):
+    """A schema.org page, or for Elefant (no JSON-LD) its own markup, at this price."""
+    if "elefant.ro" in url:
+        from tests.test_elefant import html as elefant_html
+
+        lei, cents = price.split(".")
+        text = elefant_html(barcode=isbn, price=f"{lei},{cents}&nbsp;lei", declared=price)
+    else:
+        text = _html(isbn, price)
+    return GuardedFetch(url, 200, "text/html", text.encode(), text, 0)
+
+
 def _index(store_id, isbn):
     return {
         "libris": "https://www.libris.ro/carte/x/1",
@@ -56,10 +71,11 @@ def _parse(body):
 
 def _live(client, **params):
     def fetch(url):
-        html = _html(params["isbn13"], "40.00")
-        return GuardedFetch(url, 200, "text/html", html.encode(), html, 0)
+        return _page(url, params["isbn13"], "40.00")
 
-    with patch("api.offers.fetch", side_effect=fetch), patch("api.offers.lookup_product_url", side_effect=_index):
+    with patch("api.offers.fetch", side_effect=fetch), patch("api.offers.lookup_product_url", side_effect=_index), patch(
+        "api.offers.lookup_elefant_urls", return_value=[ELEFANT_URL]
+    ):
         return client.get("/events", params={"source": "live", **params})
 
 
@@ -88,7 +104,8 @@ def test_read_progress_payload_shape_and_labels(tmp_path):
         assert set(row) == {"store_id", "isbn13", "status", "message"}
     messages = {row["message"] for row in progress}
     assert "Reading Libris\u2026" in messages
-    assert "Reading Books-Express\u2026" in messages
+    assert "Reading Elefant\u2026" in messages
+    assert "Reading Books-Express\u2026" not in messages
     assert "Amazon.de: not read live" in messages
 
 
@@ -113,10 +130,10 @@ def test_stores_param_limits_the_read(tmp_path):
     assert stores == {"libris"}
 
 
-def test_default_store_set_comes_from_data_shops_and_has_books_express():
-    """Fails if the default is a literal list that omits Books-Express."""
+def test_default_store_set_comes_from_data_shops_and_has_elefant():
+    """Fails if the default is a literal list: Elefant is in it, Books-Express is retired (3 Nov)."""
     stores = default_live_stores()
-    assert "books_express" in stores
+    assert "elefant" in stores and "books_express" not in stores
     assert {"libris", "bookzone", "emag", "amazon_de"} <= set(stores)
     assert "paste_only" not in stores
 
@@ -155,8 +172,7 @@ def test_muse_read_runs_off_the_event_loop_thread(tmp_path):
 def _priced_fetch(prices):
     def fetch(url):
         price = next(p for host, p in prices.items() if host in url)
-        html = _html(HARRY, price)
-        return GuardedFetch(url, 200, "text/html", html.encode(), html, 0)
+        return _page(url, HARRY, price)
 
     return fetch
 
@@ -164,19 +180,19 @@ def _priced_fetch(prices):
 def _live_priced(client, prices, **params):
     with patch("api.offers.fetch", side_effect=_priced_fetch(prices)), patch(
         "api.offers.lookup_product_url", side_effect=_index
-    ):
+    ), patch("api.offers.lookup_elefant_urls", return_value=[ELEFANT_URL]):
         return client.get("/events", params={"source": "live", "isbn13": HARRY, **params})
 
 
-def test_books_express_wins_when_it_is_cheaper_for_the_joined_book(tmp_path):
+def test_elefant_wins_when_it_is_cheaper_for_the_joined_book(tmp_path):
     """Fails if offers from shops outside the locked store list are still dropped."""
-    prices = {"libris": "80.00", "bookzone": "90.00", "books-express": "30.00", "emag": "25.00"}
-    res = _live_priced(_client(tmp_path), prices, item_id="hp", title="Harry Potter", stores="libris,bookzone,books_express,emag")
+    prices = {"libris": "80.00", "bookzone": "90.00", "elefant": "30.00", "emag": "25.00"}
+    res = _live_priced(_client(tmp_path), prices, item_id="hp", title="Harry Potter", stores="libris,bookzone,elefant,emag")
     sol = _parse(res.text)[-1][1]
     row = next(r for r in sol["assignment"] if r["item_id"] == "hp")
-    assert row["store_id"] == "books_express"
+    assert row["store_id"] == "elefant"
     assert row["price_cents"] == 3000
-    assert any(s["store_id"] == "books_express" for s in sol["stores"])
+    assert any(s["store_id"] == "elefant" for s in sol["stores"])
     # eMAG's fees are unprinted, so it is listed as excluded rather than priced.
     assert any(e["id"] == "emag" for e in sol["excluded_stores"])
     assert all(r["store_id"] != "emag" for r in sol["assignment"])
@@ -276,10 +292,10 @@ def test_ro_v1_locked_solve_is_untouched(tmp_path):
 
 
 def test_live_offers_expose_ranked_state_as_data(tmp_path):
-    """eMAG is read but unranked with a stable reason; a priced Books-Express offer is ranked."""
-    prices = {"libris": "80.00", "bookzone": "90.00", "books-express": "30.00", "emag": "25.00"}
+    """eMAG is read but unranked with a stable reason; a priced Elefant offer is ranked."""
+    prices = {"libris": "80.00", "bookzone": "90.00", "elefant": "30.00", "emag": "25.00"}
     res = _live_priced(
-        _client(tmp_path), prices, item_id="hp", stores="libris,books_express,emag,amazon_de"
+        _client(tmp_path), prices, item_id="hp", stores="libris,elefant,emag,amazon_de"
     )
     sol = _parse(res.text)[-1][1]
     rows = {r["store_id"]: r for r in sol["live_offers"]}
@@ -292,9 +308,9 @@ def test_live_offers_expose_ranked_state_as_data(tmp_path):
     assert emag["shipping_fee_cents"] is None
     assert emag["per_order_fee_cents"] is None
 
-    be = rows["books_express"]
-    assert be["ranked"] is True
-    assert "not_ranked_reason" not in be
+    el = rows["elefant"]
+    assert el["ranked"] is True
+    assert "not_ranked_reason" not in el
 
     assert rows["amazon_de"]["ranked"] is False
     assert rows["amazon_de"]["not_ranked_reason"] == "not_read_live"

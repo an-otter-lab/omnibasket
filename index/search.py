@@ -1,9 +1,10 @@
 """Book search: the Open Library catalogue decides what a book is; the shops decide where it is sold.
 
 Open Library (search.json) returns works with proper titles, authors, ISBNs and covers, in RO and EN.
-Shop availability is then added per ISBN: Books-Express from the local index ISBN lookup, Libris by an
-index title match confirmed once from the product page's schema.org JSON-LD (cached), Bookzone and eMAG
-as a link plus an honest "not checked here". Shop rows are never shown as books and shop images never
+Shop availability is then added per ISBN: Libris by an index title match confirmed once from the product
+page's schema.org JSON-LD (cached), Bookzone and eMAG as a link plus an honest "not checked here".
+Elefant rows carry no ISBN, so Elefant is found by the live read, not here. Books-Express is no longer a
+live shop (3 Nov), so its index rows are title evidence only, never a "found at" chip. Shop rows are never shown as books and shop images never
 used as covers. The local index keeps FTS only for the photo reader (api/photo_read.py).
 """
 from __future__ import annotations
@@ -175,19 +176,6 @@ def cover_url(cover_i: int | None, isbn: str | None) -> str | None:
 
 
 # ---------------------------------------------------------------- shop availability
-
-
-def _books_express(db: sqlite3.Connection, isbns: list[str]) -> dict[str, dict]:
-    """isbn -> {shop, url} for the ISBNs the Books-Express index carries."""
-    found: dict[str, dict] = {}
-    for i in range(0, len(isbns), 400):
-        chunk = isbns[i:i + 400]
-        marks = ",".join("?" * len(chunk))
-        for isbn, url in db.execute(
-            f"SELECT isbn, url FROM books WHERE shop='books-express' AND isbn IN ({marks})", chunk
-        ):
-            found.setdefault(isbn, {"shop": "books-express", "url": url})
-    return found
 
 
 def _index_titles(db: sqlite3.Connection, isbns: list[str]) -> dict[str, str]:
@@ -405,7 +393,6 @@ def search(query: str, limit: int = 10, db_path: Path | str = DB, opener=None, f
             ranked = [it for it in ranked if not (_profane(it["doc"].get("title")) or _profane(it["doc"].get("subtitle")))]
         every_isbn = sorted({i for it in ranked for i in it["isbns"]})
         index_titles = _index_titles(db, every_isbn)
-        carried = _books_express(db, every_isbn)
 
         items = []
         for it in ranked:
@@ -458,8 +445,6 @@ def search(query: str, limit: int = 10, db_path: Path | str = DB, opener=None, f
                     if not (asked and asked == isbn):
                         isbn = libris_isbn  # the edition a shop is confirmed to hold
             shops = []
-            if isbn in carried:
-                shops.append(dict(carried[isbn]))
             if libris_isbn and libris_isbn == isbn:
                 shops.append({"shop": "libris", "url": url})
             title = row["title"] if isbn == row["isbn"] else it["doc"]["title"]

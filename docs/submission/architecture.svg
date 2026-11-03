@@ -58,7 +58,7 @@
   <!-- Shops -->
   <rect x="30" y="420" width="380" height="120" rx="8" fill="#fff7e8" stroke="#c28a2b"/>
   <text x="48" y="442" font-size="14" font-weight="700" fill="#1a1a1a">Shops (read, not scraped for search)</text>
-  <text x="48" y="464" font-size="12" fill="#333">Libris · Bookzone · eMAG · Books-Express</text>
+  <text x="48" y="464" font-size="12" fill="#333">Libris · Bookzone · eMAG · Elefant</text>
   <text x="48" y="482" font-size="12" fill="#333">Amazon.de: indexed, links out, never read live</text>
   <text x="48" y="504" font-size="12" fill="#333">Any other shop: pasted link, that shopper's basket only</text>
   <text x="48" y="524" font-size="12" fill="#333">Links open the shop's own listing; no shop images used</text>
