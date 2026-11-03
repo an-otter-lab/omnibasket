@@ -22,7 +22,8 @@ import sys
 import time
 import urllib.error
 import urllib.request
-from datetime import datetime
+from datetime import datetime, timedelta
+from datetime import time as dtime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -142,10 +143,11 @@ class WindowCapExceeded(CapExceeded):
         self.window = window
         self.spent = spent
         self.estimate = estimate
+        since = "today" if window.get("period") == "day" else "since %s" % window["from"]
         RuntimeError.__init__(
             self,
-            "refused: %s spend since %s is %.6f + estimate %.6f, over the %.2f USD window cap (%s)"
-            % (window["provider"], window["from"], spent, estimate, float(window["cap_usd"]), window.get("note", "")),
+            "refused: %s spend %s is %.6f + estimate %.6f, over the %.2f USD window cap (%s)"
+            % (window["provider"], since, spent, estimate, float(window["cap_usd"]), window.get("note", "")),
         )
 
 
@@ -272,9 +274,32 @@ def active_windows(now=None):
     return live
 
 
-def window_spent_usd(window, path=None):
+def window_bounds(window, now=None):
+    """(start, end) of the spend a window counts; end None means open.
+
+    ``"period": "day"`` repeats the cap every Bucharest day from ``from`` on, so
+    only today's rows count.
+    """
     start = datetime.fromisoformat(window["from"])
     end = datetime.fromisoformat(window["until"]) if window.get("until") else None
+    if window.get("period") == "day":
+        today = (now or datetime.now(TZ)).astimezone(TZ).date()
+        day_start = datetime.combine(today, dtime.min, tzinfo=TZ)
+        day_end = datetime.combine(today + timedelta(days=1), dtime.min, tzinfo=TZ)
+        start = max(start, day_start)
+        end = day_end if end is None else min(end, day_end)
+    return start, end
+
+
+def window_gates(window, provider):
+    """True when the window stops calls to ``provider``. ``"gates": "own"`` stops
+    only calls to the window's own provider (Adrian, 3 Nov: the Baseten window);
+    every other window stops every call."""
+    return window.get("gates") != "own" or window["provider"] in ("*", provider)
+
+
+def window_spent_usd(window, path=None, now=None):
+    start, end = window_bounds(window, now)
     total = 0.0
     for row in _all_rows(path):
         if window["provider"] != "*" and row.get("provider", "meta") != window["provider"]:
@@ -288,17 +313,20 @@ def window_spent_usd(window, path=None):
     return total
 
 
-def window_exceeded(estimate_usd, path=None):
+def window_exceeded(estimate_usd, path=None, provider="meta"):
     """The first window this call would take past its cap, or None. A window
     applies to every call, whichever provider makes it, so a capped night stops
-    all model spend rather than shifting it elsewhere."""
+    all model spend rather than shifting it elsewhere. The exception is a
+    ``"gates": "own"`` window, which stops only calls to its own provider."""
     for w in active_windows():
+        if not window_gates(w, provider):
+            continue
         if window_spent_usd(w, path) + float(estimate_usd) > float(w["cap_usd"]):
             return w
     return None
 
 
-def would_exceed(estimate_usd, path=None):
+def would_exceed(estimate_usd, path=None, provider="meta"):
     """True if this call would take the ledger total to or past the cap.
     The audit sums every cost_usd line, so the cap is that same total, not a
     separate window. tonight_usd is reported by status only.
@@ -306,14 +334,14 @@ def would_exceed(estimate_usd, path=None):
     estimate_usd = float(estimate_usd)
     if estimate_usd < 0:
         raise ValueError("estimate must be >= 0")
-    return spent_usd(path) + estimate_usd >= CAP_USD or window_exceeded(estimate_usd, path) is not None
+    return spent_usd(path) + estimate_usd >= CAP_USD or window_exceeded(estimate_usd, path, provider) is not None
 
 
-def assert_can_spend(estimate_usd, path=None):
-    w = window_exceeded(estimate_usd, path)
+def assert_can_spend(estimate_usd, path=None, provider="meta"):
+    w = window_exceeded(estimate_usd, path, provider)
     if w is not None:
         raise WindowCapExceeded(w, window_spent_usd(w, path), float(estimate_usd))
-    if would_exceed(estimate_usd, path):
+    if would_exceed(estimate_usd, path, provider):
         raise CapExceeded(spent_usd(path), float(estimate_usd))
 
 
@@ -362,7 +390,10 @@ def status_lines():
         "cap_usd: %.2f" % CAP_USD,
         "remaining_usd: %.6f" % (CAP_USD - spent),
     ] + [
-        "window_%s_since_%s: %.6f of %.2f" % (w["provider"], w["from"], window_spent_usd(w), float(w["cap_usd"]))
+        "window_%s_%s: %.6f of %.2f" % (
+            w["provider"], "today" if w.get("period") == "day" else "since_" + w["from"],
+            window_spent_usd(w), float(w["cap_usd"]),
+        )
         for w in active_windows()
     ] + [
         "rates_usd_per_mtok: in %.2f out %.2f" % (RATE_IN_PER_M, RATE_OUT_PER_M),
@@ -519,7 +550,8 @@ def guarded_post(body, estimate_usd, note, provider="meta", timeout=120, accept=
     A default-provider call whose note is in the open-weight lane goes to Baseten
     first. If that fails, comes back empty, or its text fails ``accept`` (the
     caller's own parse check), the same call goes to Meta and its row names the
-    fallback. A cap refusal is never retried: caps cover every provider.
+    fallback. So does a call stopped by a Baseten-only window. Any other cap
+    refusal is never retried: those caps cover every provider.
     """
     if provider == "meta" and open_weight_lane(note):
         try:
@@ -530,6 +562,10 @@ def guarded_post(body, estimate_usd, note, provider="meta", timeout=120, accept=
             if text and (accept is None or accept(text)):
                 return payload, row
             reason = "unusable reply" if text else "empty reply"
+        except WindowCapExceeded as e:
+            if window_gates(e.window, "meta"):
+                raise
+            reason = "%s window full" % e.window["provider"]
         except CapExceeded:
             raise
         except Exception as e:
@@ -542,7 +578,7 @@ def guarded_post(body, estimate_usd, note, provider="meta", timeout=120, accept=
 
 
 def _guarded_once(body, estimate_usd, note, provider, timeout, fallback=None):
-    assert_can_spend(estimate_usd)
+    assert_can_spend(estimate_usd, provider=provider)
     cfg = provider_config(provider)
     t0 = time.time()
     endpoint = cfg["endpoint"]

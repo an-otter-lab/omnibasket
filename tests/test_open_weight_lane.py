@@ -258,3 +258,62 @@ def test_ask_falls_back_when_muse_spark_open_answers_in_prose(monkeypatch, tmp_p
     assert seen == ["baseten", "meta"]
     assert parsed == {"actions": [{"action": "set_tab", "tab": "one"}]}
     assert [r.get("fallback_reason") for r in rows(tmp_path)] == [None, "unusable reply"]
+
+
+BASETEN_DAY = {"provider": "baseten", "from": "2000-01-01T00:00:00+00:00", "until": None,
+               "period": "day", "gates": "own", "cap_usd": 0.001}
+
+
+def _windows(tmp_path, monkeypatch, rows_):
+    path = tmp_path / "windows.json"
+    path.write_text(json.dumps({"windows": rows_}))
+    monkeypatch.setenv("META_SPEND_WINDOWS", str(path))
+
+
+def _ledger_row(tmp_path, ts, provider, cost):
+    with (tmp_path / "spend.jsonl").open("a") as f:
+        f.write(json.dumps({"ts": ts.isoformat(timespec="seconds"), "provider": provider,
+                            "tokens_in": 1, "tokens_out": 1, "cost_usd": cost}) + "\n")
+
+
+def test_a_full_baseten_window_sends_the_lane_to_meta(lane, tmp_path, monkeypatch):
+    _windows(tmp_path, monkeypatch, [BASETEN_DAY])
+    _payload, row = mb.guarded_post(responses_body(), 0.01, note="ask-map")
+    assert [c["provider"] for c in lane.calls] == ["meta"]
+    assert row["provider"] == "meta" and row["fallback_reason"] == "baseten window full"
+
+
+def test_a_full_baseten_window_does_not_stop_meta_calls(lane, tmp_path, monkeypatch):
+    _windows(tmp_path, monkeypatch, [BASETEN_DAY])
+    _payload, row = mb.guarded_post(responses_body(), 0.01, note="why-this-split")
+    assert row["provider"] == "meta" and "fallback_from" not in row
+
+
+def test_an_explicit_baseten_call_is_refused_by_its_window(lane, tmp_path, monkeypatch):
+    _windows(tmp_path, monkeypatch, [BASETEN_DAY])
+    with pytest.raises(mb.WindowCapExceeded, match="baseten spend today"):
+        mb.guarded_post(responses_body(), 0.01, note="calibrate", provider="baseten")
+    assert lane.calls == []
+
+
+def test_a_daily_window_counts_only_todays_rows(lane, tmp_path, monkeypatch):
+    window = {**BASETEN_DAY, "cap_usd": 10.0}
+    _windows(tmp_path, monkeypatch, [window])
+    now = mb.datetime.now(mb.TZ)
+    _ledger_row(tmp_path, now - mb.timedelta(days=1), "baseten", 9.99)
+    _ledger_row(tmp_path, now, "meta", 5.0)  # another provider's spend never counts
+    assert mb.window_spent_usd(window) == 0.0
+    mb.guarded_post(responses_body(), 0.01, note="ask-map")
+    assert [c["provider"] for c in lane.calls] == ["baseten"]
+    _ledger_row(tmp_path, now, "baseten", 9.995)
+    with pytest.raises(mb.WindowCapExceeded):
+        mb.assert_can_spend(0.01, provider="baseten")
+
+
+def test_the_committed_baseten_window_is_ten_dollars_a_day_and_in_force(monkeypatch):
+    monkeypatch.setenv("META_SPEND_WINDOWS", str(mb.ROOT / "config" / "spend-windows.json"))
+    baseten = [w for w in mb.active_windows() if w["provider"] == "baseten"]
+    assert len(baseten) == 1
+    w = baseten[0]
+    assert (w["period"], w["gates"], w["cap_usd"], w["until"]) == ("day", "own", 10.0, None)
+    assert mb.window_gates(w, "baseten") and not mb.window_gates(w, "meta")
