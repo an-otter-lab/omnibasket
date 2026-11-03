@@ -28,7 +28,7 @@ The plan being built is the Tuesday-to-Wednesday push to the 4 Nov submission; w
 - A shop's data file may declare that the shop sells only its own stock. Its live offers then count as sold by the shop (`direct`) toward its free-delivery threshold, with no per-page model read. Shops with marketplace sellers (eMAG, Amazon.de) stay `unknown` unless the page names the seller (Adrian, 30 Oct).
 
 ## Models and money
-- Every model call goes through `tools/meta_budget.py`. Commit `data/meta-spend.jsonl` after any model run. The VM's live ledger stays on the VM (`META_SPEND_PATH`); spend totals add both.
+- Every model call goes through `tools/meta_budget.py`. Commit `data/meta-spend.jsonl` after any model run. The VM's live ledger stays on the VM (`META_SPEND_PATH`); `data/meta-spend-vm.jsonl` is a dated snapshot of it, and spend totals add both.
 - Never call a model API directly; scripts in `tmp/` included. `config/spend-windows.json` holds the caps that `meta_budget.py` enforces on every call. Spend caps (T2, 3 Nov, Adrian): no lifetime cap; Meta and Baseten are each capped at USD 10 per Bucharest day with no end date, go-live included. Each window (`"period": "day"`, `"gates": "own"`) stops only its own provider; when Baseten's is full, Ask and free text fall back to Muse Spark 1.3. Never edit a window or re-enable a disabled key; only Adrian lifts a cap.
 - Prices, ISBN checks, currency conversion and all money arithmetic are plain code, never a model.
 - Every number in a model's output is checked against captured data before it is shown.

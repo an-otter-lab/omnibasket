@@ -180,6 +180,11 @@ shopping, Google Universal Cart).
 It is **data collected for testing**, not application code; all application code here was written during the hackathon
 window.
 
+`data/meta-spend.jsonl` is the spend ledger of the build. `data/meta-spend-vm.jsonl` is a snapshot of the hosted demo's
+own ledger, taken on 4 Nov 2026 at 01:42 Bucharest time. Together they hold every model call counted in the submission:
+608 on Meta's Model API (USD 8.91) and 58 on Baseten (USD 0.09). USD 4.00 of the Meta total is six oversized page reads
+on 3 Nov, from the shop that started answering with a gzip bomb; a guard in `api/muse_integration.py` now stops those.
+
 ## Risks
 
 - **Stores block agents.** Amazon blocked Meta Muse in September 2026 and its robots.txt names AI
