@@ -9,7 +9,8 @@ machine, and a Romanian egress distorts US prices.
 
 - **Live:** https://omnibasket.anottersolution.com (Romanian and English, no sign-in)
 - **Architecture:** [one-page diagram](docs/submission/architecture.svg)
-- **Models:** Muse Spark 1.3 on Meta's Model API. See [Where Muse Spark runs](#where-muse-spark-runs).
+- **Models:** Muse Spark 1.3 on Meta's Model API, and Muse Spark Open, Meta's open-weights model, on Baseten. See
+  [Where Muse Spark runs](#where-muse-spark-runs).
 - **Built during the hackathon:** the first commit is from 26 Oct 2026, 23:29 UTC; there is none before it.
 
 ![Architecture](docs/submission/architecture.svg)
@@ -45,16 +46,23 @@ per-store thresholds.
 
 ### Where Muse Spark runs
 
-Every model call is **Muse Spark 1.3 on Meta's Model API** (`muse-spark-1.3`), made from the server; the browser never
-holds a key. Every call goes through `tools/meta_budget.py`, which prices it, records it in the spend ledger and stops at
-the day cap. Plain code, never a model, does prices, ISBN checks, currency and all money arithmetic. `meta_budget.py` also
-has a provider entry for an open-weight model on Baseten; no part of the app uses it today.
+Two Meta models, both called from the server; the browser never holds a key:
 
-- **Understanding the search box**: free text in Romanian or English becomes a title, author and language to look up in our
-  index. Muse never supplies an ISBN.
+- **Muse Spark 1.3 on Meta's Model API** (`muse-spark-1.3`) writes the Why paragraph, reads photos and fills page gaps.
+- **Muse Spark Open on Baseten** (`meta-models/muse-spark-open-1026`), Meta's open-weights model, maps Ask Omnibasket
+  sentences and free text onto closed outputs. If a call to it fails, comes back empty or does not parse, the same call
+  goes to Muse Spark 1.3, and the ledger row says so.
+
+Every call goes through `tools/meta_budget.py`, which picks the model, prices the call, records it in the spend ledger
+with its provider, and stops at the day cap. Plain code, never a model, does prices, ISBN checks, currency and all money
+arithmetic.
+
+- **Ask Omnibasket** (Muse Spark Open): maps a typed sentence onto a few closed UI actions. Plain code answers the common
+  phrases first and checks every action the model returns. It never writes text the shopper sees.
+- **Free text to `POST /input`** (Muse Spark Open): Romanian or English becomes a title, author and language to look up in
+  our index. Muse never supplies an ISBN. The search box itself searches our index with plain code.
 - **Why this split**: one short paragraph per result. Plain code checks every number and shop name in it, and the
   plain template sentence is shown instead when the check fails or Muse is unavailable.
-- **Ask Omnibasket**: maps a typed sentence onto a few closed UI actions. It never writes text the shopper sees.
 - **Photo of a reading list**: reads the titles in the photo.
 - A pasted link is not read by Muse: one shop page is read with plain code, and links to other sites use the ISBN
   in the address.

@@ -22,7 +22,8 @@ import sys
 import time
 import urllib.error
 import urllib.request
-from datetime import datetime
+from datetime import datetime, timedelta
+from datetime import time as dtime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -83,14 +84,18 @@ LEDGER = ROOT / "data" / "meta-spend.jsonl"
 
 # One row per provider this ledger can hold. A provider with no rate cannot be
 # priced, so a call to it is refused instead of being recorded as free: the cap
-# would otherwise be a lie. Baseten's list rate is not published in this repo,
-# so set BASETEN_RATE_IN_PER_M and BASETEN_RATE_OUT_PER_M before its first call.
+# would otherwise be a lie. Baseten serves Muse Spark Open, Meta's open-weights
+# model, at its Model APIs list rate of 1.25 / 4.25 USD per million tokens in / out
+# (pricing page as captured 23 Oct 2026); BASETEN_RATE_IN_PER_M and
+# BASETEN_RATE_OUT_PER_M override it. The hackathon key works only with this model
+# id, and Baseten speaks Chat Completions only.
 PROVIDERS = {
     "meta": {
         "model": MODEL,
         "base_env": "META_API_BASE",
         "default_base": "https://api.meta.ai/v1",
         "key_env": "META_API_KEY",
+        "endpoint": "/responses",
         "rate_in": RATE_IN_PER_M,
         "rate_out": RATE_OUT_PER_M,
         "rate_in_env": None,
@@ -101,12 +106,21 @@ PROVIDERS = {
         "base_env": "BASETEN_API_BASE",
         "default_base": "https://inference.baseten.co/v1",
         "key_env": "BASETEN_API_KEY",
-        "rate_in": None,
-        "rate_out": None,
+        "endpoint": "/chat/completions",
+        "rate_in": 1.25,
+        "rate_out": 4.25,
         "rate_in_env": "BASETEN_RATE_IN_PER_M",
         "rate_out_env": "BASETEN_RATE_OUT_PER_M",
     },
 }
+# Calls that go to Muse Spark Open first, with Muse Spark 1.3 as the fallback
+# (Adrian, 3 Nov): Ask Omnibasket's action mapping and the free-text query parse.
+# Plain code checks both answers before anything is used. The lane is on while
+# BASETEN_API_KEY is set; OMNIBASKET_OPEN_WEIGHT=0 turns it off.
+OPEN_WEIGHT_PROVIDER = "baseten"
+OPEN_WEIGHT_NOTES = frozenset({"ask-map", "input-free-text"})
+# Meta's ask-map latency is p50 2.3 s and at most 10.8 s over 32 calls.
+OPEN_WEIGHT_TIMEOUT_S = 12
 MAIN_ENV = Path(os.environ.get("OMNIBASKET_ENV") or (SHARED / ".env"))
 # Dated spend windows on top of the lifetime cap, e.g. Adrian's 10 USD limit on Meta
 # for the 30 Oct overnight session. The main checkout's file, so every worktree
@@ -129,10 +143,11 @@ class WindowCapExceeded(CapExceeded):
         self.window = window
         self.spent = spent
         self.estimate = estimate
+        since = "today" if window.get("period") == "day" else "since %s" % window["from"]
         RuntimeError.__init__(
             self,
-            "refused: %s spend since %s is %.6f + estimate %.6f, over the %.2f USD window cap (%s)"
-            % (window["provider"], window["from"], spent, estimate, float(window["cap_usd"]), window.get("note", "")),
+            "refused: %s spend %s is %.6f + estimate %.6f, over the %.2f USD window cap (%s)"
+            % (window["provider"], since, spent, estimate, float(window["cap_usd"]), window.get("note", "")),
         )
 
 
@@ -165,12 +180,10 @@ def provider_rates(provider="meta"):
     """(in, out) USD per million tokens, or (None, None) when unpriced."""
     cfg = provider_config(provider)
     rin, rout = cfg["rate_in"], cfg["rate_out"]
-    if cfg["rate_in_env"]:
-        raw = os.environ.get(cfg["rate_in_env"])
-        rin = None if not raw else float(raw)
-    if cfg["rate_out_env"]:
-        raw = os.environ.get(cfg["rate_out_env"])
-        rout = None if not raw else float(raw)
+    if cfg["rate_in_env"] and os.environ.get(cfg["rate_in_env"]):
+        rin = float(os.environ[cfg["rate_in_env"]])
+    if cfg["rate_out_env"] and os.environ.get(cfg["rate_out_env"]):
+        rout = float(os.environ[cfg["rate_out_env"]])
     return rin, rout
 
 
@@ -261,9 +274,32 @@ def active_windows(now=None):
     return live
 
 
-def window_spent_usd(window, path=None):
+def window_bounds(window, now=None):
+    """(start, end) of the spend a window counts; end None means open.
+
+    ``"period": "day"`` repeats the cap every Bucharest day from ``from`` on, so
+    only today's rows count.
+    """
     start = datetime.fromisoformat(window["from"])
     end = datetime.fromisoformat(window["until"]) if window.get("until") else None
+    if window.get("period") == "day":
+        today = (now or datetime.now(TZ)).astimezone(TZ).date()
+        day_start = datetime.combine(today, dtime.min, tzinfo=TZ)
+        day_end = datetime.combine(today + timedelta(days=1), dtime.min, tzinfo=TZ)
+        start = max(start, day_start)
+        end = day_end if end is None else min(end, day_end)
+    return start, end
+
+
+def window_gates(window, provider):
+    """True when the window stops calls to ``provider``. ``"gates": "own"`` stops
+    only calls to the window's own provider (Adrian, 3 Nov: the Baseten window);
+    every other window stops every call."""
+    return window.get("gates") != "own" or window["provider"] in ("*", provider)
+
+
+def window_spent_usd(window, path=None, now=None):
+    start, end = window_bounds(window, now)
     total = 0.0
     for row in _all_rows(path):
         if window["provider"] != "*" and row.get("provider", "meta") != window["provider"]:
@@ -277,17 +313,20 @@ def window_spent_usd(window, path=None):
     return total
 
 
-def window_exceeded(estimate_usd, path=None):
+def window_exceeded(estimate_usd, path=None, provider="meta"):
     """The first window this call would take past its cap, or None. A window
     applies to every call, whichever provider makes it, so a capped night stops
-    all model spend rather than shifting it elsewhere."""
+    all model spend rather than shifting it elsewhere. The exception is a
+    ``"gates": "own"`` window, which stops only calls to its own provider."""
     for w in active_windows():
+        if not window_gates(w, provider):
+            continue
         if window_spent_usd(w, path) + float(estimate_usd) > float(w["cap_usd"]):
             return w
     return None
 
 
-def would_exceed(estimate_usd, path=None):
+def would_exceed(estimate_usd, path=None, provider="meta"):
     """True if this call would take the ledger total to or past the cap.
     The audit sums every cost_usd line, so the cap is that same total, not a
     separate window. tonight_usd is reported by status only.
@@ -295,14 +334,14 @@ def would_exceed(estimate_usd, path=None):
     estimate_usd = float(estimate_usd)
     if estimate_usd < 0:
         raise ValueError("estimate must be >= 0")
-    return spent_usd(path) + estimate_usd >= CAP_USD or window_exceeded(estimate_usd, path) is not None
+    return spent_usd(path) + estimate_usd >= CAP_USD or window_exceeded(estimate_usd, path, provider) is not None
 
 
-def assert_can_spend(estimate_usd, path=None):
-    w = window_exceeded(estimate_usd, path)
+def assert_can_spend(estimate_usd, path=None, provider="meta"):
+    w = window_exceeded(estimate_usd, path, provider)
     if w is not None:
         raise WindowCapExceeded(w, window_spent_usd(w, path), float(estimate_usd))
-    if would_exceed(estimate_usd, path):
+    if would_exceed(estimate_usd, path, provider):
         raise CapExceeded(spent_usd(path), float(estimate_usd))
 
 
@@ -331,9 +370,10 @@ def record(tokens_in, tokens_out, cost_usd, model=None, note=None, extra=None, p
 
 
 def _redact(text):
-    key = os.environ.get("META_API_KEY")
-    if key and key in text:
-        text = text.replace(key, "[redacted]")
+    for cfg in PROVIDERS.values():
+        key = os.environ.get(cfg["key_env"])
+        if key and key in text:
+            text = text.replace(key, "[redacted]")
     return text
 
 
@@ -350,12 +390,16 @@ def status_lines():
         "cap_usd: %.2f" % CAP_USD,
         "remaining_usd: %.6f" % (CAP_USD - spent),
     ] + [
-        "window_%s_since_%s: %.6f of %.2f" % (w["provider"], w["from"], window_spent_usd(w), float(w["cap_usd"]))
+        "window_%s_%s: %.6f of %.2f" % (
+            w["provider"], "today" if w.get("period") == "day" else "since_" + w["from"],
+            window_spent_usd(w), float(w["cap_usd"]),
+        )
         for w in active_windows()
     ] + [
         "rates_usd_per_mtok: in %.2f out %.2f" % (RATE_IN_PER_M, RATE_OUT_PER_M),
         "baseten_priced: %s" % ("yes" if provider_rates("baseten")[0] is not None else "no (set BASETEN_RATE_IN_PER_M / BASETEN_RATE_OUT_PER_M)"),
         "baseten_key: %s" % ("set" if os.environ.get("BASETEN_API_KEY") else "absent"),
+        "open_weight_notes: %s" % ", ".join(sorted(OPEN_WEIGHT_NOTES)),
         "key: not shown",
     ]
 
@@ -443,19 +487,115 @@ def _response_cost(payload):
     return None
 
 
-def guarded_post(body, estimate_usd, note, provider="meta", timeout=120):
-    """Check the cap, send one Meta call, record tokens and computed cost."""
-    assert_can_spend(estimate_usd)
+def _reply_text(payload):
+    """The model's text from a Responses or a Chat Completions body."""
+    if not isinstance(payload, dict):
+        return ""
+    if payload.get("output_text"):
+        return str(payload["output_text"])
+    parts = [
+        piece["text"]
+        for block in payload.get("output") or []
+        for piece in block.get("content") or []
+        if piece.get("text")
+    ]
+    if parts:
+        return "".join(parts)
+    choices = payload.get("choices") or []
+    if choices:
+        return str((choices[0].get("message") or {}).get("content") or "")
+    return ""
+
+
+def _chat_body(body, model):
+    """Our Responses-style body as Chat Completions, for a provider that speaks only that."""
+    messages = []
+    for item in body.get("input") or []:
+        parts = []
+        for piece in item.get("content") or []:
+            if piece.get("type") == "input_text":
+                parts.append({"type": "text", "text": piece.get("text", "")})
+            elif piece.get("type") == "input_image":
+                parts.append({"type": "image_url", "image_url": {"url": piece.get("image_url", "")}})
+        if all(p["type"] == "text" for p in parts):
+            content = "\n\n".join(p["text"] for p in parts)
+        else:
+            content = parts
+        messages.append({"role": item.get("role", "user"), "content": content})
+    out = {"model": model, "messages": messages}
+    if body.get("max_output_tokens"):
+        out["max_tokens"] = int(body["max_output_tokens"])
+    effort = (body.get("reasoning") or {}).get("effort")
+    if effort:
+        out["reasoning_effort"] = effort
+    return out
+
+
+def open_weight_lane(note):
+    """True when a call with this note goes to Muse Spark Open first."""
+    if note not in OPEN_WEIGHT_NOTES:
+        return False
+    key_env = provider_config(OPEN_WEIGHT_PROVIDER)["key_env"]
+    if not os.environ.get(key_env):
+        # Load .env before reading the switch, so a switch set there holds from the first call.
+        load_dotenv()
+    if os.environ.get("OMNIBASKET_OPEN_WEIGHT", "").strip().lower() in ("0", "false", "off", "no"):
+        return False
+    return bool(os.environ.get(key_env))
+
+
+def guarded_post(body, estimate_usd, note, provider="meta", timeout=120, accept=None):
+    """Check the cap, send one model call, record tokens and computed cost.
+
+    A default-provider call whose note is in the open-weight lane goes to Baseten
+    first. If that fails, comes back empty, or its text fails ``accept`` (the
+    caller's own parse check), the same call goes to Meta and its row names the
+    fallback. So does a call stopped by a Baseten-only window. Any other cap
+    refusal is never retried: those caps cover every provider.
+    """
+    if provider == "meta" and open_weight_lane(note):
+        try:
+            payload, row = _guarded_once(
+                body, estimate_usd, note, OPEN_WEIGHT_PROVIDER, min(timeout, OPEN_WEIGHT_TIMEOUT_S)
+            )
+            text = _reply_text(payload).strip()
+            if text and (accept is None or accept(text)):
+                return payload, row
+            reason = "unusable reply" if text else "empty reply"
+        except WindowCapExceeded as e:
+            if window_gates(e.window, "meta"):
+                raise
+            reason = "%s window full" % e.window["provider"]
+        except CapExceeded:
+            raise
+        except Exception as e:
+            reason = _redact(type(e).__name__ + (": " + str(e)[:80] if isinstance(e, RuntimeError) else ""))
+        return _guarded_once(
+            body, estimate_usd, note, "meta", timeout,
+            fallback={"fallback_from": OPEN_WEIGHT_PROVIDER, "fallback_reason": reason},
+        )
+    return _guarded_once(body, estimate_usd, note, provider, timeout)
+
+
+def _guarded_once(body, estimate_usd, note, provider, timeout, fallback=None):
+    assert_can_spend(estimate_usd, provider=provider)
+    cfg = provider_config(provider)
     t0 = time.time()
-    endpoint = "/responses"
-    try:
-        payload = _post("/responses", body, provider=provider, timeout=timeout)
-    except urllib.error.HTTPError as e:
-        if e.code != 404:
-            # Do not include the body: it can echo request headers in some proxies.
+    endpoint = cfg["endpoint"]
+    if endpoint == "/chat/completions":
+        try:
+            payload = _post(endpoint, _chat_body(body, cfg["model"]), provider=provider, timeout=timeout)
+        except urllib.error.HTTPError as e:
             raise RuntimeError("model HTTP %s" % e.code) from None
-        endpoint = "/chat/completions"
-        payload = _post("/chat/completions", body, provider=provider, timeout=timeout)
+    else:
+        try:
+            payload = _post("/responses", body, provider=provider, timeout=timeout)
+        except urllib.error.HTTPError as e:
+            if e.code != 404:
+                # Do not include the body: it can echo request headers in some proxies.
+                raise RuntimeError("model HTTP %s" % e.code) from None
+            endpoint = "/chat/completions"
+            payload = _post("/chat/completions", body, provider=provider, timeout=timeout)
     tin, tout = _usage_tokens(payload.get("usage"))
     computed = compute_cost(tin, tout, provider=provider)
     billed = _response_cost(payload)
@@ -472,6 +612,7 @@ def guarded_post(body, estimate_usd, note, provider="meta", timeout=120):
             "latency_ms": int((time.time() - t0) * 1000),
             "provider_cost_usd": None if billed is None else round(billed, 8),
             "cost_source": "computed_list_rate" if billed is None else "provider",
+            **(fallback or {}),
         },
     )
     return payload, row
@@ -492,7 +633,7 @@ def cmd_calibrate(a):
     except CapExceeded as e:
         print(_redact(str(e)))
         return 2
-    text = payload.get("output_text") or ""
+    text = _reply_text(payload)
     print("calibrate: ok")
     print("model: %s" % row["model"])
     print("tokens_in: %s" % row["tokens_in"])

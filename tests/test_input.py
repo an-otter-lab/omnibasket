@@ -62,7 +62,7 @@ def _payload(text):
 def _muse(reply):
     calls = []
 
-    def fake(body, estimate, note, provider="meta"):
+    def fake(body, estimate, note, provider="meta", accept=None):
         calls.append({"body": body, "note": note})
         return _payload(reply), {"tokens_in": 50, "tokens_out": 40}
 

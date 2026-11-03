@@ -27,7 +27,7 @@ The plan being built is the Tuesday-to-Wednesday push to the 4 Nov submission; w
 
 ## Models and money
 - Every model call goes through `tools/meta_budget.py`. Commit `data/meta-spend.jsonl` after any model run.
-- Never call a model API directly; scripts in `tmp/` included. `config/spend-windows.json` holds dated caps that `meta_budget.py` enforces on every call: until submission (Wed 4 Nov), at most USD 10 of Meta credits per day, weekends included (Adrian, 30 Oct). Never edit a window or re-enable a disabled key; only Adrian lifts a cap.
+- Never call a model API directly; scripts in `tmp/` included. `config/spend-windows.json` holds dated caps that `meta_budget.py` enforces on every call: until submission (Wed 4 Nov), at most USD 10 of Meta credits per day, weekends included (Adrian, 30 Oct). Baseten (T2, 3 Nov, Adrian): at most USD 10 per day with no end date, go-live included; that window (`"period": "day"`, `"gates": "own"`) stops only Baseten calls, and Ask and free text then fall back to Muse Spark 1.3. Never edit a window or re-enable a disabled key; only Adrian lifts a cap.
 - Prices, ISBN checks, currency conversion and all money arithmetic are plain code, never a model.
 - Every number in a model's output is checked against captured data before it is shown.
 
@@ -36,7 +36,7 @@ The plan being built is the Tuesday-to-Wednesday push to the 4 Nov submission; w
 - Never print a secret in logs, chat or docs.
 
 ## Submission claims
-- Models: the submission says Muse Spark 1.3 on the Meta Model API only. No open-weight or Baseten claim: no part of the app calls it (Adrian, 2 Nov).
+- Models (T2, 3 Nov, Adrian; replaces the 2 Nov "1.3 only" rule): Muse Spark Open on Baseten (`meta-models/muse-spark-open-1026`) runs Ask Omnibasket and the free-text parse, with Muse Spark 1.3 as fallback. Everything else stays on Muse Spark 1.3 on the Meta Model API. The lane list is `OPEN_WEIGHT_NOTES` in `tools/meta_budget.py`. Claim an open-weight number only if a `"provider": "baseten"` ledger row backs it.
 - The public tree is a client deliverable: no shop screenshots or copied shop text, no internal plans, no exploration scripts, no local paths or IPs. The spend ledger and `docs/ground-truth.xlsx` stay (Adrian, 2 Nov).
 
 ## Copy
