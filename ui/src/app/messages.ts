@@ -390,6 +390,9 @@ export interface Messages {
   askUnsupported: string;
   askNotInBasket: string;
   askOneNotPossible: string;
+  askNoPlan: string;
+  askOneLeavesOut: string;
+  askOneTakesMore: string;
   askUnavailable: string;
   askBusy: string;
   askMadeByMuse: string;
@@ -771,6 +774,9 @@ export const MESSAGES: Record<Lang, Messages> = {
     askUnsupported: 'I can’t do that yet.',
     askNotInBasket: '{shop} isn’t part of this basket.',
     askOneNotPossible: 'One order isn’t possible: no single shop lists every book.',
+    askNoPlan: 'That isn’t possible: no plan fits it, so there’s no total.',
+    askOneLeavesOut: 'One order can’t hold every book. Not in it: {books}.',
+    askOneTakesMore: 'One order isn’t possible with these shops: this takes {n} orders.',
     askUnavailable: 'Ask is not available right now.',
     askBusy: 'Too many questions at once. Try again in a minute.',
     askMadeByMuse: 'Understood by Muse',
@@ -1133,6 +1139,9 @@ export const MESSAGES: Record<Lang, Messages> = {
     askUnsupported: 'Încă nu pot face asta.',
     askNotInBasket: '{shop} nu face parte din acest coș.',
     askOneNotPossible: 'O singură comandă nu este posibilă: niciun magazin nu are toate cărțile.',
+    askNoPlan: 'Asta nu se poate: niciun plan nu se potrivește, așa că nu există un total.',
+    askOneLeavesOut: 'O singură comandă nu poate cuprinde toate cărțile. Nu intră în ea: {books}.',
+    askOneTakesMore: 'O singură comandă nu se poate cu aceste magazine: sunt {n} comenzi.',
     askUnavailable: 'Întrebările nu sunt disponibile acum.',
     askBusy: 'Prea multe întrebări deodată. Încearcă din nou peste un minut.',
     askMadeByMuse: 'Înțeles de Muse',

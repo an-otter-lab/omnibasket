@@ -1,12 +1,13 @@
 import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
-import { AskData, AskInputs, AskNext, AskTab, applyActions, askState, uiState } from './ask';
+import { AskData, AskInputs, AskNext, AskPlan, AskTab, applyActions, askState, uiState } from './ask';
 import { Lang, MESSAGES, Messages, fill } from './messages';
 import { shopsThatTakeBooks } from './memberships';
 
-/** What the host applies: set the fields, solve, route, then call done(ok). ok=false: the pins were not possible and were rolled back. */
+/** What the host applies: set the fields, solve, route, then call done(ok, plan). ok=false: the pins were not possible and were rolled back.
+ *  plan: what the solve gave, so the reply never claims a plan the page cannot show. */
 export interface AskApplied {
   next: AskNext;
-  done: (ok: boolean) => void;
+  done: (ok: boolean, plan?: AskPlan) => void;
 }
 
 type ReplyKey = 'askDoneTab' | 'askDoneExclude' | 'askDoneInclude' | 'askDoneMembership' | 'askDoneMembershipOff' | 'askDonePinned' | 'askDonePinsCleared' | 'askUnsupported' | 'askNotInBasket' | 'askOneNotPossible' | 'askUnavailable' | 'askBusy';
@@ -140,11 +141,18 @@ export class AskBoxComponent implements OnChanges {
       if (body.status !== 'ok') { this.lines = (body.replies?.length ? body.replies : [body]).map((r) => this.say(r.reply_key, r.reply_args)); return; }
       const next = applyActions(body.actions, uiState(this.data, cur));
       if (next.ignored || !Array.isArray(body.actions) || !body.actions.length) { this.lines = [this.say('askUnsupported')]; return; }
-      const ok = await new Promise<boolean>((done) => this.applied.emit({ next, done }));
-      const replies = body.replies?.length ? body.replies : [body];
-      this.lines = replies.filter((r) => ok || r.reply_key !== 'askDonePinned').map((r) => this.say(r.reply_key, r.reply_args));
-      if (!ok) this.lines.push(this.m.askPinsNotPossible);
+      const { ok, plan } = await new Promise<{ ok: boolean; plan?: AskPlan }>((resolve) =>
+        this.applied.emit({ next, done: (ok, plan) => resolve({ ok, plan }) }));
       this.value = '';
+      // The page has no total: say so, never "Showing …" or "Left out …".
+      if (plan && !plan.orders) { this.lines = [this.m.askNoPlan]; return; }
+      const replies = body.replies?.length ? body.replies : [body];
+      // "Showing 1 order" only when the page shows one order holding every book.
+      const one = !plan ? '' : plan.orders > 1 ? fill(this.m.askOneTakesMore, { n: String(plan.orders) })
+        : plan.missing.length && next.tab === 'one' ? fill(this.m.askOneLeavesOut, { books: plan.missing.join(', ') }) : '';
+      this.lines = replies.filter((r) => ok || r.reply_key !== 'askDonePinned')
+        .map((r) => one && r.reply_key === 'askDoneTab' && r.reply_args?.['tab'] === 'one' ? one : this.say(r.reply_key, r.reply_args));
+      if (!ok) this.lines.push(this.m.askPinsNotPossible);
     } finally {
       this.working = false;
     }

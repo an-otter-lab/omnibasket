@@ -95,6 +95,9 @@ export function applyActions(actions: unknown, ui: AskUiState): AskNext {
   return next;
 }
 
+/** What the host's solve gave on the tab Ask landed on: how many orders, and the titles of basket books in none of them. */
+export interface AskPlan { orders: number; missing: string[] }
+
 /** Structural view of the /solve payload: only what Ask reads. */
 export interface AskData {
   shops: { store_id: string; selectable?: boolean; books_listed?: number }[];

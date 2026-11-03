@@ -1177,6 +1177,7 @@ export class AppComponent implements OnDestroy {
   }
 
   // Feature 7: apply the Ask box's answer, solve, route; if exact editions cannot be bought together, roll the pins back.
+  // The box hears what the solve gave, so its reply can say when there is no plan.
   async onAsk(r: AskApplied): Promise<void> {
     const before = this.pins;
     this.tab = r.next.tab; this.selected = r.next.selected; this.pins = r.next.pins; this.declaredMemberships = r.next.memberships;
@@ -1186,7 +1187,7 @@ export class AppComponent implements OnDestroy {
     const ok = !(this.data?.edition.status === 'not_possible' && JSON.stringify(before) !== JSON.stringify(this.pins));
     if (!ok) { this.pins = before; await this.solve(); }
     this.go('result/' + this.tab);
-    r.done(ok);
+    r.done(ok, { orders: this.orders.length, missing: this.leftOutBooks.map((b) => b.item.title) });
   }
 
   setMemberships(ids: string[]): void {
