@@ -191,6 +191,18 @@ describe('Ask box', () => {
     expect(lines).toEqual(['Left out Amazon.de.', 'Showing 1 order.']);
   });
 
+  it('compound the other way round: the page lands on Custom and the reply says so', async () => {
+    askReply = () => ok(
+      [act('set_tab', { tab: 'cheapest' }), act('exclude_store', { store_id: 'amazon_de' })],
+      [{ reply_key: 'askDoneTab', reply_args: { tab: 'cheapest' } }, { reply_key: 'askDoneExclude', reply_args: { shop: 'Amazon.de' } }],
+    );
+    const f = await setup();
+    await ask(f, 'cheapest, no Amazon');
+    expect(f.app.tab).toBe('custom');
+    const lines = Array.from(f.el.querySelectorAll('app-ask-box .ask-reply span')).map((s) => s.textContent);
+    expect(lines).toEqual(['Showing Custom.', 'Left out Amazon.de.']);
+  });
+
   it('an action outside the five: nothing applied, askUnsupported', async () => {
     askReply = () => ok([act('delete_basket', {})]);
     const f = await setup();
@@ -343,7 +355,7 @@ describe('Ask box reply after the solve', () => {
     cheapest: { orders: [] }, one_order: { answer: null }, custom: null,
   };
   const ONE = { status: 'ok', actions: [{ name: 'set_tab', args: { tab: 'one' } }], reply_key: 'askDoneTab', reply_args: { tab: 'one' } };
-  async function run(lang: 'en' | 'ro', plan: { orders: number; missing: string[] }, body: object = ONE) {
+  async function run(lang: 'en' | 'ro', plan: { orders: number; missing: string[]; tab?: 'cheapest' | 'one' | 'custom' }, body: object = ONE) {
     spyOn(window, 'fetch').and.resolveTo(new Response(JSON.stringify(body), { status: 200 }));
     const fixture = TestBed.createComponent(AskBoxComponent);
     const box = fixture.componentInstance;
@@ -378,6 +390,29 @@ describe('Ask box reply after the solve', () => {
       replies: [{ reply_key: 'askDoneTab', reply_args: { tab: 'one' } }, { reply_key: 'askDoneInclude', reply_args: { shop: 'Libris' } }],
     };
     expect(await run('en', { orders: 1, missing: ['Matilda'] }, body)).toEqual(['One order can’t hold every book. Not in it: Matilda.', 'Added Libris back.']);
+  });
+  // "one order, no Libris": the exclude after set_tab lands the page on Custom, so the reply names Custom.
+  const ONE_THEN_EXCLUDE = {
+    status: 'ok', actions: [{ name: 'set_tab', args: { tab: 'one' } }, { name: 'exclude_store', args: { store_id: 'libris' } }],
+    reply_key: 'askDoneTab', reply_args: { tab: 'one' },
+    replies: [{ reply_key: 'askDoneTab', reply_args: { tab: 'one' } }, { reply_key: 'askDoneExclude', reply_args: { shop: 'Libris' } }],
+  };
+  it('one order then a leave-out, landing on Custom with one order: names Custom, EN', async () => {
+    expect(await run('en', { orders: 1, missing: [], tab: 'custom' }, ONE_THEN_EXCLUDE)).toEqual(['Showing Custom.', 'Left out Libris.']);
+  });
+  it('one order then a leave-out, landing on Custom with one order: names Custom, RO', async () => {
+    expect(await run('ro', { orders: 1, missing: [], tab: 'custom' }, ONE_THEN_EXCLUDE)).toEqual(['Afișez: Personalizat.', 'Am scos Libris.']);
+  });
+  it('cheapest then a leave-out lands on Custom: names Custom, not cheapest', async () => {
+    const body = {
+      status: 'ok', actions: [{ name: 'set_tab', args: { tab: 'cheapest' } }, { name: 'exclude_store', args: { store_id: 'libris' } }],
+      reply_key: 'askDoneTab', reply_args: { tab: 'cheapest' },
+      replies: [{ reply_key: 'askDoneTab', reply_args: { tab: 'cheapest' } }, { reply_key: 'askDoneExclude', reply_args: { shop: 'Libris' } }],
+    };
+    expect(await run('en', { orders: 2, missing: [], tab: 'custom' }, body)).toEqual(['Showing Custom.', 'Left out Libris.']);
+  });
+  it('the tab it asked for is the tab it landed on: unchanged', async () => {
+    expect(await run('en', { orders: 1, missing: [], tab: 'one' })).toEqual(['Showing 1 order.']);
   });
   it('a membership on a page with no total is still said, not askNoPlan: it was applied', async () => {
     const body = { status: 'ok', actions: [{ name: 'set_membership', args: { membership_id: 'libris_card', on: true } }], reply_key: 'askDoneMembership', reply_args: { name: 'Libris card' } };

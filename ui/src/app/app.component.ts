@@ -1187,7 +1187,7 @@ export class AppComponent implements OnDestroy {
     const ok = !(this.data?.edition.status === 'not_possible' && JSON.stringify(before) !== JSON.stringify(this.pins));
     if (!ok) { this.pins = before; await this.solve(); }
     this.go('result/' + this.tab);
-    r.done(ok, { orders: this.orders.length, missing: this.leftOutBooks.map((b) => b.item.title) });
+    r.done(ok, { orders: this.orders.length, missing: this.leftOutBooks.map((b) => b.item.title), tab: this.tab });
   }
 
   setMemberships(ids: string[]): void {

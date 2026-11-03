@@ -96,7 +96,7 @@ export function applyActions(actions: unknown, ui: AskUiState): AskNext {
 }
 
 /** What the host's solve gave on the tab Ask landed on: how many orders, and the titles of basket books in none of them. */
-export interface AskPlan { orders: number; missing: string[] }
+export interface AskPlan { orders: number; missing: string[]; tab?: AskTab }
 
 /** Structural view of the /solve payload: only what Ask reads. */
 export interface AskData {
