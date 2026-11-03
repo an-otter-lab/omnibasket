@@ -24,6 +24,29 @@ from matching.isbn import normalize_isbn13
 from matching.validate import validate_extraction
 
 
+# What Muse is sent for one page (3 Nov): whitespace runs collapsed, then at most this many characters.
+# A normal product page is about 35k tokens. Books-Express answers the VM with an unrequested gzip
+# body (1 GiB of blanks once unpacked); read as text it is binary noise, and it went to Muse as
+# 526k tokens (USD 0.67 a call) before this guard.
+MAX_MUSE_PAGE_CHARS = 150_000
+# A page where more than this share of characters are U+FFFD or control characters is not text.
+MAX_UNREADABLE_SHARE = 0.01
+_WHITESPACE = re.compile(r"\s+")
+_UNREADABLE = re.compile(r"[\ufffd\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
+
+
+def muse_page_input(page_text: str | None) -> str | None:
+    """The page text Muse sees: whitespace collapsed and capped. None when the page is blank or
+    is binary noise, so no model call is made for it."""
+    text = _WHITESPACE.sub(" ", page_text or "").strip()
+    if not text:
+        return None
+    sample = text[:MAX_MUSE_PAGE_CHARS]
+    if len(_UNREADABLE.findall(sample)) > MAX_UNREADABLE_SHARE * len(sample):
+        return None
+    return sample
+
+
 @dataclass
 class MuseResult:
     """Result from Muse gap-fill and cross-check."""
@@ -332,12 +355,13 @@ def gap_fill_with_muse(
     """
     result = MuseResult()
     
-    if not page_text or not page_text.strip():
+    muse_text = muse_page_input(page_text)
+    if muse_text is None:
         return result
     
     try:
         # Call Muse
-        fields, tokens_in, tokens_out, cost, latency, endpoint = _call_muse(page_text)
+        fields, tokens_in, tokens_out, cost, latency, endpoint = _call_muse(muse_text)
         
         result.tokens_in = tokens_in
         result.tokens_out = tokens_out
