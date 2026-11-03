@@ -36,7 +36,7 @@ The plan being built is the Tuesday-to-Wednesday push to the 4 Nov submission; w
 - Never print a secret in logs, chat or docs.
 
 ## Submission claims
-- Models: the submission says Muse Spark 1.3 on the Meta Model API only. No open-weight or Baseten claim: no part of the app calls it (Adrian, 2 Nov).
+- Models (T2, 3 Nov, Adrian; replaces the 2 Nov "1.3 only" rule): Muse Spark Open on Baseten (`meta-models/muse-spark-open-1026`) runs Ask Omnibasket and the free-text parse, with Muse Spark 1.3 as fallback. Everything else stays on Muse Spark 1.3 on the Meta Model API. The lane list is `OPEN_WEIGHT_NOTES` in `tools/meta_budget.py`. Claim an open-weight number only if a `"provider": "baseten"` ledger row backs it.
 - The public tree is a client deliverable: no shop screenshots or copied shop text, no internal plans, no exploration scripts, no local paths or IPs. The spend ledger and `docs/ground-truth.xlsx` stay (Adrian, 2 Nov).
 
 ## Copy
