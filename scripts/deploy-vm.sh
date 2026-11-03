@@ -3,7 +3,9 @@ set -euo pipefail
 # From the Mac: copy the search index (gitignored, about 240 MB) when the Mac's copy is newer, then run this
 # same script on the VM. The VM's META_API_KEY comes from /etc/omnibasket/env, never from here (D3).
 if [ "$(uname)" = "Darwin" ]; then
-  VM="${VM:-omnibasket@vm.example.com}"
+  # The host stays out of the repo: VM=user@host in the environment or in ~/.config/omnibasket/vm.env.
+  [ -f "$HOME/.config/omnibasket/vm.env" ] && . "$HOME/.config/omnibasket/vm.env"
+  VM="${VM:?set VM=user@host, in the environment or in ~/.config/omnibasket/vm.env}"
   KEY="${KEY:-$HOME/.config/omnibasket/omnibasket_oci}"
   ROOT="$(cd "$(dirname "$0")/.." && pwd)"
   ssh -i "$KEY" "$VM" mkdir -p /opt/omnibasket/data/index
