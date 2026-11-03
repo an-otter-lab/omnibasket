@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Muse Spark spend ledger and 50 USD cap.
+"""Muse Spark spend ledger and spend caps.
 
-Every call this process makes is refused before it is sent if the ledger total
-plus the estimate would reach 50 USD. The external hourly audit reads the
+Every call this process makes is refused before it is sent if it would take a
+spend window (config/spend-windows.json) past its cap. The external hourly audit reads the
 ledger at `data/meta-spend.jsonl` (or `META_SPEND_PATH`) and sums cost_usd.
 Each checkout writes its rows to its own tracked `data/meta-spend.jsonl`, which
 its branch commits. The caps count the rows of the main checkout and of every
@@ -27,7 +27,8 @@ from datetime import time as dtime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-CAP_USD = 50.0
+# No lifetime cap (Adrian, 3 Nov); the daily windows in config/spend-windows.json are the caps.
+CAP_USD = None
 # Published Meta Model API list rates for muse-spark-1.3 (not the Contributor tier).
 # Computed cost uses these until a response includes its own cost figure.
 RATE_IN_PER_M = 1.25
@@ -122,7 +123,7 @@ OPEN_WEIGHT_NOTES = frozenset({"ask-map", "input-free-text"})
 # Meta's ask-map latency is p50 2.3 s and at most 10.8 s over 32 calls.
 OPEN_WEIGHT_TIMEOUT_S = 12
 MAIN_ENV = Path(os.environ.get("OMNIBASKET_ENV") or (SHARED / ".env"))
-# Dated spend windows on top of the lifetime cap, e.g. Adrian's 10 USD limit on Meta
+# Dated spend windows (the only caps since 3 Nov), e.g. Adrian's 10 USD limit on Meta
 # for the 30 Oct overnight session. The main checkout's file, so every worktree
 # obeys the same windows.
 WINDOWS = SHARED / "config" / "spend-windows.json"
@@ -134,7 +135,7 @@ class CapExceeded(RuntimeError):
         self.spent = spent
         self.estimate = estimate
         super().__init__(
-            "refused: spend %.6f + estimate %.6f would reach the %.2f USD cap" % (spent, estimate, CAP_USD)
+            "refused: spend %.6f + estimate %.6f would reach the %.2f USD cap" % (spent, estimate, CAP_USD or 0.0)
         )
 
 
@@ -334,7 +335,8 @@ def would_exceed(estimate_usd, path=None, provider="meta"):
     estimate_usd = float(estimate_usd)
     if estimate_usd < 0:
         raise ValueError("estimate must be >= 0")
-    return spent_usd(path) + estimate_usd >= CAP_USD or window_exceeded(estimate_usd, path, provider) is not None
+    over_cap = CAP_USD is not None and spent_usd(path) + estimate_usd >= CAP_USD
+    return over_cap or window_exceeded(estimate_usd, path, provider) is not None
 
 
 def assert_can_spend(estimate_usd, path=None, provider="meta"):
@@ -387,8 +389,8 @@ def status_lines():
         "calls: %d" % len(rows),
         "spend_usd: %.6f" % spent,
         "tonight_usd: %.6f" % night,
-        "cap_usd: %.2f" % CAP_USD,
-        "remaining_usd: %.6f" % (CAP_USD - spent),
+        "cap_usd: %s" % ("none" if CAP_USD is None else "%.2f" % CAP_USD),
+        "remaining_usd: %s" % ("n/a" if CAP_USD is None else "%.6f" % (CAP_USD - spent)),
     ] + [
         "window_%s_%s: %.6f of %.2f" % (
             w["provider"], "today" if w.get("period") == "day" else "since_" + w["from"],
