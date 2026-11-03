@@ -82,7 +82,7 @@ The responsive Angular UI shows the solve results as tabs: **1 order** (one shop
 | Solver | `solver/`: exhaustive assignment in integer cents. Tests in `solver/tests/`, including the Romanian basket. |
 | Storage | SQLite page cache, seeded from the locked Romanian basket. |
 | Front end | Angular and TypeScript in `ui/`, responsive. Declared memberships are one switch each under Options, shown only for a shop that can take a book. |
-| Stores | Five indexed shops: Libris, Bookzone, eMAG, Elefant (its imported books) and Amazon.de (Amazon.de is never read live). Elefant replaced Books-Express on 3 Nov, when Books-Express started answering the app's server with a gzip bomb. Any other shop works only by pasting a link, in that shopper's basket. |
+| Stores | Indexed and read live: Libris and Elefant (its imported books). Bookzone and eMAG have shop files, so a pasted link to them works, but no index yet (Bookzone has no product sitemap; eMAG refuses reads), so the app shows them as "Not checked here". Amazon.de is never read live. Elefant replaced Books-Express on 3 Nov, when Books-Express started answering the app's server with a gzip bomb; a blocked read is reported as failed, never worked around. Any other shop works only by pasting a link, in that shopper's basket. |
 
 ## Run the demo
 
@@ -125,7 +125,7 @@ A working app on a public URL. What is built:
 
 - **One box**: type a title, author or ISBN (Romanian or English), paste a shop link, or photograph a reading list. Any
   book can go in the basket; the saved `ro-v1` basket is only the demo-mode sample and the test fixture.
-- **Search** on our own index of five shops, built from their sitemaps, plus Open Library for ISBNs and covers. No shop
+- **Search** on our own index of the shops (Libris and Elefant today), built from their sitemaps, plus Open Library for ISBNs and covers. No shop
   search page is ever fetched; each product page gets one live read, Amazon.de none. When Open Library does not answer
   within 3 s, its earlier answers or the shop index answer instead, marked as shop listings.
 - **An exhaustive integer-cents solver** (`solver/`): one order, the cheapest split, or a set of shops you choose, with
