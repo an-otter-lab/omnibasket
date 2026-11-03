@@ -188,7 +188,7 @@ interface Payload {
   currency: string;
   cached: boolean;
   read_at_range: { oldest: string | null; newest: string | null };
-  degraded: { kind: 'one_book' | 'one_shop'; reason: string; store_id?: string } | null;
+  degraded: { kind: 'one_book' | 'one_shop'; reason: string; reason_code?: string | null; reason_args?: ReasonArgs; store_id?: string } | null;
   shops: Shop[];
   books: BookRow[];
   cheapest: Answer & { degraded?: boolean };
@@ -1333,7 +1333,7 @@ export class AppComponent implements OnDestroy {
       this.snapshot = this.snapshot ?? next;
       void this.loadWhy(next);
       this.dirty = false;
-      if (next.degraded?.kind === 'one_shop' && this.route.name === 'result') this.tab = 'one';
+      if (this.oneShopOnly(next) && this.route.name === 'result') this.tab = 'one';
     }
     this.busy = false;
   }
@@ -1352,7 +1352,7 @@ export class AppComponent implements OnDestroy {
       return;
     }
     if (this.route.name === 'result') {
-      if (this.data.degraded?.kind === 'one_shop') this.tab = 'one';
+      if (this.oneShopOnly(this.data)) this.tab = 'one';
       this.lastOrderTab = this.tab;
       if (this.dirty) void this.solve().then(() => this.ensureCustom());
       else this.ensureCustom();
@@ -1519,6 +1519,11 @@ export class AppComponent implements OnDestroy {
 
   // ------------------------------------------------------------ view helpers
 
+  /** One shop priced but no ranked order there: only the one-order tab has something to show. */
+  private oneShopOnly(d: Payload): boolean {
+    return d.degraded?.kind === 'one_shop' && d.cheapest.status !== 'ranked';
+  }
+
   get degraded(): 'one_book' | 'one_shop' | null {
     return this.data?.degraded?.kind ?? null;
   }
@@ -1624,7 +1629,7 @@ export class AppComponent implements OnDestroy {
 
   /** The tab that is selected right now, so the result panel can name it (design note §5). */
   get activeTabId(): string {
-    if (this.degraded === 'one_shop') return 'tab-one';
+    if (this.degraded === 'one_shop') return 'tab-cheapest';
     if (this.cheapestIsOneOrder) return this.tab === 'custom' ? 'tab-custom' : 'tab-cheapest';
     return 'tab-' + this.tab;
   }
