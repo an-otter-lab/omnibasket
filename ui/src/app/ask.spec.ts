@@ -1,4 +1,4 @@
-import { AskData, AskUiState, applyActions, askState } from './ask';
+import { AskData, AskUiState, applyActions, askState, uiState } from './ask';
 
 const UI: AskUiState = {
   tab: 'cheapest',
@@ -100,9 +100,16 @@ describe('askState', () => {
   const data: AskData = {
     shops: [{ store_id: 'libris' }, { store_id: 'amazon_de' }], books: [], cheapest: { orders: [] }, one_order: { answer: null }, custom: null,
   };
-  it('tells the server the pool after a leave-out, and no hand-picked Custom set otherwise', () => {
+  it('tells the server the pool after a leave-out, and every selectable shop otherwise, never a hand-picked Custom set', () => {
     const cur = { tab: 'custom' as const, selected: ['libris'], pins: {}, memberships: [] };
-    expect(askState(data, cur)['selected_store_ids']).toBeNull();
+    expect(askState(data, cur)['selected_store_ids']).toEqual(['libris', 'amazon_de']);
     expect(askState(data, { ...cur, within: true, leftOut: ['amazon_de'] })['selected_store_ids']).toEqual(['libris']);
+  });
+  it('a shop that is not selectable is not in the pool the server checks, as in applyActions', () => {
+    const d: AskData = { ...data, shops: [{ store_id: 'libris' }, { store_id: 'emag', selectable: false }] };
+    const cur = { tab: 'cheapest' as const, selected: null, pins: {}, memberships: [] };
+    expect(askState(d, cur)['selected_store_ids']).toEqual(['libris']);
+    expect(askState(d, cur)['store_ids']).toEqual(['libris', 'emag']);
+    expect(applyActions([{ name: 'exclude_store', args: { store_id: 'libris' } }], uiState(d, cur)).ignored).toBe(1);
   });
 });

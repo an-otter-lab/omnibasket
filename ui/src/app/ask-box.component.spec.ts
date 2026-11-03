@@ -338,11 +338,13 @@ describe('Ask box', () => {
 
 describe('Ask box reply after the solve', () => {
   const data = {
-    shops: [{ store_id: 'libris' }], books: [{ item_id: 'b1', editions: [], shops: [] }],
+    shops: [{ store_id: 'libris' }, { store_id: 'emag' }], books: [{ item_id: 'b1', editions: [], shops: [] }],
+    memberships: [{ id: 'libris_card', store_id: 'libris', name: 'Libris card' }],
     cheapest: { orders: [] }, one_order: { answer: null }, custom: null,
   };
-  async function run(lang: 'en' | 'ro', plan: { orders: number; missing: string[] }) {
-    spyOn(window, 'fetch').and.resolveTo(new Response(JSON.stringify({ status: 'ok', actions: [{ name: 'set_tab', args: { tab: 'one' } }], reply_key: 'askDoneTab', reply_args: { tab: 'one' } }), { status: 200 }));
+  const ONE = { status: 'ok', actions: [{ name: 'set_tab', args: { tab: 'one' } }], reply_key: 'askDoneTab', reply_args: { tab: 'one' } };
+  async function run(lang: 'en' | 'ro', plan: { orders: number; missing: string[] }, body: object = ONE) {
+    spyOn(window, 'fetch').and.resolveTo(new Response(JSON.stringify(body), { status: 200 }));
     const fixture = TestBed.createComponent(AskBoxComponent);
     const box = fixture.componentInstance;
     box.lang = lang;
@@ -368,5 +370,25 @@ describe('Ask box reply after the solve', () => {
   });
   it('no orders at all: askNoPlan', async () => {
     expect(await run('ro', { orders: 0, missing: [] })).toEqual([MESSAGES.ro.askNoPlan]);
+  });
+  it('one order asked, landing on Custom with one order that leaves a book out: says so, not Showing 1 order', async () => {
+    const body = {
+      status: 'ok', actions: [{ name: 'set_tab', args: { tab: 'one' } }, { name: 'include_store', args: { store_id: 'libris' } }],
+      reply_key: 'askDoneTab', reply_args: { tab: 'one' },
+      replies: [{ reply_key: 'askDoneTab', reply_args: { tab: 'one' } }, { reply_key: 'askDoneInclude', reply_args: { shop: 'Libris' } }],
+    };
+    expect(await run('en', { orders: 1, missing: ['Matilda'] }, body)).toEqual(['One order can’t hold every book. Not in it: Matilda.', 'Added Libris back.']);
+  });
+  it('a membership on a page with no total is still said, not askNoPlan: it was applied', async () => {
+    const body = { status: 'ok', actions: [{ name: 'set_membership', args: { membership_id: 'libris_card', on: true } }], reply_key: 'askDoneMembership', reply_args: { name: 'Libris card' } };
+    expect(await run('en', { orders: 0, missing: [] }, body)).toEqual(['Counted your Libris card.']);
+  });
+  it('a leave-out with no total says askNoPlan, and a membership in the same question is still said, RO', async () => {
+    const body = {
+      status: 'ok', actions: [{ name: 'exclude_store', args: { store_id: 'libris' } }, { name: 'set_membership', args: { membership_id: 'libris_card', on: true } }],
+      reply_key: 'askDoneExclude', reply_args: { shop: 'Libris' },
+      replies: [{ reply_key: 'askDoneExclude', reply_args: { shop: 'Libris' } }, { reply_key: 'askDoneMembership', reply_args: { name: 'cardul Libris' } }],
+    };
+    expect(await run('ro', { orders: 0, missing: [] }, body)).toEqual([MESSAGES.ro.askNoPlan, 'Am luat în calcul cardul Libris.']);
   });
 });

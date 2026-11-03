@@ -126,8 +126,9 @@ export function askState(data: AskData, cur: AskInputs): Record<string, unknown>
   const ui = uiState(data, cur);
   return {
     tab: cur.tab,
-    // An exclude starts from every shop but the ones Ask left out, not from a hand-picked Custom set.
-    selected_store_ids: cur.within ? cur.selected : null,
+    // An exclude starts from every selectable shop but the ones Ask left out, not from a hand-picked
+    // Custom set: the same pool applyActions uses, so the server's "never zero shops" check agrees with it.
+    selected_store_ids: cur.within ? cur.selected : ui.base,
     memberships: cur.memberships,
     edition_pins: cur.pins,
     store_ids: ui.stores,

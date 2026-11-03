@@ -15,6 +15,8 @@ const REPLY_KEYS: readonly string[] = ['askDoneTab', 'askDoneExclude', 'askDoneI
 
 interface Reply { reply_key: string; reply_args?: Record<string, unknown> }
 interface AskResponse extends Reply { status: 'ok' | 'unsupported'; actions: unknown[]; replies?: Reply[] }
+/** Replies that say where the plan landed; with no orders they give way to askNoPlan. */
+const PLAN_REPLIES: readonly string[] = ['askDoneTab', 'askDoneExclude', 'askDoneInclude'];
 
 @Component({
   selector: 'app-ask-box',
@@ -144,14 +146,18 @@ export class AskBoxComponent implements OnChanges {
       const { ok, plan } = await new Promise<{ ok: boolean; plan?: AskPlan }>((resolve) =>
         this.applied.emit({ next, done: (ok, plan) => resolve({ ok, plan }) }));
       this.value = '';
-      // The page has no total: say so, never "Showing …" or "Left out …".
-      if (plan && !plan.orders) { this.lines = [this.m.askNoPlan]; return; }
-      const replies = body.replies?.length ? body.replies : [body];
-      // "Showing 1 order" only when the page shows one order holding every book.
-      const one = !plan ? '' : plan.orders > 1 ? fill(this.m.askOneTakesMore, { n: String(plan.orders) })
-        : plan.missing.length && next.tab === 'one' ? fill(this.m.askOneLeavesOut, { books: plan.missing.join(', ') }) : '';
-      this.lines = replies.filter((r) => ok || r.reply_key !== 'askDonePinned')
-        .map((r) => one && r.reply_key === 'askDoneTab' && r.reply_args?.['tab'] === 'one' ? one : this.say(r.reply_key, r.reply_args));
+      const replies = (body.replies?.length ? body.replies : [body]).filter((r) => ok || r.reply_key !== 'askDonePinned');
+      if (plan && !plan.orders) {
+        // The page has no total: a tab or shop reply becomes askNoPlan, never "Showing …" or "Left out …".
+        // A membership or edition reply stays: that change was applied.
+        const kept = replies.filter((r) => !PLAN_REPLIES.includes(r.reply_key));
+        this.lines = [...(kept.length < replies.length ? [this.m.askNoPlan] : []), ...kept.map((r) => this.say(r.reply_key, r.reply_args))];
+      } else {
+        // "Showing 1 order" only when the page shows one order holding every book, whichever tab it landed on.
+        const one = !plan ? '' : plan.orders > 1 ? fill(this.m.askOneTakesMore, { n: String(plan.orders) })
+          : plan.missing.length ? fill(this.m.askOneLeavesOut, { books: plan.missing.join(', ') }) : '';
+        this.lines = replies.map((r) => one && r.reply_key === 'askDoneTab' && r.reply_args?.['tab'] === 'one' ? one : this.say(r.reply_key, r.reply_args));
+      }
       if (!ok) this.lines.push(this.m.askPinsNotPossible);
     } finally {
       this.working = false;
